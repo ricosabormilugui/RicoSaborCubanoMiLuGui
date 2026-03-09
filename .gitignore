@@ -25,3 +25,6 @@ node_modules
 
 # logs
 npm-debug.log
+# whatsapp-web.js session
+.wwebjs_auth/
+.wwebjs_cache/

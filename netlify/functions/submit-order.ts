@@ -1,5 +1,3 @@
-import { MongoClient } from 'mongodb';
-
 interface OrderPayload {
   customer?: {
     fullName?: string;
@@ -23,8 +21,6 @@ interface OrderPayload {
   total?: number;
 }
 
-let mongoClient: MongoClient | null = null;
-
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -33,25 +29,10 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
-async function getMongoClient(): Promise<MongoClient> {
-  if (mongoClient) {
-    return mongoClient;
-  }
-
-  const uri = getRequiredEnv('MONGODB_URI');
-  mongoClient = new MongoClient(uri);
-  await mongoClient.connect();
-  return mongoClient;
-}
-
 async function sendEmailNotification(orderId: string, payload: OrderPayload): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.NOTIFY_EMAIL_FROM;
-  const to = process.env.NOTIFY_EMAIL_TO;
-
-  if (!apiKey || !from || !to) {
-    return;
-  }
+  const apiKey = getRequiredEnv('RESEND_API_KEY');
+  const from = getRequiredEnv('NOTIFY_EMAIL_FROM');
+  const to = getRequiredEnv('NOTIFY_EMAIL_TO');
 
   const html = `
     <h2>Nuevo pedido: ${orderId}</h2>
@@ -80,21 +61,17 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   });
 }
 
-async function sendSmsNotification(orderId: string, payload: OrderPayload): Promise<void> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  const to = process.env.NOTIFY_SMS_TO;
-
-  if (!accountSid || !authToken || !from || !to) {
-    return;
-  }
+async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<void> {
+  const accountSid = getRequiredEnv('TWILIO_ACCOUNT_SID');
+  const authToken = getRequiredEnv('TWILIO_AUTH_TOKEN');
+  const from = getRequiredEnv('TWILIO_WHATSAPP_FROM');
+  const to = getRequiredEnv('NOTIFY_WHATSAPP_TO');
 
   const body = `Nuevo pedido ${orderId}. Cliente: ${payload.customer?.fullName ?? 'N/A'}. Tel: ${payload.customer?.phone ?? 'N/A'}. Total: ${payload.total ?? 0} EUR.`;
 
   const form = new URLSearchParams();
-  form.set('From', from);
-  form.set('To', to);
+  form.set('From', `whatsapp:${from}`);
+  form.set('To', `whatsapp:${to}`);
   form.set('Body', body);
 
   const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
@@ -122,25 +99,12 @@ export default async (request: Request): Promise<Response> => {
     }
 
     const orderId = `RS-${Date.now()}`;
-    const createdAt = new Date().toISOString();
-
-    const client = await getMongoClient();
-    const dbName = getRequiredEnv('MONGODB_DB_NAME');
-    const collectionName = process.env.MONGODB_ORDERS_COLLECTION ?? 'orders';
-
-    await client.db(dbName).collection(collectionName).insertOne({
-      orderId,
-      status: 'nuevo',
-      createdAt,
-      ...payload
-    });
-
     await Promise.all([
       sendEmailNotification(orderId, payload),
-      sendSmsNotification(orderId, payload)
+      sendWhatsAppNotification(orderId, payload)
     ]);
 
-    return new Response(JSON.stringify({ orderId, channel: 'netlify' }), {
+    return new Response(JSON.stringify({ orderId, channel: 'netlify-email-whatsapp' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
