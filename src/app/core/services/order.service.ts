@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
+import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { CartService } from './cart.service';
 
 export interface SubmitOrderResponse {
@@ -36,7 +37,7 @@ export class OrderService {
   }
 
   async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
-    if (!this.canUseNetlifyEndpoint()) {
+    if (ORDER_SUBMISSION_MODE === 'local') {
       return this.saveOrderLocally(payload);
     }
 
@@ -56,7 +57,7 @@ export class OrderService {
         };
       }
 
-      if (this.shouldFallbackToLocal(response.status)) {
+      if (this.isLocalEnvironment()) {
         return this.saveOrderLocally(payload);
       }
 
@@ -67,19 +68,6 @@ export class OrderService {
       }
       throw new Error('No se pudo enviar el pedido.');
     }
-  }
-
-  private shouldFallbackToLocal(statusCode: number): boolean {
-    return this.isLocalEnvironment() && (statusCode === 404 || statusCode === 502 || statusCode === 503);
-  }
-
-  private canUseNetlifyEndpoint(): boolean {
-    if (!this.isLocalEnvironment()) {
-      return true;
-    }
-
-    const port = globalThis?.location?.port ?? '';
-    return port === '8888';
   }
 
   private isLocalEnvironment(): boolean {

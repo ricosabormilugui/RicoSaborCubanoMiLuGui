@@ -7,7 +7,7 @@ Proyecto base para una tienda web en Angular + TypeScript con despliegue en Netl
 - Catálogo de productos con búsqueda y filtro por categoría.
 - Carrito con suma automática y control de cantidades.
 - Checkout sin pago online (captura datos de cliente + entrega + notas).
-- Envío de pedido a función serverless de Netlify (`/.netlify/functions/submit-order`).
+- Envío de pedido configurable: por defecto guarda localmente (modo desarrollo) y opcionalmente puede enviar a Netlify Function.
 - Formulario de solicitud de información.
 
 ## Estructura
@@ -46,9 +46,14 @@ El archivo `netlify.toml` ya incluye:
 2. Enviar notificación por email/WhatsApp al crear pedido.
 3. Crear panel interno de gestión de estados (`nuevo`, `confirmado`, `en preparación`, etc.).
 
-## Envío de pedidos en desarrollo local
+## Envío de pedidos en esta fase (sin despliegue aún)
 
-- En producción (o Netlify), el checkout envía a `/.netlify/functions/submit-order`.
-- En local con `ng serve` (`localhost:4200`), **no existe esa función**; por eso la app guarda el pedido como borrador en `localStorage` con un ID `LOCAL-...`.
-- La UI ahora muestra explícitamente el destino del pedido (Netlify Function o localStorage).
-- Para probar el flujo real serverless en local, usa `netlify dev` (normalmente en `localhost:8888`).
+- La app está configurada por defecto en modo **local** (`ORDER_SUBMISSION_MODE = 'local'`).
+- En ese modo, el checkout guarda pedidos en `localStorage` con IDs `LOCAL-...` (clave: `ricosabor-local-orders`).
+- Esto evita errores mientras todavía no has desplegado en Netlify.
+
+### Cuando quieras activar Netlify
+
+1. Cambia `src/app/core/config/order.config.ts` a `ORDER_SUBMISSION_MODE = 'netlify'`.
+2. Prueba con `netlify dev` en local o despliega en Netlify.
+3. A partir de ahí, el checkout enviará al endpoint `/.netlify/functions/submit-order`.
