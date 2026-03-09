@@ -73,3 +73,13 @@ export interface Order {
 - Dashboard interno de pedidos.
 - Integración WhatsApp Business API.
 - Historial de cliente y recompra.
+
+
+## Backend recomendado (implementado en Netlify Function)
+
+- Endpoint: `netlify/functions/submit-order.ts`.
+- Persistencia: MongoDB Atlas (`MONGODB_URI`, `MONGODB_DB_NAME`).
+- Notificaciones:
+  - Email por Resend (si hay credenciales).
+  - SMS por Twilio (si hay credenciales).
+- Estado inicial del pedido al guardar: `nuevo`.
