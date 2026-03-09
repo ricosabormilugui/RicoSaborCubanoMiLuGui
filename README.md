@@ -121,3 +121,16 @@ npm start
 ```
 
 > Importante: se ignoraron `.wwebjs_auth/` y `.wwebjs_cache/` en git para no versionar sesión de WhatsApp.
+
+
+### Troubleshooting Netlify: `Could not read package.json`
+
+Si el log muestra `ENOENT: no such file or directory, open '/opt/build/repo/package.json'`:
+
+1. En Netlify ve a **Site settings → Build & deploy → Build settings**.
+2. Deja **Base directory** vacío (o `.`) para usar la raíz del repo.
+3. Build command: `npm run build`.
+4. Publish directory: `dist/ricosabor-tienda/browser`.
+5. Si tenías valores en la UI que pisan `netlify.toml`, pulsa **Clear** para que use el archivo del repo.
+
+Este proyecto define esos valores en `netlify.toml` en la raíz.
