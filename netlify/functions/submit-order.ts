@@ -33,18 +33,6 @@ function getEnv(name: string): string | undefined {
   return value && value.trim().length > 0 ? value : undefined;
 }
 
-function getFirstEnv(...names: string[]): string | undefined {
-  for (const name of names) {
-    const value = getEnv(name);
-    if (value) return value;
-  }
-  return undefined;
-}
-
-function normalizeWhatsappNumber(value: string): string {
-  return value.replace(/^whatsapp:/i, '').trim();
-}
-
 async function sendEmailNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
   const apiKey = getEnv('RESEND_API_KEY');
   const from = getEnv('NOTIFY_EMAIL_FROM');
@@ -65,11 +53,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
       <p><strong>Cliente:</strong> ${payload.customer?.fullName ?? 'N/A'}</p>
       <p><strong>Teléfono:</strong> ${payload.customer?.phone ?? 'N/A'}</p>
       <p><strong>Email:</strong> ${payload.customer?.email ?? 'N/A'}</p>
-      <p><strong>Entrega:</strong> ${payload.delivery?.mode ?? 'N/A'}</p>
-      <p><strong>Dirección:</strong> ${payload.delivery?.address ?? 'N/A'}</p>
       <p><strong>Total:</strong> ${payload.total ?? 0} EUR</p>
-      <p><strong>Items:</strong> ${(payload.items ?? []).map((item) => `${item.name} x${item.quantity}`).join(', ')}</p>
-      <p><strong>Notas:</strong> ${payload.notes ?? '-'}</p>
     `;
 
     const response = await fetch('https://api.resend.com/emails', {
@@ -87,12 +71,11 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
     });
 
     if (!response.ok) {
-      const body = await response.text();
       return {
         channel: 'email',
         configured: true,
         sent: false,
-        detail: `Resend ${response.status}: ${body}`
+        detail: `Resend ${response.status}: ${await response.text()}`
       };
     }
 
@@ -107,47 +90,48 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   }
 }
 
-async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
-  const accountSid = getEnv('TWILIO_ACCOUNT_SID');
-  const authToken = getEnv('TWILIO_AUTH_TOKEN');
-  const from = getFirstEnv('TWILIO_WHATSAPP_FROM', 'TWILIO_FROM_NUMBER');
-  const to = getFirstEnv('NOTIFY_WHATSAPP_TO', 'NOTIFY_SMS_TO');
+function buildWhatsappMessage(orderId: string, payload: OrderPayload): string {
+  return [
+    `🛒 Nuevo pedido ${orderId}`,
+    `Cliente: ${payload.customer?.fullName ?? 'N/A'}`,
+    `Teléfono: ${payload.customer?.phone ?? 'N/A'}`,
+    `Total: ${payload.total ?? 0} EUR`
+  ].join('\n');
+}
 
-  if (!accountSid || !authToken || !from || !to) {
+async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
+  const webhookUrl = getEnv('WHATSAPP_WEBHOOK_URL');
+  const webhookToken = getEnv('WHATSAPP_WEBHOOK_TOKEN');
+
+  if (!webhookUrl) {
     return {
       channel: 'whatsapp',
       configured: false,
       sent: false,
-      detail: 'Missing TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM / NOTIFY_WHATSAPP_TO'
+      detail: 'Missing WHATSAPP_WEBHOOK_URL'
     };
   }
 
   try {
-    const body = `Nuevo pedido ${orderId}. Cliente: ${payload.customer?.fullName ?? 'N/A'}. Tel: ${payload.customer?.phone ?? 'N/A'}. Total: ${payload.total ?? 0} EUR.`;
-
-    const form = new URLSearchParams();
-    form.set('From', `whatsapp:${normalizeWhatsappNumber(from)}`);
-    form.set('To', `whatsapp:${normalizeWhatsappNumber(to)}`);
-    form.set('Body', body);
-
-    const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-
-    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${basicAuth}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/json',
+        ...(webhookToken ? { Authorization: `Bearer ${webhookToken}` } : {})
       },
-      body: form.toString()
+      body: JSON.stringify({
+        orderId,
+        message: buildWhatsappMessage(orderId, payload),
+        payload
+      })
     });
 
     if (!response.ok) {
-      const responseBody = await response.text();
       return {
         channel: 'whatsapp',
         configured: true,
         sent: false,
-        detail: `Twilio ${response.status}: ${responseBody}`
+        detail: `WhatsApp webhook ${response.status}: ${await response.text()}`
       };
     }
 
@@ -175,11 +159,7 @@ export default async (request: Request): Promise<Response> => {
     }
 
     const orderId = `RS-${Date.now()}`;
-    const notifications = await Promise.all([
-      sendEmailNotification(orderId, payload),
-      sendWhatsAppNotification(orderId, payload)
-    ]);
-
+    const notifications = await Promise.all([sendEmailNotification(orderId, payload), sendWhatsAppNotification(orderId, payload)]);
     const anySent = notifications.some((item) => item.sent);
 
     return new Response(
@@ -190,14 +170,10 @@ export default async (request: Request): Promise<Response> => {
         notifications,
         warning: anySent ? undefined : 'Order accepted, but no notification could be sent.'
       }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unexpected error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
