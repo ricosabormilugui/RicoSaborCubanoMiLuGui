@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CartService } from '../../core/services/cart.service';
 import { CheckoutFormData } from '../../core/models/order.model';
@@ -39,6 +39,8 @@ import { OrderService } from '../../core/services/order.service';
   styles: [`.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}textarea{width:100%;margin:.8rem 0;min-height:80px}.ok{color:#0f7a3b}.err{color:#b42318}`]
 })
 export class CheckoutPageComponent {
+  private readonly fb = inject(FormBuilder);
+
   readonly loading = signal(false);
   readonly orderId = signal('');
   readonly error = signal('');
@@ -54,11 +56,7 @@ export class CheckoutPageComponent {
     notes: ['']
   });
 
-  constructor(
-    public readonly cart: CartService,
-    private readonly fb: FormBuilder,
-    private readonly orderService: OrderService
-  ) {}
+  constructor(public readonly cart: CartService, private readonly orderService: OrderService) {}
 
   async submit(): Promise<void> {
     if (this.form.invalid) return;

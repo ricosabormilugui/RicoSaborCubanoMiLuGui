@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
@@ -21,6 +21,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
   styles: [`form{display:grid;gap:.7rem}input,textarea{padding:.6rem;border:1px solid #cfd8e3;border-radius:8px}`]
 })
 export class ContactPageComponent {
+  private readonly fb = inject(FormBuilder);
+
   sent = false;
 
   readonly form = this.fb.nonNullable.group({
@@ -29,8 +31,6 @@ export class ContactPageComponent {
     email: ['', [Validators.email]],
     message: ['', Validators.required]
   });
-
-  constructor(private readonly fb: FormBuilder) {}
 
   submit(): void {
     this.sent = true;
