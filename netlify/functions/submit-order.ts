@@ -94,17 +94,50 @@ function buildWhatsappMessage(orderId: string, payload: OrderPayload): string {
   ].join('\n');
 }
 
+function resolveWhatsappWebhookUrl(): string | undefined {
+  const directUrl = getEnv('WHATSAPP_WEBHOOK_URL');
+  if (directUrl) return directUrl;
+
+  const backendApiUrl = getEnv('BACKEND_API_URL');
+  if (!backendApiUrl) return undefined;
+
+  const base = backendApiUrl.replace(/\/$/, '');
+  return `${base}/api/whatsapp/notify`;
+}
+
+function isLocalhostUrl(url: string): boolean {
+  return /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(url);
+}
+
 async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
-  const webhookUrl = getEnv('WHATSAPP_WEBHOOK_URL');
+  const webhookUrl = resolveWhatsappWebhookUrl();
+  const webhookToken = getEnv('WHATSAPP_WEBHOOK_TOKEN');
 
   if (!webhookUrl) {
-    return { channel: 'whatsapp', configured: false, sent: false, detail: 'Missing WHATSAPP_WEBHOOK_URL' };
+    return {
+      channel: 'whatsapp',
+      configured: false,
+      sent: false,
+      detail: 'Missing WHATSAPP_WEBHOOK_URL or BACKEND_API_URL'
+    };
+  }
+
+  if (isLocalhostUrl(webhookUrl)) {
+    return {
+      channel: 'whatsapp',
+      configured: false,
+      sent: false,
+      detail: `Invalid WhatsApp webhook for production: ${webhookUrl}. Use public backend URL.`
+    };
   }
 
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(webhookToken ? { Authorization: `Bearer ${webhookToken}` } : {})
+      },
       body: JSON.stringify({
         orderId,
         message: buildWhatsappMessage(orderId, payload),
@@ -156,7 +189,7 @@ export default async (request: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         orderId,
-        channel: 'netlify-email-whatsapp',
+        channel: 'netlify-email-whatsapp-webhook',
         accepted: true,
         notifications,
         warning: anySent ? undefined : 'Order accepted but no notification could be sent'

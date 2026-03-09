@@ -64,7 +64,8 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 #### WhatsApp (webhook a backend propio, sin Twilio)
 >>>>>>> 02c325d (Remove Twilio dependency from Netlify flow and use WhatsApp webhook)
 
-- `WHATSAPP_WEBHOOK_URL` (ej: `https://tu-backend.com/api/whatsapp/notify`)
+- `WHATSAPP_WEBHOOK_URL` (ej: `https://tu-backend.com:3001/api/whatsapp/notify`)
+- `BACKEND_API_URL` (alternativa, ej: `https://tu-backend.com:3001`; la función añade `/api/whatsapp/notify`)
 - `WHATSAPP_WEBHOOK_TOKEN` (opcional, recomendado)
 
 <<<<<<< HEAD
@@ -165,6 +166,7 @@ Si el checkout confirma pedido pero no llega nada por email/WhatsApp:
    - `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`, `NOTIFY_EMAIL_TO`
    - `WHATSAPP_WEBHOOK_URL`, `WHATSAPP_WEBHOOK_TOKEN`
 4. Verifica en tu backend que `/api/whatsapp/notify` esté expuesto y que el token coincida (si lo configuraste).
+5. Si aún aparece un error que menciona `TWILIO_*`, tu deploy de Netlify está usando una función vieja: fuerza un redeploy del último commit (Clear cache and deploy site).
 
 <<<<<<< HEAD
 > Nota: para Twilio WhatsApp el número debe estar habilitado en WhatsApp (sandbox o número aprobado de producción).
