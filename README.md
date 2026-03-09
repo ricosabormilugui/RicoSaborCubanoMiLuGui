@@ -48,6 +48,7 @@ El archivo `netlify.toml` ya incluye:
 
 ## Envío de pedidos en desarrollo local
 
-- En producción, el checkout envía a `/.netlify/functions/submit-order`.
-- En `localhost` si esa función no está disponible (por ejemplo usando solo `ng serve`), la app aplica un fallback y guarda el pedido en `localStorage` con un ID `LOCAL-...`, para no bloquear pruebas de checkout.
-- Para probar el flujo real de Netlify Functions en local, usa `netlify dev`.
+- En producción (o Netlify), el checkout envía a `/.netlify/functions/submit-order`.
+- En local con `ng serve` (`localhost:4200`), **no existe esa función**; por eso la app guarda el pedido como borrador en `localStorage` con un ID `LOCAL-...`.
+- La UI ahora muestra explícitamente el destino del pedido (Netlify Function o localStorage).
+- Para probar el flujo real serverless en local, usa `netlify dev` (normalmente en `localhost:8888`).

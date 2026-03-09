@@ -2,8 +2,10 @@ import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
 import { CartService } from './cart.service';
 
-interface SubmitOrderResponse {
+export interface SubmitOrderResponse {
   orderId: string;
+  channel: 'netlify' | 'local';
+  destination: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +36,10 @@ export class OrderService {
   }
 
   async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
+    if (!this.canUseNetlifyEndpoint()) {
+      return this.saveOrderLocally(payload);
+    }
+
     try {
       const response = await fetch(this.netlifyEndpoint, {
         method: 'POST',
@@ -42,7 +48,12 @@ export class OrderService {
       });
 
       if (response.ok) {
-        return response.json() as Promise<SubmitOrderResponse>;
+        const data = (await response.json()) as { orderId: string };
+        return {
+          orderId: data.orderId,
+          channel: 'netlify',
+          destination: 'Netlify Function (submit-order)'
+        };
       }
 
       if (this.shouldFallbackToLocal(response.status)) {
@@ -60,6 +71,15 @@ export class OrderService {
 
   private shouldFallbackToLocal(statusCode: number): boolean {
     return this.isLocalEnvironment() && (statusCode === 404 || statusCode === 502 || statusCode === 503);
+  }
+
+  private canUseNetlifyEndpoint(): boolean {
+    if (!this.isLocalEnvironment()) {
+      return true;
+    }
+
+    const port = globalThis?.location?.port ?? '';
+    return port === '8888';
   }
 
   private isLocalEnvironment(): boolean {
@@ -84,6 +104,10 @@ export class OrderService {
       // Si storage falla (modo privado / permisos), igualmente devolvemos orderId local
     }
 
-    return { orderId };
+    return {
+      orderId,
+      channel: 'local',
+      destination: 'localStorage (clave: ricosabor-local-orders)'
+    };
   }
 }

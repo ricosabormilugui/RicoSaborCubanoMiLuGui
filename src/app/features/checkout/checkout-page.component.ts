@@ -32,11 +32,23 @@ import { OrderService } from '../../core/services/order.service';
         </button>
       </form>
 
-      <p class="ok" *ngIf="orderId()">Pedido enviado. Tu número es: <strong>{{ orderId() }}</strong></p>
+      <p class="ok" *ngIf="orderId()">Pedido registrado. Tu número es: <strong>{{ orderId() }}</strong></p>
+      <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
+      <p class="warn" *ngIf="isLocalDraft()">
+        Estás en modo local (`ng serve`). Este pedido se guardó solo en tu navegador.
+        Para enviarlo realmente al backend usa <strong>Netlify (producción)</strong> o ejecuta <strong>`netlify dev`</strong>.
+      </p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>
   `,
-  styles: [`.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}textarea{width:100%;margin:.8rem 0;min-height:80px}.ok{color:#0f7a3b}.err{color:#b42318}`]
+  styles: [
+    `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}`,
+    `textarea{width:100%;margin:.8rem 0;min-height:80px}`,
+    `.ok{color:#0f7a3b}`,
+    `.meta{color:#374151;font-size:.95rem}`,
+    `.warn{background:#fff8e1;border:1px solid #f7d68a;border-radius:10px;padding:.7rem;color:#7a5610}`,
+    `.err{color:#b42318}`
+  ]
 })
 export class CheckoutPageComponent {
   private readonly fb = inject(FormBuilder);
@@ -44,6 +56,8 @@ export class CheckoutPageComponent {
   readonly loading = signal(false);
   readonly orderId = signal('');
   readonly error = signal('');
+  readonly destination = signal('');
+  readonly isLocalDraft = signal(false);
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -62,15 +76,19 @@ export class CheckoutPageComponent {
     if (this.form.invalid) return;
     this.loading.set(true);
     this.error.set('');
+    this.destination.set('');
+    this.isLocalDraft.set(false);
 
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
       const result = await this.orderService.submitOrder(payload);
       this.orderId.set(result.orderId);
+      this.destination.set(result.destination);
+      this.isLocalDraft.set(result.channel === 'local');
       this.cart.clear();
       this.form.reset({ deliveryMode: 'delivery' });
     } catch {
-      this.error.set('No fue posible enviar el pedido. Intenta nuevamente.');
+      this.error.set('No fue posible registrar el pedido. Intenta nuevamente.');
     } finally {
       this.loading.set(false);
     }
