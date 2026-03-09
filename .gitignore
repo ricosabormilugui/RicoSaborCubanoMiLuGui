@@ -13,3 +13,15 @@ out-tsc/
 # misc
 .DS_Store
 coverage/
+
+
+# Angular
+.angular
+dist
+node_modules
+
+# env
+.env
+
+# logs
+npm-debug.log
