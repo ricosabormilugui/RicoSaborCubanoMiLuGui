@@ -39,7 +39,7 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 1. Valida el payload del pedido.
 2. Envía notificación por email (Resend).
-3. Envía notificación por WhatsApp (Twilio).
+3. Envía notificación por WhatsApp vía webhook a tu backend Node/Express.
 4. Devuelve `orderId` para mostrar confirmación en checkout.
 
 ### Variables de entorno (Netlify)
@@ -55,15 +55,17 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 - `NOTIFY_EMAIL_TO` (correo que recibe alertas)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 #### WhatsApp (obligatorias, Twilio)
 =======
 #### WhatsApp (Twilio)
 >>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
+=======
+#### WhatsApp (webhook a backend propio, sin Twilio)
+>>>>>>> 02c325d (Remove Twilio dependency from Netlify flow and use WhatsApp webhook)
 
-- `TWILIO_ACCOUNT_SID`
-- `TWILIO_AUTH_TOKEN`
-- `TWILIO_WHATSAPP_FROM` (solo número, ej: `+14155238886`)
-- `NOTIFY_WHATSAPP_TO` (solo número destino, ej: `+34600111222`)
+- `WHATSAPP_WEBHOOK_URL` (ej: `https://tu-backend.com/api/whatsapp/notify`)
+- `WHATSAPP_WEBHOOK_TOKEN` (opcional, recomendado)
 
 <<<<<<< HEAD
 > Si falta una variable requerida, la función responderá error para que puedas corregir configuración en Netlify.
@@ -72,9 +74,6 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 =======
 > La función acepta el pedido aunque un canal no esté configurado. En la respuesta JSON (`notifications`) verás el detalle por canal para diagnosticar fallos de email/WhatsApp.
-
-
-> Compatibilidad: también se aceptan los nombres antiguos `TWILIO_FROM_NUMBER` y `NOTIFY_SMS_TO` para evitar cortes en despliegues existentes.
 
 ## Envío de pedidos en esta fase
 
@@ -91,7 +90,7 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 ## Archivo .env
 
-- Se incluye `.env` para desarrollo local con todas las variables del backend (Resend + Twilio WhatsApp).
+- Se incluye `.env` para desarrollo local con todas las variables del backend (Resend + webhook de WhatsApp).
 - Se incluye `.env.example` como plantilla para compartir configuración sin secretos.
 - En Netlify debes configurar las mismas variables en **Site settings > Environment variables**.
 
@@ -161,13 +160,15 @@ Este proyecto define esos valores en `netlify.toml` en la raíz.
 Si el checkout confirma pedido pero no llega nada por email/WhatsApp:
 
 1. Revisa la respuesta del `POST /.netlify/functions/submit-order` en DevTools (Network).
-2. En `notifications` verás el error exacto de cada canal (`Resend ...` o `Twilio ...`).
+2. En `notifications` verás el error exacto de cada canal (`Resend ...` o `WhatsApp webhook ...`).
 3. Verifica variables en Netlify (Production context):
    - `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`, `NOTIFY_EMAIL_TO`
-   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `NOTIFY_WHATSAPP_TO`
-4. Si tu sitio tenía variables antiguas, también sirven:
-   - `TWILIO_FROM_NUMBER`
-   - `NOTIFY_SMS_TO`
+   - `WHATSAPP_WEBHOOK_URL`, `WHATSAPP_WEBHOOK_TOKEN`
+4. Verifica en tu backend que `/api/whatsapp/notify` esté expuesto y que el token coincida (si lo configuraste).
 
+<<<<<<< HEAD
 > Nota: para Twilio WhatsApp el número debe estar habilitado en WhatsApp (sandbox o número aprobado de producción).
 >>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
+=======
+> Nota: el envío real de WhatsApp lo hace tu backend con `whatsapp-web.js`; Netlify solo reenvía el mensaje al webhook.
+>>>>>>> 02c325d (Remove Twilio dependency from Netlify flow and use WhatsApp webhook)
