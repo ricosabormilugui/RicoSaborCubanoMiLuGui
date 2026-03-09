@@ -5,7 +5,8 @@ const { Client, LocalAuth } = pkg;
 
 const client = new Client({
   authStrategy: new LocalAuth({
-    clientId: "milugui-whatsapp"
+    clientId: "milugui-whatsapp",
+    dataPath: ".wwebjs_auth"
   })
 });
 
@@ -20,6 +21,9 @@ client.on("ready", () => {
 
 client.on("authenticated", () => {
   console.log("WhatsApp autenticado");
+});
+client.on("disconnected", (reason) => {
+  console.warn("WhatsApp desconectado:", reason);
 });
 
 client.initialize();

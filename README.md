@@ -112,4 +112,12 @@ npm run dev
 
 4. Escanea el QR que aparece en terminal para vincular WhatsApp Business.
 
+> Si en desarrollo ves QR en bucle, asegúrate de usar este `npm run dev` (watch limitado a `src/`) para que los cambios de `.wwebjs_auth` no reinicien el proceso.
+
+5. Para ejecución estable (sin watch), usa:
+
+```bash
+npm start
+```
+
 > Importante: se ignoraron `.wwebjs_auth/` y `.wwebjs_cache/` en git para no versionar sesión de WhatsApp.
