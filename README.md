@@ -77,3 +77,9 @@ La función `netlify/functions/submit-order.ts` ahora hace lo siguiente:
 2. Configura las variables de entorno en Netlify.
 3. Prueba con `netlify dev` o despliega en Netlify.
 4. A partir de ahí, el checkout enviará al endpoint `/.netlify/functions/submit-order`.
+
+## Archivo .env
+
+- Se incluye `.env` para desarrollo local con todas las variables del backend (Mongo Atlas, Resend, Twilio).
+- Se incluye `.env.example` como plantilla para compartir configuración sin secretos.
+- En Netlify debes configurar las mismas variables en **Site settings > Environment variables**.
