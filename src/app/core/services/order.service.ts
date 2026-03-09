@@ -2,8 +2,14 @@ import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
 import { CartService } from './cart.service';
 
+interface SubmitOrderResponse {
+  orderId: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class OrderService {
+  private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
+
   constructor(private readonly cartService: CartService) {}
 
   createPayload(data: CheckoutFormData): OrderPayload {
@@ -27,17 +33,57 @@ export class OrderService {
     };
   }
 
-  async submitOrder(payload: OrderPayload): Promise<{ orderId: string }> {
-    const response = await fetch('/.netlify/functions/submit-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+  async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
+    try {
+      const response = await fetch(this.netlifyEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-    if (!response.ok) {
+      if (response.ok) {
+        return response.json() as Promise<SubmitOrderResponse>;
+      }
+
+      if (this.shouldFallbackToLocal(response.status)) {
+        return this.saveOrderLocally(payload);
+      }
+
+      throw new Error('No se pudo enviar el pedido.');
+    } catch {
+      if (this.isLocalEnvironment()) {
+        return this.saveOrderLocally(payload);
+      }
       throw new Error('No se pudo enviar el pedido.');
     }
+  }
 
-    return response.json() as Promise<{ orderId: string }>;
+  private shouldFallbackToLocal(statusCode: number): boolean {
+    return this.isLocalEnvironment() && (statusCode === 404 || statusCode === 502 || statusCode === 503);
+  }
+
+  private isLocalEnvironment(): boolean {
+    const host = globalThis?.location?.hostname ?? '';
+    return host === 'localhost' || host === '127.0.0.1';
+  }
+
+  private saveOrderLocally(payload: OrderPayload): SubmitOrderResponse {
+    const orderId = `LOCAL-${Date.now()}`;
+    const storageKey = 'ricosabor-local-orders';
+
+    try {
+      const current = globalThis?.localStorage?.getItem(storageKey);
+      const orders = current ? (JSON.parse(current) as Array<OrderPayload & { orderId: string; createdAt: string }>) : [];
+      orders.push({
+        orderId,
+        createdAt: new Date().toISOString(),
+        ...payload
+      });
+      globalThis?.localStorage?.setItem(storageKey, JSON.stringify(orders));
+    } catch {
+      // Si storage falla (modo privado / permisos), igualmente devolvemos orderId local
+    }
+
+    return { orderId };
   }
 }

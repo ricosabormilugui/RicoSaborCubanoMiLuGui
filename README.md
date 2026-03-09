@@ -45,3 +45,9 @@ El archivo `netlify.toml` ya incluye:
 1. Persistir pedidos en base de datos (Supabase/Firebase).
 2. Enviar notificación por email/WhatsApp al crear pedido.
 3. Crear panel interno de gestión de estados (`nuevo`, `confirmado`, `en preparación`, etc.).
+
+## Envío de pedidos en desarrollo local
+
+- En producción, el checkout envía a `/.netlify/functions/submit-order`.
+- En `localhost` si esa función no está disponible (por ejemplo usando solo `ng serve`), la app aplica un fallback y guarda el pedido en `localStorage` con un ID `LOCAL-...`, para no bloquear pruebas de checkout.
+- Para probar el flujo real de Netlify Functions en local, usa `netlify dev`.
