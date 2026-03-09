@@ -7,6 +7,7 @@ export interface SubmitOrderResponse {
   orderId: string;
   channel: 'netlify' | 'local';
   destination: string;
+  warning?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -49,11 +50,17 @@ export class OrderService {
       });
 
       if (response.ok) {
-        const data = (await response.json()) as { orderId: string };
+        const data = (await response.json()) as { orderId: string; warning?: string; notifications?: Array<{ channel: string; sent: boolean; detail?: string }> };
+        const notificationErrors = (data.notifications ?? [])
+          .filter((item) => !item.sent && item.detail)
+          .map((item) => `${item.channel}: ${item.detail}`);
+        const warning = [data.warning, ...notificationErrors].filter(Boolean).join(' | ') || undefined;
+
         return {
           orderId: data.orderId,
           channel: 'netlify',
-          destination: 'Netlify Function (submit-order)'
+          destination: 'Netlify Function (submit-order)',
+          warning
         };
       }
 
