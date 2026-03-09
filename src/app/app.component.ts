@@ -9,24 +9,36 @@ import { CartService } from './core/services/cart.service';
   template: `
     <header class="header">
       <div class="container nav-wrap">
-        <a class="brand" routerLink="/">Rico Sabor Cubano</a>
+        <a class="brand" routerLink="/">
+          <span>Rico Sabor</span>
+          <strong>Cubano</strong>
+        </a>
+
         <nav>
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-          <a routerLink="/carrito" routerLinkActive="active">Carrito ({{ cart.totalItems() }})</a>
-          <a routerLink="/checkout" routerLinkActive="active">Checkout</a>
-          <a routerLink="/contacto" routerLinkActive="active">Contacto</a>
+          <a class="nav-pill neutral" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
+          <a class="nav-pill blue" routerLink="/carrito" routerLinkActive="active">Carrito ({{ cart.totalItems() }})</a>
+          <a class="nav-pill red" routerLink="/checkout" routerLinkActive="active">Checkout</a>
+          <a class="nav-pill" routerLink="/contacto" routerLinkActive="active">Contacto</a>
         </nav>
       </div>
     </header>
-    <main class="container main"><router-outlet /></main>
+
+    <main class="container main">
+      <router-outlet />
+    </main>
   `,
   styles: [
-    `.header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e4e8ef;z-index:10}`,
-    `.nav-wrap{display:flex;justify-content:space-between;align-items:center;padding:.8rem 0}`,
-    `nav{display:flex;gap:.8rem;flex-wrap:wrap}`,
-    `a{color:#2c3e50;text-decoration:none;font-weight:600}`,
-    `.brand{font-size:1.1rem}`,
-    `.active{color:#1b74e4}`,
+    `.header{position:sticky;top:0;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border-bottom:1px solid #e8e3d7;z-index:10}`,
+    `.nav-wrap{display:flex;justify-content:space-between;align-items:center;padding:.8rem 0;gap:1rem}`,
+    `.brand{display:flex;flex-direction:column;line-height:1;text-decoration:none}`,
+    `.brand span{font-weight:800;color:#1f4f8f;font-size:1rem}`,
+    `.brand strong{font-size:1.6rem;color:#c71f26;text-transform:uppercase;letter-spacing:.6px}`,
+    `nav{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end}`,
+    `.nav-pill{padding:.45rem .85rem;border-radius:999px;text-decoration:none;color:#fff;background:#2f8a2c;font-weight:700}`,
+    `.nav-pill.neutral{color:#111;background:#eef0f5}`,
+    `.nav-pill.blue{background:#1f4f8f}`,
+    `.nav-pill.red{background:#c71f26}`,
+    `.active{outline:3px solid rgba(17,17,17,.12)}`,
     `.main{padding:1rem 0 2rem}`
   ]
 })
