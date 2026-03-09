@@ -44,20 +44,20 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 ### Variables de entorno (Netlify)
 
-#### Email (obligatorias, Resend)
+#### Email (Resend)
 
 - `RESEND_API_KEY`
 - `NOTIFY_EMAIL_FROM` (ej: `Pedidos <pedidos@tudominio.com>`)
 - `NOTIFY_EMAIL_TO` (correo que recibe alertas)
 
-#### WhatsApp (obligatorias, Twilio)
+#### WhatsApp (Twilio)
 
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
 - `TWILIO_WHATSAPP_FROM` (solo número, ej: `+14155238886`)
 - `NOTIFY_WHATSAPP_TO` (solo número destino, ej: `+34600111222`)
 
-> Si falta una variable requerida, la función responderá error para que puedas corregir configuración en Netlify.
+> La función acepta el pedido aunque un canal no esté configurado. En la respuesta JSON (`notifications`) verás el detalle por canal para diagnosticar fallos de email/WhatsApp.
 
 ## Envío de pedidos en esta fase
 
