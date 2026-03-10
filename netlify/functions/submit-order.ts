@@ -14,10 +14,13 @@ interface OrderPayload {
   items?: Array<{
     productId: string;
     name: string;
+    description?: string;
     unitPrice: number;
     quantity: number;
   }>;
   subtotal?: number;
+  taxAmount?: number;
+  taxRate?: number;
   total?: number;
 }
 
@@ -50,17 +53,37 @@ function getDeliveryModeLabel(mode: OrderPayload['delivery'] extends { mode?: in
   return mode === 'pickup' ? 'Recogida en local' : 'Entrega a domicilio';
 }
 
+function resolveTaxSummary(payload: OrderPayload): { subtotal: number; taxAmount: number; total: number; taxLabel: string } {
+  const subtotal = Number(payload.subtotal ?? 0);
+  const total = Number(payload.total ?? subtotal);
+  const inferredTax = Number((total - subtotal).toFixed(2));
+  const taxAmount = Number((payload.taxAmount ?? inferredTax).toFixed(2));
+  const taxRate = Number(payload.taxRate ?? 0);
+  const taxLabel = taxRate > 0 ? `Impuestos (${taxRate.toFixed(2)}%)` : 'Impuestos';
+
+  return {
+    subtotal,
+    taxAmount,
+    total,
+    taxLabel
+  };
+}
+
 function buildOrderItemsRows(items: OrderPayload['items'] = []): string {
   return items
     .map((item) => {
       const name = escapeHtml(item?.name ?? 'Producto');
+      const description = item?.description?.trim() ? escapeHtml(item.description) : 'Sin descripción';
       const quantity = Number(item?.quantity ?? 0);
       const unitPrice = Number(item?.unitPrice ?? 0);
       const lineTotal = quantity * unitPrice;
 
       return `
         <tr>
-          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;">${name}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;">
+            <div style="font-weight:600;color:#2f2f2f;">${name}</div>
+            <div style="font-size:12px;color:#707070;margin-top:4px;">${description}</div>
+          </td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:center;">${quantity}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:right;">${formatCurrency(unitPrice)}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#101010;text-align:right;font-weight:600;">${formatCurrency(lineTotal)}</td>
@@ -68,6 +91,63 @@ function buildOrderItemsRows(items: OrderPayload['items'] = []): string {
       `;
     })
     .join('');
+}
+
+function buildOrderFinancialSummary(payload: OrderPayload): string {
+  const { subtotal, taxAmount, total, taxLabel } = resolveTaxSummary(payload);
+
+  return `
+    <div style="text-align:right;margin-bottom:18px;">
+      <p style="margin:0 0 6px;font-size:14px;color:#555;"><strong>Subtotal:</strong> ${formatCurrency(subtotal)}</p>
+      <p style="margin:0 0 6px;font-size:14px;color:#555;"><strong>${taxLabel}:</strong> ${formatCurrency(taxAmount)}</p>
+      <p style="margin:0;font-size:14px;color:#555;"><strong>Total:</strong> <span style="font-size:18px;color:#1f1f1f;">${formatCurrency(total)}</span></p>
+    </div>
+  `;
+}
+
+function buildAdminOrderEmail(orderId: string, payload: OrderPayload, customerEmail?: string): string {
+  const customerName = escapeHtml(payload.customer?.fullName ?? 'N/A');
+  const phone = escapeHtml(payload.customer?.phone ?? 'N/A');
+  const email = escapeHtml(customerEmail || 'N/A');
+  const deliveryMode = getDeliveryModeLabel(payload.delivery?.mode);
+  const address = payload.delivery?.address ? escapeHtml(payload.delivery.address) : 'No aplica';
+  const reference = payload.delivery?.reference ? escapeHtml(payload.delivery.reference) : 'No indicada';
+  const preferredTime = payload.delivery?.preferredTime ? escapeHtml(payload.delivery.preferredTime) : 'Sin preferencia';
+  const notes = payload.notes ? escapeHtml(payload.notes) : 'Sin notas';
+
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#2b2b2b;line-height:1.4;">
+      <h2 style="margin:0 0 12px;">Nuevo pedido: ${escapeHtml(orderId)}</h2>
+      <p style="margin:0 0 6px;"><strong>Cliente:</strong> ${customerName}</p>
+      <p style="margin:0 0 6px;"><strong>Teléfono:</strong> ${phone}</p>
+      <p style="margin:0 0 6px;"><strong>Email:</strong> ${email}</p>
+      <p style="margin:0 0 6px;"><strong>Entrega:</strong> ${deliveryMode}</p>
+      <p style="margin:0 0 6px;"><strong>Dirección:</strong> ${address}</p>
+      <p style="margin:0 0 6px;"><strong>Referencia:</strong> ${reference}</p>
+      <p style="margin:0 0 12px;"><strong>Horario preferido:</strong> ${preferredTime}</p>
+
+      <h3 style="margin:14px 0 8px;">Detalle del pedido</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:14px;">
+        <thead>
+          <tr style="background:#f4f4f4;">
+            <th style="padding:10px 8px;text-align:left;">Producto</th>
+            <th style="padding:10px 8px;text-align:center;">Cant.</th>
+            <th style="padding:10px 8px;text-align:right;">Precio</th>
+            <th style="padding:10px 8px;text-align:right;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildOrderItemsRows(payload.items)}
+        </tbody>
+      </table>
+
+      ${buildOrderFinancialSummary(payload)}
+
+      <div style="background:#fafafa;border:1px solid #ececec;border-radius:10px;padding:14px 16px;">
+        <p style="margin:0;"><strong>Notas del cliente:</strong> ${notes}</p>
+      </div>
+    </div>
+  `;
 }
 
 function buildCustomerOrderEmail(orderId: string, payload: OrderPayload): string {
@@ -110,9 +190,7 @@ function buildCustomerOrderEmail(orderId: string, payload: OrderPayload): string
             </tbody>
           </table>
 
-          <div style="text-align:right;margin-bottom:18px;">
-            <p style="margin:0;font-size:14px;color:#555;"><strong>Total:</strong> <span style="font-size:18px;color:#1f1f1f;">${formatCurrency(payload.total)}</span></p>
-          </div>
+          ${buildOrderFinancialSummary(payload)}
 
           <div style="background:#fafafa;border:1px solid #ececec;border-radius:10px;padding:14px 16px;">
             <p style="margin:0 0 8px;"><strong>Entrega:</strong> ${deliveryMode}</p>
@@ -140,14 +218,6 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   }
 
   try {
-    const html = `
-      <h2>Nuevo pedido: ${orderId}</h2>
-      <p><strong>Cliente:</strong> ${escapeHtml(payload.customer?.fullName ?? 'N/A')}</p>
-      <p><strong>Teléfono:</strong> ${escapeHtml(payload.customer?.phone ?? 'N/A')}</p>
-      <p><strong>Email:</strong> ${escapeHtml(customerEmail || 'N/A')}</p>
-      <p><strong>Total:</strong> ${formatCurrency(payload.total)}</p>
-    `;
-
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -158,7 +228,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
         from,
         to: [to],
         subject: `Nuevo pedido ${orderId} · Rico Sabor Cubano`,
-        html
+        html: buildAdminOrderEmail(orderId, payload, customerEmail)
       })
     });
 
@@ -208,12 +278,12 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
 }
 
 function buildWhatsappMessage(orderId: string, payload: OrderPayload): string {
-  return [
-    `🛒 Nuevo pedido ${orderId}`,
-    `Cliente: ${payload.customer?.fullName ?? 'N/A'}`,
-    `Teléfono: ${payload.customer?.phone ?? 'N/A'}`,
-    `Total: ${payload.total ?? 0} EUR`
-  ].join('\n');
+  const itemsSummary = (payload.items ?? [])
+    .map((item) => `• ${item.quantity} x ${item.name}`)
+    .join('\n');
+  const notes = payload.notes ? `\nNotas: ${payload.notes}` : '';
+
+  return [`🛒 Nuevo pedido ${orderId}`, `Cliente: ${payload.customer?.fullName ?? 'N/A'}`, `Teléfono: ${payload.customer?.phone ?? 'N/A'}`, `Items:\n${itemsSummary || 'N/A'}`, `Total: ${formatCurrency(payload.total)}`, notes].filter(Boolean).join('\n');
 }
 
 function resolveWhatsappWebhookUrl(): string | undefined {
