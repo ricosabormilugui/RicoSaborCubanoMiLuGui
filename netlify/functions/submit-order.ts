@@ -46,6 +46,91 @@ function getEnv(name: string): string | undefined {
   return value && value.trim().length > 0 ? value : undefined;
 }
 
+
+function getDeliveryModeLabel(mode: OrderPayload['delivery'] extends { mode?: infer T } ? T : never): string {
+  return mode === 'pickup' ? 'Recogida en local' : 'Entrega a domicilio';
+}
+
+function buildOrderItemsRows(items: OrderPayload['items'] = []): string {
+  return items
+    .map((item) => {
+      const name = escapeHtml(item?.name ?? 'Producto');
+      const quantity = Number(item?.quantity ?? 0);
+      const unitPrice = Number(item?.unitPrice ?? 0);
+      const lineTotal = quantity * unitPrice;
+
+      return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;">${name}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:center;">${quantity}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:right;">${formatCurrency(unitPrice)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#101010;text-align:right;font-weight:600;">${formatCurrency(lineTotal)}</td>
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function buildCustomerOrderEmail(orderId: string, payload: OrderPayload): string {
+  const customerName = escapeHtml(payload.customer?.fullName ?? 'cliente');
+  const deliveryMode = getDeliveryModeLabel(payload.delivery?.mode);
+  const address = payload.delivery?.address ? escapeHtml(payload.delivery.address) : 'No aplica';
+  const reference = payload.delivery?.reference ? escapeHtml(payload.delivery.reference) : 'No indicada';
+  const preferredTime = payload.delivery?.preferredTime ? escapeHtml(payload.delivery.preferredTime) : 'Sin preferencia';
+  const notes = payload.notes ? escapeHtml(payload.notes) : 'Sin notas';
+
+  return `
+    <div style="background:#f7f3ea;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#2f2f2f;">
+      <div style="max-width:650px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #f0e6d4;">
+        <div style="background:#4e2f1f;color:#fff;padding:20px 24px;">
+          <h1 style="margin:0;font-size:24px;">Rico Sabor Cubano</h1>
+          <p style="margin:6px 0 0;font-size:14px;opacity:.95;">Confirmación de pedido</p>
+        </div>
+
+        <div style="padding:24px;">
+          <p style="margin:0 0 12px;font-size:16px;">¡Gracias por tu compra, <strong>${customerName}</strong>!</p>
+          <p style="margin:0 0 18px;font-size:14px;color:#555;">Hemos recibido tu pedido correctamente. Aquí tienes el resumen:</p>
+
+          <div style="background:#fdf8f0;border:1px solid #f2e4cc;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+            <p style="margin:0 0 8px;"><strong>Número de pedido:</strong> ${escapeHtml(orderId)}</p>
+            <p style="margin:0 0 8px;"><strong>Cliente:</strong> ${customerName}</p>
+            <p style="margin:0;"><strong>Teléfono:</strong> ${escapeHtml(payload.customer?.phone ?? 'N/A')}</p>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px;">
+            <thead>
+              <tr style="background:#fff3df;">
+                <th style="padding:10px 8px;text-align:left;color:#5f4028;">Producto</th>
+                <th style="padding:10px 8px;text-align:center;color:#5f4028;">Cant.</th>
+                <th style="padding:10px 8px;text-align:right;color:#5f4028;">Precio</th>
+                <th style="padding:10px 8px;text-align:right;color:#5f4028;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${buildOrderItemsRows(payload.items)}
+            </tbody>
+          </table>
+
+          <div style="text-align:right;margin-bottom:18px;">
+            <p style="margin:0;font-size:14px;color:#555;"><strong>Total:</strong> <span style="font-size:18px;color:#1f1f1f;">${formatCurrency(payload.total)}</span></p>
+          </div>
+
+          <div style="background:#fafafa;border:1px solid #ececec;border-radius:10px;padding:14px 16px;">
+            <p style="margin:0 0 8px;"><strong>Entrega:</strong> ${deliveryMode}</p>
+            <p style="margin:0 0 8px;"><strong>Dirección:</strong> ${address}</p>
+            <p style="margin:0 0 8px;"><strong>Referencia:</strong> ${reference}</p>
+            <p style="margin:0 0 8px;"><strong>Horario preferido:</strong> ${preferredTime}</p>
+            <p style="margin:0;"><strong>Notas:</strong> ${notes}</p>
+          </div>
+
+          <p style="margin:18px 0 0;font-size:13px;color:#777;">Si necesitas ajustar algo de tu pedido, respóndenos por WhatsApp o teléfono y te ayudamos.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+
 async function sendEmailNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
   const apiKey = getEnv('RESEND_API_KEY');
   const from = getEnv('NOTIFY_EMAIL_FROM');
@@ -64,9 +149,9 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   try {
     const html = `
       <h2>Nuevo pedido: ${orderId}</h2>
-      <p><strong>Cliente:</strong> ${payload.customer?.fullName ?? 'N/A'}</p>
-      <p><strong>Teléfono:</strong> ${payload.customer?.phone ?? 'N/A'}</p>
-      <p><strong>Email:</strong> ${customerEmail || 'N/A'}</p>
+      <p><strong>Cliente:</strong> ${escapeHtml(payload.customer?.fullName ?? 'N/A')}</p>
+      <p><strong>Teléfono:</strong> ${escapeHtml(payload.customer?.phone ?? 'N/A')}</p>
+      <p><strong>Email:</strong> ${escapeHtml(customerEmail || 'N/A')}</p>
       <p><strong>Total:</strong> ${formatCurrency(payload.total)}</p>
     `;
 
@@ -104,6 +189,33 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
           from,
           to: [customerEmail],
           subject: `Tu pedido ${orderId} está confirmado · Rico Sabor Cubano`,
+          html: buildCustomerOrderEmail(orderId, payload)
+        })
+      });
+
+      if (!customerResponse.ok) {
+        return {
+          channel: 'email',
+          configured: true,
+          sent: false,
+          detail: `Customer email ${customerResponse.status}: ${await customerResponse.text()}`
+        };
+      }
+    }
+
+
+/*
+    if (customerEmail) {
+      const customerResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from,
+          to: [customerEmail],
+          subject: `Tu pedido ${orderId} está confirmado · Rico Sabor Cubano`,
           html: `
             <h2>¡Gracias por tu pedido!</h2>
             <p>Hola ${escapeHtml(payload.customer?.fullName ?? 'cliente')},</p>
@@ -121,7 +233,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
           detail: `Customer email ${customerResponse.status}: ${await customerResponse.text()}`
         };
       }
-    }
+    }*/
 
     return { channel: 'email', configured: true, sent: true };
   } catch (error) {
