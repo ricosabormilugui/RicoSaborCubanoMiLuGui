@@ -19,6 +19,7 @@ import { CartService } from './core/services/cart.service';
           <a class="nav-pill blue" routerLink="/carrito" routerLinkActive="active">Carrito ({{ cart.totalItems() }})</a>
           <a class="nav-pill red" routerLink="/checkout" routerLinkActive="active">Checkout</a>
           <a class="nav-pill" routerLink="/contacto" routerLinkActive="active">Contacto</a>
+          <a class="nav-pill neutral" routerLink="/admin" routerLinkActive="active">Admin</a>
         </nav>
       </div>
     </header>
