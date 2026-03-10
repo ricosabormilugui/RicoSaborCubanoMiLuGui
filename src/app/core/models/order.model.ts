@@ -1,6 +1,7 @@
 export interface CartItem {
   productId: string;
   name: string;
+  description?: string;
   unitPrice: number;
   quantity: number;
 }
@@ -31,5 +32,7 @@ export interface OrderPayload {
   notes?: string;
   items: CartItem[];
   subtotal: number;
+  taxAmount?: number;
+  taxRate?: number;
   total: number;
 }

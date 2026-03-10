@@ -17,7 +17,13 @@ export class CartService {
     }
     this.state.update((items) => [
       ...items,
-      { productId: product.id, name: product.name, unitPrice: product.price, quantity: 1 }
+      {
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        unitPrice: product.price,
+        quantity: 1
+      }
     ]);
   }
 
