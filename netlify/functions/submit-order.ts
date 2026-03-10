@@ -28,6 +28,19 @@ type NotificationResult = {
   detail?: string;
 };
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatCurrency(value: number | undefined): string {
+  return `${Number(value ?? 0).toFixed(2)} EUR`;
+}
+
 function getEnv(name: string): string | undefined {
   const value = process.env[name];
   return value && value.trim().length > 0 ? value : undefined;
@@ -37,6 +50,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   const apiKey = getEnv('RESEND_API_KEY');
   const from = getEnv('NOTIFY_EMAIL_FROM');
   const to = getEnv('NOTIFY_EMAIL_TO');
+  const customerEmail = payload.customer?.email?.trim();
 
   if (!apiKey || !from || !to) {
     return { channel: 'email', configured: false, sent: false, detail: 'Missing email env vars' };
@@ -47,8 +61,8 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
       <h2>Nuevo pedido: ${orderId}</h2>
       <p><strong>Cliente:</strong> ${payload.customer?.fullName ?? 'N/A'}</p>
       <p><strong>Teléfono:</strong> ${payload.customer?.phone ?? 'N/A'}</p>
-      <p><strong>Email:</strong> ${payload.customer?.email ?? 'N/A'}</p>
-      <p><strong>Total:</strong> ${payload.total ?? 0} EUR</p>
+      <p><strong>Email:</strong> ${customerEmail || 'N/A'}</p>
+      <p><strong>Total:</strong> ${formatCurrency(payload.total)}</p>
     `;
 
     const response = await fetch('https://api.resend.com/emails', {
@@ -72,6 +86,36 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
         sent: false,
         detail: `Resend ${response.status}: ${await response.text()}`
       };
+    }
+
+    if (customerEmail) {
+      const customerResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from,
+          to: [customerEmail],
+          subject: `Tu pedido ${orderId} está confirmado · Rico Sabor Cubano`,
+          html: `
+            <h2>¡Gracias por tu pedido!</h2>
+            <p>Hola ${escapeHtml(payload.customer?.fullName ?? 'cliente')},</p>
+            <p>Recibimos tu pedido <strong>${escapeHtml(orderId)}</strong> correctamente.</p>
+            <p><strong>Total:</strong> ${formatCurrency(payload.total)}</p>
+          `
+        })
+      });
+
+      if (!customerResponse.ok) {
+        return {
+          channel: 'email',
+          configured: true,
+          sent: false,
+          detail: `Customer email ${customerResponse.status}: ${await customerResponse.text()}`
+        };
+      }
     }
 
     return { channel: 'email', configured: true, sent: true };
@@ -109,6 +153,16 @@ function isLocalhostUrl(url: string): boolean {
   return /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(url);
 }
 
+function isProductionRuntime(): boolean {
+  const netlifyContext = (getEnv('CONTEXT') ?? '').toLowerCase();
+  if (netlifyContext === 'production') {
+    return true;
+  }
+
+  const nodeEnv = (getEnv('NODE_ENV') ?? '').toLowerCase();
+  return nodeEnv === 'production';
+}
+
 async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
   const webhookUrl = resolveWhatsappWebhookUrl();
   const webhookToken = getEnv('WHATSAPP_WEBHOOK_TOKEN');
@@ -122,7 +176,7 @@ async function sendWhatsAppNotification(orderId: string, payload: OrderPayload):
     };
   }
 
-  if (isLocalhostUrl(webhookUrl)) {
+  if (isLocalhostUrl(webhookUrl) && isProductionRuntime()) {
     return {
       channel: 'whatsapp',
       configured: false,
