@@ -68,7 +68,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
       },
       body: JSON.stringify({
         from,
-        to: [to],
+        to: [to, payload.customer?.email].filter(Boolean),
         subject: `Nuevo pedido ${orderId} · Rico Sabor Cubano`,
         html
       })
