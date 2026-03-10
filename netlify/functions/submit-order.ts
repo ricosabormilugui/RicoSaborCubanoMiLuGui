@@ -218,6 +218,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   }
 
   try {
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -252,7 +253,9 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
           from,
           to: [customerEmail],
           subject: `Tu pedido ${orderId} está confirmado · Rico Sabor Cubano`,
+
           html: buildCustomerOrderEmail(orderId, payload)
+
         })
       });
 
