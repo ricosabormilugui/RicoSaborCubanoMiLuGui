@@ -1,11 +1,14 @@
+import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
+import { AdminAuthService } from './core/services/admin-auth.service';
+import { CustomerAuthService } from './core/services/customer-auth.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   template: `
     <header class="header">
       <div class="container nav-wrap">
@@ -19,7 +22,10 @@ import { CartService } from './core/services/cart.service';
           <a class="nav-pill blue" routerLink="/carrito" routerLinkActive="active">Carrito ({{ cart.totalItems() }})</a>
           <a class="nav-pill red" routerLink="/checkout" routerLinkActive="active">Checkout</a>
           <a class="nav-pill" routerLink="/contacto" routerLinkActive="active">Contacto</a>
-          <a class="nav-pill neutral" routerLink="/admin" routerLinkActive="active">Admin</a>
+          <a class="nav-pill neutral" routerLink="/login" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Entrar</a>
+          <a class="nav-pill neutral" routerLink="/registro" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
+          <button class="nav-pill neutral" type="button" *ngIf="customerAuth.isAuthenticated()" (click)="logoutCustomer()">Salir cliente</button>
+          <a class="nav-pill neutral" routerLink="/admin" routerLinkActive="active" *ngIf="adminAuth.isAuthenticated()">Admin</a>
         </nav>
       </div>
     </header>
@@ -35,7 +41,7 @@ import { CartService } from './core/services/cart.service';
     `.brand span{font-weight:800;color:#1f4f8f;font-size:1rem}`,
     `.brand strong{font-size:1.6rem;color:#c71f26;text-transform:uppercase;letter-spacing:.6px}`,
     `nav{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end}`,
-    `.nav-pill{padding:.45rem .85rem;border-radius:999px;text-decoration:none;color:#fff;background:#2f8a2c;font-weight:700}`,
+    `.nav-pill{padding:.45rem .85rem;border-radius:999px;text-decoration:none;color:#fff;background:#2f8a2c;font-weight:700;border:0;cursor:pointer}`,
     `.nav-pill.neutral{color:#111;background:#eef0f5}`,
     `.nav-pill.blue{background:#1f4f8f}`,
     `.nav-pill.red{background:#c71f26}`,
@@ -44,5 +50,13 @@ import { CartService } from './core/services/cart.service';
   ]
 })
 export class AppComponent {
-  constructor(public readonly cart: CartService) {}
+  constructor(
+    public readonly cart: CartService,
+    public readonly adminAuth: AdminAuthService,
+    public readonly customerAuth: CustomerAuthService
+  ) {}
+
+  logoutCustomer(): void {
+    this.customerAuth.logout();
+  }
 }

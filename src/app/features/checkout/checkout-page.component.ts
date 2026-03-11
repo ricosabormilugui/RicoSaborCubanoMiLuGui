@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CartService } from '../../core/services/cart.service';
 import { CheckoutFormData } from '../../core/models/order.model';
 import { OrderService } from '../../core/services/order.service';
+import { CustomerAuthService } from '../../core/services/customer-auth.service';
 
 @Component({
   standalone: true,
@@ -11,6 +12,7 @@ import { OrderService } from '../../core/services/order.service';
   template: `
     <section class="card">
       <h1>Checkout (sin pasarela de pago)</h1>
+      <p class="meta">Puedes comprar como invitado o con cuenta. Si te registras después, tus pedidos previos por email se vinculan automáticamente.</p>
       <p *ngIf="!cart.items().length">No hay productos en el carrito.</p>
 
       <form [formGroup]="form" (ngSubmit)="submit()" *ngIf="cart.items().length">
@@ -74,7 +76,16 @@ export class CheckoutPageComponent {
     notes: ['']
   });
 
-  constructor(public readonly cart: CartService, private readonly orderService: OrderService) {}
+  constructor(
+    public readonly cart: CartService,
+    private readonly orderService: OrderService,
+    private readonly customerAuth: CustomerAuthService
+  ) {
+    const email = this.customerAuth.profile()?.email ?? '';
+    if (email) {
+      this.form.patchValue({ email });
+    }
+  }
 
   async submit(): Promise<void> {
     if (this.form.invalid) return;

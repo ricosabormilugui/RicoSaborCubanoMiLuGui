@@ -13,6 +13,12 @@ function isWebhookAuthorized(req) {
   return bearer === expectedToken;
 }
 
+function normalizeCustomerEmail(payload, auth) {
+  const fromPayload = String(payload?.customer?.email ?? "").trim().toLowerCase();
+  const fromAuth = auth?.role === "customer" ? String(auth?.email ?? "").trim().toLowerCase() : "";
+  return fromPayload || fromAuth || null;
+}
+
 function buildOrderIdentity(payload, auth) {
   if (auth?.role === "customer") {
     return {
@@ -35,9 +41,11 @@ export async function createOrder(req, res) {
     }
 
     const orderIdentity = buildOrderIdentity(payload, req.auth);
+    const customerEmailNormalized = normalizeCustomerEmail(payload, req.auth);
     const order = {
       ...payload,
       ...orderIdentity,
+      customerEmailNormalized,
       orderId: `MLG-${Date.now()}`,
       createdAt: new Date().toISOString(),
       status: "nuevo",

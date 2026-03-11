@@ -1,6 +1,7 @@
 import { hashPassword, signToken, verifyPassword } from "../lib/auth.js";
 import { getRequiredEnv } from "../lib/env.js";
 import { createUser, findUserByEmail } from "../repositories/users.repository.js";
+import { linkGuestOrdersByEmailToUser } from "../repositories/orders.repository.js";
 
 export async function registerCustomer(req, res) {
   try {
@@ -16,11 +17,13 @@ export async function registerCustomer(req, res) {
 
     const passwordHash = hashPassword(password);
     const user = await createUser({ fullName, email, passwordHash, role: "customer" });
+    const linkedOrders = await linkGuestOrdersByEmailToUser(user.email, String(user._id));
 
     return res.status(201).json({
       userId: String(user._id),
       email: user.email,
-      fullName: user.fullName
+      fullName: user.fullName,
+      linkedOrders
     });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
