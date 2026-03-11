@@ -75,6 +75,7 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 - Se incluye `.env` para desarrollo local con todas las variables del backend (Resend + webhook de WhatsApp).
 - Se incluye `.env.example` como plantilla para compartir configuración sin secretos.
 - En Netlify debes configurar las mismas variables en **Site settings > Environment variables**.
+- Para login admin en backend configura `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `AUTH_JWT_SECRET` en Render.
 
 ## Backend Node/Express (email + WhatsApp)
 
@@ -92,6 +93,16 @@ Se agregó un backend en `Backend/` para flujo de pedidos con persistencia en Mo
 - `Backend/src/controllers/orders.controller.js`
 - `Backend/src/routes/orders.routes.js`
 - `Backend/src/server.js`
+
+### Endpoints backend
+
+- `GET /health`
+- `POST /api/orders`
+- `POST /api/whatsapp/notify`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/admin/orders` (requiere token admin)
+- `PATCH /api/admin/orders/:orderId/status` (requiere token admin)
 
 ### Configuración
 

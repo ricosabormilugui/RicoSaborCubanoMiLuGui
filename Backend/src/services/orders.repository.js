@@ -20,10 +20,29 @@ async function getMongoClient() {
   return mongoClient;
 }
 
-export async function saveOrder(order) {
+async function getOrdersCollection() {
   const client = await getMongoClient();
   const dbName = getRequiredEnv("MONGODB_DB_NAME");
   const collectionName = process.env.MONGODB_ORDERS_COLLECTION ?? "orders";
+  return client.db(dbName).collection(collectionName);
+}
 
-  await client.db(dbName).collection(collectionName).insertOne(order);
+export async function saveOrder(order) {
+  const collection = await getOrdersCollection();
+  await collection.insertOne(order);
+}
+
+export async function listOrders(limit = 50) {
+  const collection = await getOrdersCollection();
+  return collection.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).limit(limit).toArray();
+}
+
+export async function updateOrderStatus(orderId, status) {
+  const collection = await getOrdersCollection();
+  const result = await collection.updateOne(
+    { orderId },
+    { $set: { status, updatedAt: new Date().toISOString() } }
+  );
+
+  return result.matchedCount > 0;
 }

@@ -1,13 +1,15 @@
 import "dotenv/config";
 import express from "express";
 import ordersRouter from "./routes/orders.routes.js";
+import authRouter from "./routes/auth.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 const app = express();
 const corsOrigin = process.env.CORS_ORIGIN || "*";
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
@@ -24,6 +26,8 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api", ordersRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
