@@ -38,3 +38,21 @@ export function requireAdmin(req, res, next) {
     return res.status(401).json({ error: error.message ?? "Invalid token" });
   }
 }
+
+
+export function requireCustomer(req, res, next) {
+  const token = readBearerToken(req);
+  if (!token) return res.status(401).json({ error: "Missing customer token" });
+
+  try {
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== "customer") {
+      return res.status(403).json({ error: "Customer access required" });
+    }
+
+    req.auth = payload;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ error: error.message ?? "Invalid token" });
+  }
+}

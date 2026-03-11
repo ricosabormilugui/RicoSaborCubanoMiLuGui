@@ -55,6 +55,27 @@ export class CustomerAuthService {
     return this.token().length > 0;
   }
 
+  async restoreSession(): Promise<void> {
+    if (!this.token()) return;
+
+    try {
+      const response = await fetch(`${this.apiBase}/me`, {
+        headers: { Authorization: `Bearer ${this.token()}` }
+      });
+
+      if (!response.ok) {
+        this.logout();
+        return;
+      }
+
+      const data = (await response.json()) as CustomerProfile;
+      this.profile.set({ userId: data.userId, email: data.email, role: 'customer' });
+      this.persist();
+    } catch {
+      // Keep local session if backend isn't reachable from frontend environment
+    }
+  }
+
   logout(): void {
     this.token.set('');
     this.profile.set(null);
