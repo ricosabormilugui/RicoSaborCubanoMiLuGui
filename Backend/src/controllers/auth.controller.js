@@ -66,7 +66,6 @@ export async function loginAdmin(req, res) {
   }
 }
 
-
 export async function getCustomerSession(req, res) {
   try {
     return res.status(200).json({

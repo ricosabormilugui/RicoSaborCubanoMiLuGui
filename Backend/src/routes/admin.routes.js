@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { listOrdersForAdmin, updateOrderStatusForAdmin } from "../controllers/orders.controller.js";
-import { requireAdmin } from "../middleware/auth.middleware.js";
+import { getOrders, patchOrderStatus } from "../controllers/admin.controller.js";
+import { requireAdminAuth } from "../middleware/require-admin-auth.js";
 
 const router = Router();
 
-router.use(requireAdmin);
-router.get("/orders", listOrdersForAdmin);
-router.patch("/orders/:orderId/status", updateOrderStatusForAdmin);
+router.use(requireAdminAuth);
+
+router.get("/orders", getOrders);
+router.patch("/orders/:orderId/status", patchOrderStatus);
 
 export default router;
