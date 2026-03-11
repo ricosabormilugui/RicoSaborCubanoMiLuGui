@@ -141,6 +141,30 @@ npm start
 > Importante: se ignoraron `.wwebjs_auth/` y `.wwebjs_cache/` en git para no versionar sesión de WhatsApp.
 
 
+
+### Deploy backend en Render (recomendado)
+
+Este repo ya incluye `render.yaml` en la raíz para desplegar `Backend/` como servicio web Node.
+
+1. En Render: **New + → Blueprint** y conecta este repositorio.
+2. Render detectará `render.yaml` y creará el servicio `ricosabor-backend`.
+3. Completa variables pendientes (`sync: false`) en Render:
+   - `MONGODB_URI`
+   - `RESEND_API_KEY`
+   - `NOTIFY_EMAIL_FROM`
+   - `NOTIFY_EMAIL_TO`
+   - `ADMIN_EMAIL`
+   - `ADMIN_PASSWORD`
+4. Espera a que el deploy termine y copia la URL pública (ejemplo: `https://ricosabor-backend.onrender.com`).
+
+### Conectar Netlify con backend Render
+
+En Netlify agrega variable de entorno:
+
+- `BACKEND_API_URL=https://ricosabor-backend.onrender.com`
+
+> Sin `BACKEND_API_URL`, la función `/.netlify/functions/api-proxy/*` responderá `Missing BACKEND_API_URL` y registro/login fallarán con 500.
+
 ### Troubleshooting Netlify: `Could not read package.json`
 
 Si el log muestra `ENOENT: no such file or directory, open '/opt/build/repo/package.json'`:
