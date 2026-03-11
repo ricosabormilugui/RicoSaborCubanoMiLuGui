@@ -1,219 +1,411 @@
 # Rico Sabor Cubano · Tienda en Angular (sin pasarela de pago)
 
-Proyecto base para una tienda web en Angular + TypeScript con backend serverless en Netlify.
+Proyecto base para una tienda web en **Angular + TypeScript** con backend serverless en **Netlify** y backend **Node/Express desplegado en Render**.
 
-## Funcionalidades incluidas
+---
+
+# Funcionalidades incluidas
 
 - Catálogo de productos con búsqueda y filtro por categoría.
 - Carrito con suma automática y control de cantidades.
 - Checkout sin pago online (captura datos de cliente + entrega + notas).
-- Envío de pedido configurable: por defecto guarda localmente (modo desarrollo) y opcionalmente envía al backend serverless.
+- Envío de pedido configurable: local, Netlify o backend API.
+- Envío de notificaciones por **email** y **WhatsApp**.
 - Formulario de solicitud de información.
 
-## Estructura
+---
 
-- `src/app/features/catalog`: catálogo y agregar al carrito.
-- `src/app/features/cart`: resumen del carrito.
-- `src/app/features/checkout`: checkout y envío de pedidos.
-- `src/app/features/contact`: formulario de contacto.
-- `src/app/core/services`: servicios de catálogo, carrito y pedidos.
-- `src/app/core/config/order.config.ts`: modo de envío (`local`, `netlify` o `api`) y URL del backend.
-- `netlify/functions/submit-order.ts`: endpoint backend para notificaciones por email y WhatsApp.
+# Estructura del proyecto
 
-## Ejecutar localmente
+```
+src/app/features/catalog
+src/app/features/cart
+src/app/features/checkout
+src/app/features/contact
+src/app/core/services
+src/app/core/config/order.config.ts
+
+netlify/functions/submit-order.ts
+
+Backend/
+```
+
+---
+
+# Ejecutar localmente
 
 ```bash
 npm install
 npm start
 ```
 
-## Build
+---
+
+# Build
 
 ```bash
 npm run build
 ```
 
-## Backend con email + WhatsApp
+---
 
-La función `netlify/functions/submit-order.ts` hace lo siguiente:
+# Backend con email + WhatsApp
+
+La función **Netlify** `netlify/functions/submit-order.ts`:
 
 1. Valida el payload del pedido.
 2. Envía notificación por email (Resend).
-3. Envía notificación por WhatsApp vía webhook a tu backend Node/Express.
+3. Envía notificación por WhatsApp vía webhook a tu backend.
 4. Devuelve `orderId` para mostrar confirmación en checkout.
 
-### Variables de entorno (Netlify)
+---
 
-<<<<<<< HEAD
-#### Email (obligatorias, Resend)
-=======
-#### Email (Resend)
->>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
+# Variables de entorno (Netlify)
 
-- `RESEND_API_KEY`
-- `NOTIFY_EMAIL_FROM` (ej: `Pedidos <pedidos@tudominio.com>`)
-- `NOTIFY_EMAIL_TO` (correo que recibe alertas)
+## Email (Resend)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-#### WhatsApp (obligatorias, Twilio)
-=======
-#### WhatsApp (Twilio)
->>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
-=======
-#### WhatsApp (webhook a backend propio, sin Twilio)
->>>>>>> 02c325d (Remove Twilio dependency from Netlify flow and use WhatsApp webhook)
+```
+RESEND_API_KEY
+NOTIFY_EMAIL_FROM
+NOTIFY_EMAIL_TO
+```
 
-- `WHATSAPP_WEBHOOK_URL` (ej: `https://tu-backend.com:3001/api/whatsapp/notify`)
-- `BACKEND_API_URL` (alternativa, ej: `https://tu-backend.com:3001`; la función añade `/api/whatsapp/notify`)
-- `WHATSAPP_WEBHOOK_TOKEN` (opcional, recomendado)
+Ejemplo:
 
-<<<<<<< HEAD
-> Si falta una variable requerida, la función responderá error para que puedas corregir configuración en Netlify.
+```
+NOTIFY_EMAIL_FROM="Pedidos MiLuGui <pedidos@tudominio.com>"
+NOTIFY_EMAIL_TO=ventas@tudominio.com
+```
 
-## Envío de pedidos en esta fase
+---
 
-=======
-> La función acepta el pedido aunque un canal no esté configurado. En la respuesta JSON (`notifications`) verás el detalle por canal para diagnosticar fallos de email/WhatsApp.
+## WhatsApp (Webhook a backend)
 
-## Envío de pedidos en esta fase
+```
+WHATSAPP_WEBHOOK_URL
+BACKEND_API_URL
+WHATSAPP_WEBHOOK_TOKEN
+```
 
-<<<<<<< HEAD
->>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
-- La app está configurada en modo **netlify** (`ORDER_SUBMISSION_MODE = 'netlify'`).
-- El checkout envía pedidos al endpoint `/.netlify/functions/submit-order`.
-=======
-- La app está configurada en modo **api** (`ORDER_SUBMISSION_MODE = 'api'`).
-- El checkout envía pedidos al backend Express en Render (`/api/orders`).
->>>>>>> 34fe81a (Frontend: send orders to Render API and enable backend CORS)
+Ejemplo:
 
-### Cuando quieras activar backend real
+```
+WHATSAPP_WEBHOOK_URL=https://tu-backend.onrender.com/api/whatsapp/notify
+```
 
-1. Abre `src/app/core/config/order.config.ts`.
-2. Usa `ORDER_SUBMISSION_MODE = 'api'`.
-3. Define `BACKEND_API_BASE_URL` con tu URL pública de Render.
-4. Despliega frontend y prueba creación de pedidos.
+Si defines:
 
-## Archivo .env
+```
+BACKEND_API_URL=https://tu-backend.onrender.com
+```
 
-- Se incluye `.env` para desarrollo local con todas las variables del backend (Resend + webhook de WhatsApp).
-- Se incluye `.env.example` como plantilla para compartir configuración sin secretos.
-- En Netlify debes configurar las mismas variables en **Site settings > Environment variables**.
-- Para login admin en backend configura `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `AUTH_JWT_SECRET` en Render.
+la función añadirá automáticamente:
 
-## Backend Node/Express (email + WhatsApp)
+```
+/api/whatsapp/notify
+```
 
-Se agregó un backend en `Backend/` para flujo de pedidos con persistencia en MongoDB y notificaciones:
+---
 
-- Guarda pedido en MongoDB.
-- Envía email por Resend.
-- Envía WhatsApp por `whatsapp-web.js` (opcional por entorno).
+# Diagnóstico de notificaciones
 
-### Archivos clave
+Si el checkout confirma pedido pero no llegan notificaciones:
 
-- `Backend/src/services/whatsapp.service.js`
-- `Backend/src/services/email.service.js`
-- `Backend/src/services/orders.repository.js`
-- `Backend/src/controllers/orders.controller.js`
-- `Backend/src/routes/orders.routes.js`
-- `Backend/src/server.js`
+1. Abre **DevTools → Network**
+2. Revisa la respuesta de:
 
-### Endpoints backend
+```
+POST /.netlify/functions/submit-order
+```
 
-- `GET /health`
-- `POST /api/orders`
-- `POST /api/whatsapp/notify`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/admin/orders` (requiere token admin)
-- `PATCH /api/admin/orders/:orderId/status` (requiere token admin)
+Ejemplo de respuesta:
 
-### Configuración
+```json
+{
+ "notifications": [
+   { "channel": "email", "sent": true },
+   { "channel": "whatsapp", "sent": false, "detail": "Webhook 500" }
+ ]
+}
+```
 
-1. Copia `Backend/.env.example` a `Backend/.env`.
-2. Instala dependencias del backend:
+Esto permite ver exactamente qué canal falló.
+
+---
+
+# Modos de envío de pedidos
+
+Configurable en:
+
+```
+src/app/core/config/order.config.ts
+```
+
+---
+
+## Modo local
+
+```
+ORDER_SUBMISSION_MODE = 'local'
+```
+
+Guarda pedidos en **localStorage**.
+
+---
+
+## Modo Netlify
+
+```
+ORDER_SUBMISSION_MODE = 'netlify'
+```
+
+Usa:
+
+```
+/.netlify/functions/submit-order
+```
+
+---
+
+## Modo Backend API (Render)
+
+```
+ORDER_SUBMISSION_MODE = 'api'
+```
+
+Envía pedidos a:
+
+```
+https://tu-backend.onrender.com/api/orders
+```
+
+---
+
+# Backend Node / Express
+
+Ubicado en:
+
+```
+Backend/
+```
+
+Funcionalidades:
+
+- persistencia en MongoDB
+- email con Resend
+- WhatsApp con `whatsapp-web.js`
+- autenticación
+- panel admin
+
+---
+
+# Archivos clave backend
+
+```
+Backend/src/server.js
+Backend/src/routes/orders.routes.js
+Backend/src/controllers/orders.controller.js
+Backend/src/services/email.service.js
+Backend/src/services/whatsapp.service.js
+Backend/src/repositories/orders.repository.js
+```
+
+---
+
+# Endpoints backend
+
+## Health
+
+```
+GET /health
+```
+
+---
+
+## Pedidos
+
+```
+POST /api/orders
+```
+
+---
+
+## WhatsApp webhook
+
+```
+POST /api/whatsapp/notify
+```
+
+---
+
+## Auth
+
+```
+POST /api/auth/register
+POST /api/auth/login
+```
+
+---
+
+## Admin
+
+```
+GET /api/admin/orders
+PATCH /api/admin/orders/:orderId/status
+```
+
+---
+
+# Configuración backend
+
+### 1️⃣ Copiar variables
+
+```
+Backend/.env.example → Backend/.env
+```
+
+---
+
+### 2️⃣ Instalar dependencias
 
 ```bash
 cd Backend
 npm install
 ```
 
-3. Arranca backend:
+---
+
+### 3️⃣ Configurar MongoDB
+
+```
+MONGODB_URI
+MONGODB_DB_NAME
+```
+
+---
+
+### 4️⃣ Ejecutar backend
 
 ```bash
 npm run dev
 ```
 
-4. Si vas a usar WhatsApp localmente, configura `WHATSAPP_ENABLED=true` en `Backend/.env` y escanea el QR que aparece en terminal.
+---
 
-   En Render, deja `WHATSAPP_ENABLED=false` para evitar que el servicio falle al iniciar por falta de Chrome/Chromium.
+# WhatsApp local
 
-> Si en desarrollo ves QR en bucle, asegúrate de usar este `npm run dev` (watch limitado a `src/`) para que los cambios de `.wwebjs_auth` no reinicien el proceso.
+Para usar `whatsapp-web.js` localmente:
 
-5. Para ejecución estable (sin watch), usa:
-
-```bash
-npm start
+```
+WHATSAPP_ENABLED=true
 ```
 
-> Importante: se ignoraron `.wwebjs_auth/` y `.wwebjs_cache/` en git para no versionar sesión de WhatsApp.
+Escanea el QR que aparece en terminal.
 
+---
 
+En **Render**:
 
-### Deploy backend en Render (recomendado)
+```
+WHATSAPP_ENABLED=false
+```
 
-Este repo ya incluye `render.yaml` en la raíz para desplegar `Backend/` como servicio web Node.
+Esto evita errores al iniciar por falta de Chromium.
 
-1. En Render: **New + → Blueprint** y conecta este repositorio.
-2. Render detectará `render.yaml` y creará el servicio `ricosabor-backend`.
-3. Completa variables pendientes (`sync: false`) en Render:
-   - `MONGODB_URI`
-   - `RESEND_API_KEY`
-   - `NOTIFY_EMAIL_FROM`
-   - `NOTIFY_EMAIL_TO`
-   - `ADMIN_EMAIL`
-   - `ADMIN_PASSWORD`
-4. Espera a que el deploy termine y copia la URL pública (ejemplo: `https://ricosabor-backend.onrender.com`).
+---
 
-### Conectar Netlify con backend Render
+# Deploy backend en Render
 
-En Netlify agrega variable de entorno:
+Este repo incluye **render.yaml** para despliegue automático.
 
-- `BACKEND_API_URL=https://ricosabor-backend.onrender.com`
+### Pasos
 
-> Sin `BACKEND_API_URL`, la función `/.netlify/functions/api-proxy/*` responderá `Missing BACKEND_API_URL` y registro/login fallarán con 500.
+1️⃣ Render → **New + → Blueprint**
 
-### Troubleshooting Netlify: `Could not read package.json`
+2️⃣ Conectar repositorio
 
-Si el log muestra `ENOENT: no such file or directory, open '/opt/build/repo/package.json'`:
+3️⃣ Completar variables:
 
-1. En Netlify ve a **Site settings → Build & deploy → Build settings**.
-2. Deja **Base directory** vacío (o `.`) para usar la raíz del repo.
-3. Build command: `npm run build`.
-4. Publish directory: `dist/ricosabor-tienda/browser`.
-5. Si tenías valores en la UI que pisan `netlify.toml`, pulsa **Clear** para que use el archivo del repo.
+```
+MONGODB_URI
+RESEND_API_KEY
+NOTIFY_EMAIL_FROM
+NOTIFY_EMAIL_TO
+ADMIN_EMAIL
+ADMIN_PASSWORD
+AUTH_JWT_SECRET
+```
 
-Este proyecto define esos valores en `netlify.toml` en la raíz.
-<<<<<<< HEAD
-=======
+4️⃣ Deploy
 
+---
 
-### Troubleshooting notificaciones (email/WhatsApp)
+# Conectar Netlify con backend Render
 
-Si el checkout confirma pedido pero no llega nada por email/WhatsApp:
+En Netlify añadir variable:
 
-1. Revisa la respuesta del `POST /.netlify/functions/submit-order` en DevTools (Network).
-2. En `notifications` verás el error exacto de cada canal (`Resend ...` o `WhatsApp webhook ...`).
-3. Verifica variables en Netlify (Production context):
-   - `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`, `NOTIFY_EMAIL_TO`
-   - `WHATSAPP_WEBHOOK_URL`, `WHATSAPP_WEBHOOK_TOKEN`
-4. Verifica en tu backend que `/api/whatsapp/notify` esté expuesto y que el token coincida (si lo configuraste).
-5. Si aún aparece un error que menciona `TWILIO_*`, tu deploy de Netlify está usando una función vieja: fuerza un redeploy del último commit (Clear cache and deploy site).
-6. Si en frontend ves `500 (Internal Server Error)` al llamar `/api/orders`, revisa variables del backend en Render (Mongo/Resend). Ahora la API devuelve advertencias (`warnings`) cuando falla persistencia o notificaciones, para diagnosticar más rápido.
+```
+BACKEND_API_URL=https://ricosabor-backend.onrender.com
+```
 
-<<<<<<< HEAD
-> Nota: para Twilio WhatsApp el número debe estar habilitado en WhatsApp (sandbox o número aprobado de producción).
->>>>>>> 736a1fb (Fix Netlify notification env compatibility and expose delivery diagnostics)
-=======
-> Nota: el envío real de WhatsApp lo hace tu backend con `whatsapp-web.js`; Netlify solo reenvía el mensaje al webhook.
->>>>>>> 02c325d (Remove Twilio dependency from Netlify flow and use WhatsApp webhook)
+---
+
+# Troubleshooting Netlify
+
+## Error
+
+```
+Could not read package.json
+```
+
+Solución:
+
+Netlify → **Build settings**
+
+```
+Base directory: .
+Build command: npm run build
+Publish directory: dist/ricosabor-tienda/browser
+```
+
+---
+
+# Nota sobre ramas y despliegue
+
+El autor del commit **no afecta al deploy**.
+
+Lo importante es que:
+
+- Netlify
+- Render
+
+estén desplegando **la misma rama del repositorio**.
+
+---
+
+# Arquitectura del sistema
+
+```
+Angular
+   ↓
+Netlify Function
+   ↓
+Backend Render
+   ↓
+MongoDB
+   ↓
+Email (Resend)
+   ↓
+WhatsApp (whatsapp-web.js)
+```
+
+---
+
+# Proyecto listo para
+
+- pedidos sin pasarela de pago
+- email automático
+- WhatsApp automático
+- panel admin
+- persistencia MongoDB
+- deploy Netlify + Render
