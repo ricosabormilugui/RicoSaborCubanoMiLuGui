@@ -2,10 +2,11 @@ import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
 import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { CartService } from './cart.service';
+import { CustomerAuthService } from './customer-auth.service';
 
 export interface SubmitOrderResponse {
   orderId: string;
-  channel: 'netlify' | 'local';
+  channel: 'netlify' | 'local' | 'backend';
   destination: string;
   warning?: string;
 }
@@ -13,16 +14,18 @@ export interface SubmitOrderResponse {
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
+  private readonly backendEndpoint = 'http://localhost:3001/api/orders';
 
-  constructor(private readonly cartService: CartService) {}
+  constructor(private readonly cartService: CartService, private readonly customerAuth: CustomerAuthService) {}
 
   createPayload(data: CheckoutFormData): OrderPayload {
     const subtotal = Number(this.cartService.subtotal().toFixed(2));
+    const profileEmail = this.customerAuth.profile()?.email;
     return {
       customer: {
         fullName: data.fullName,
         phone: data.phone,
-        email: data.email
+        email: data.email || profileEmail
       },
       delivery: {
         mode: data.deliveryMode,
@@ -40,6 +43,30 @@ export class OrderService {
   async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
     if (ORDER_SUBMISSION_MODE === 'local') {
       return this.saveOrderLocally(payload);
+    }
+
+    if (this.isLocalEnvironment()) {
+      try {
+        const response = await fetch(this.backendEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.customerAuth.token() ? { Authorization: `Bearer ${this.customerAuth.token()}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as { orderId: string; accountMode?: string };
+          return {
+            orderId: data.orderId,
+            channel: 'backend',
+            destination: `Backend API (${data.accountMode ?? 'guest'})`
+          };
+        }
+      } catch {
+        // fallback below
+      }
     }
 
     try {

@@ -26,6 +26,30 @@ export async function findOrderById(orderId) {
   return db.collection(getOrdersCollectionName()).findOne({ orderId });
 }
 
+export async function linkGuestOrdersByEmailToUser(email, userId) {
+  const db = await getDb();
+  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  if (!normalizedEmail) return 0;
+
+  const result = await db.collection(getOrdersCollectionName()).updateMany(
+    {
+      customerEmailNormalized: normalizedEmail,
+      accountMode: "guest",
+      $or: [{ userId: { $exists: false } }, { userId: null }, { userId: "" }]
+    },
+    {
+      $set: {
+        accountMode: "registered",
+        userId,
+        updatedAt: new Date().toISOString(),
+        linkedByEmailAt: new Date().toISOString()
+      }
+    }
+  );
+
+  return result.modifiedCount;
+}
+
 export async function updateOrderStatus(orderId, nextStatus, metadata = {}) {
   const db = await getDb();
   const collection = db.collection(getOrdersCollectionName());
