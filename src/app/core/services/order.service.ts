@@ -59,20 +59,36 @@ export class OrderService {
       });
 
       if (!response.ok) {
-        throw new Error('No se pudo enviar el pedido al backend.');
+        let backendError = 'No se pudo enviar el pedido al backend.';
+
+        try {
+          const errorPayload = (await response.json()) as { error?: string };
+          if (errorPayload?.error) {
+            backendError = errorPayload.error;
+          }
+        } catch {
+          // ignored: response body may not be JSON
+        }
+
+        throw new Error(backendError);
       }
 
-      const data = (await response.json()) as { orderId: string };
+      const data = (await response.json()) as { orderId: string; warnings?: string[] };
+      const warning = (data.warnings ?? []).join(' | ') || undefined;
+
       return {
         orderId: data.orderId,
         channel: 'api',
-        destination: `Backend API (${this.apiEndpoint})`
+        destination: `Backend API (${this.apiEndpoint})`,
+        warning
       };
-    } catch {
+    } catch (error) {
       if (this.isLocalEnvironment()) {
         return this.saveOrderLocally(payload);
       }
-      throw new Error('No se pudo enviar el pedido al backend.');
+
+      const message = error instanceof Error ? error.message : 'No se pudo enviar el pedido al backend.';
+      throw new Error(message);
     }
   }
 

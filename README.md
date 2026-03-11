@@ -159,5 +159,6 @@ Si el checkout confirma pedido pero no llega nada por email/WhatsApp:
    - `WHATSAPP_WEBHOOK_URL`, `WHATSAPP_WEBHOOK_TOKEN`
 4. Verifica en tu backend que `/api/whatsapp/notify` esté expuesto y que el token coincida (si lo configuraste).
 5. Si aún aparece un error que menciona `TWILIO_*`, tu deploy de Netlify está usando una función vieja: fuerza un redeploy del último commit (Clear cache and deploy site).
+6. Si en frontend ves `500 (Internal Server Error)` al llamar `/api/orders`, revisa variables del backend en Render (Mongo/Resend). Ahora la API devuelve advertencias (`warnings`) cuando falla persistencia o notificaciones, para diagnosticar más rápido.
 
 > Nota: el envío real de WhatsApp lo hace tu backend con `whatsapp-web.js`; Netlify solo reenvía el mensaje al webhook.

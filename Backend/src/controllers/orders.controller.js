@@ -11,6 +11,14 @@ function isWebhookAuthorized(req) {
   return bearer === expectedToken;
 }
 
+async function runStep(stepName, runner, warnings) {
+  try {
+    await runner();
+  } catch (error) {
+    warnings.push(`${stepName}: ${error.message ?? "failed"}`);
+  }
+}
+
 export async function createOrder(req, res) {
   try {
     const payload = req.body;
@@ -26,14 +34,26 @@ export async function createOrder(req, res) {
       status: "nuevo"
     };
 
-    await saveOrder(order);
+    const warnings = [];
 
-    await Promise.all([
-      sendOrderEmail(order),
-      sendWhatsAppNotification(`🛒 Nuevo pedido en MiLuGui\n\nCliente: ${order.customer.fullName}\nTeléfono: ${order.customer.phone}\nTotal: ${order.total ?? 0}€`)
-    ]);
+    await runStep("persistence", async () => {
+      await saveOrder(order);
+    }, warnings);
 
-    return res.status(201).json({ orderId: order.orderId });
+    await runStep("email", async () => {
+      await sendOrderEmail(order);
+    }, warnings);
+
+    await runStep("whatsapp", async () => {
+      await sendWhatsAppNotification(
+        `🛒 Nuevo pedido en MiLuGui\n\nCliente: ${order.customer.fullName}\nTeléfono: ${order.customer.phone}\nTotal: ${order.total ?? 0}€`
+      );
+    }, warnings);
+
+    return res.status(201).json({
+      orderId: order.orderId,
+      warnings: warnings.length ? warnings : undefined
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }

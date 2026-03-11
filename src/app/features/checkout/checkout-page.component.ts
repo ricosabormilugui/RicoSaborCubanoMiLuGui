@@ -93,8 +93,9 @@ export class CheckoutPageComponent {
       this.notificationWarning.set(result.warning ?? '');
       this.cart.clear();
       this.form.reset({ deliveryMode: 'delivery' });
-    } catch {
-      this.error.set('No fue posible registrar el pedido. Intenta nuevamente.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No fue posible registrar el pedido. Intenta nuevamente.';
+      this.error.set(message);
     } finally {
       this.loading.set(false);
     }
