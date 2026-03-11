@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { resolveApiBaseUrl } from '../config/api.config';
 import { CustomerAuthService } from './customer-auth.service';
 
 export interface CustomerOrder {
@@ -12,7 +13,7 @@ export interface CustomerOrder {
 
 @Injectable({ providedIn: 'root' })
 export class CustomerOrdersService {
-  private readonly endpoint = 'http://localhost:3001/api/orders/me';
+  private readonly endpoint = `${resolveApiBaseUrl()}/orders/me`;
 
   constructor(private readonly auth: CustomerAuthService) {}
 

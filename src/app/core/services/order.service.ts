@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
 import { ORDER_SUBMISSION_MODE } from '../config/order.config';
+import { resolveApiBaseUrl } from '../config/api.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
 
@@ -14,7 +15,7 @@ export interface SubmitOrderResponse {
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
-  private readonly backendEndpoint = 'http://localhost:3001/api/orders';
+  private readonly backendEndpoint = `${resolveApiBaseUrl()}/orders`;
 
   constructor(private readonly cartService: CartService, private readonly customerAuth: CustomerAuthService) {}
 

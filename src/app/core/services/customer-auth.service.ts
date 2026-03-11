@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { resolveApiBaseUrl } from '../config/api.config';
 
 export interface CustomerProfile {
   userId: string;
@@ -8,7 +9,7 @@ export interface CustomerProfile {
 
 @Injectable({ providedIn: 'root' })
 export class CustomerAuthService {
-  private readonly apiBase = 'http://localhost:3001/api/auth';
+  private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
   private readonly tokenKey = 'ricosabor-customer-token';
   private readonly profileKey = 'ricosabor-customer-profile';
 

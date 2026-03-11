@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
+import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminOrder, AdminOrderStatus } from '../models/admin-order.model';
 import { AdminAuthService } from './admin-auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class AdminOrderService {
-  private readonly apiBase = 'http://localhost:3001/api';
+  private readonly apiBase = resolveApiBaseUrl();
 
   constructor(private readonly auth: AdminAuthService) {}
 
