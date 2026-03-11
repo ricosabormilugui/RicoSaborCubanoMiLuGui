@@ -97,6 +97,13 @@ Se agregó un backend en `Backend/` para flujo de pedidos con persistencia en Mo
 ### Endpoints backend
 
 - `GET /health`
+
+### Login / registro rápido
+
+- Registro cliente: `POST /api/auth/register` con `{ "name", "email", "password" }`.
+- Login cliente/admin: `POST /api/auth/login` con `{ "email", "password" }`.
+- Para login admin en Render debes definir: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `AUTH_JWT_SECRET`.
+
 - `POST /api/orders`
 - `POST /api/whatsapp/notify`
 - `POST /api/auth/register`
@@ -114,19 +121,20 @@ cd Backend
 npm install
 ```
 
-3. Arranca backend:
+3. Configura Mongo en Render con `MONGODB_URI` (o `MONGO_URI`) y `MONGODB_DB_NAME` (o `MONGO_DB_NAME`).
+4. Arranca backend:
 
 ```bash
 npm run dev
 ```
 
-4. Si vas a usar WhatsApp localmente, configura `WHATSAPP_ENABLED=true` en `Backend/.env` y escanea el QR que aparece en terminal.
+5. Si vas a usar WhatsApp localmente, configura `WHATSAPP_ENABLED=true` en `Backend/.env` y escanea el QR que aparece en terminal.
 
    En Render, deja `WHATSAPP_ENABLED=false` para evitar que el servicio falle al iniciar por falta de Chrome/Chromium.
 
 > Si en desarrollo ves QR en bucle, asegúrate de usar este `npm run dev` (watch limitado a `src/`) para que los cambios de `.wwebjs_auth` no reinicien el proceso.
 
-5. Para ejecución estable (sin watch), usa:
+6. Para ejecución estable (sin watch), usa:
 
 ```bash
 npm start
@@ -162,3 +170,8 @@ Si el checkout confirma pedido pero no llega nada por email/WhatsApp:
 6. Si en frontend ves `500 (Internal Server Error)` al llamar `/api/orders`, revisa variables del backend en Render (Mongo/Resend). Ahora la API devuelve advertencias (`warnings`) cuando falla persistencia o notificaciones, para diagnosticar más rápido.
 
 > Nota: el envío real de WhatsApp lo hace tu backend con `whatsapp-web.js`; Netlify solo reenvía el mensaje al webhook.
+
+
+### Nota sobre ramas y despliegue
+
+El autor del commit no afecta al resultado del deploy. Lo importante es que Netlify/Render estén construyendo el **mismo branch que contiene tus cambios** (y que ese branch tenga el commit correcto).
