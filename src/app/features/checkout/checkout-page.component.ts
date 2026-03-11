@@ -39,7 +39,7 @@ import { OrderService } from '../../core/services/order.service';
       </p>
       <p class="warn" *ngIf="isLocalDraft()">
         Estás en modo local (<code>ng serve</code>). Este pedido se guardó solo en tu navegador.
-        Para enviarlo realmente al backend usa <strong>Netlify (producción)</strong> o ejecuta <strong><code>netlify dev</code></strong>.
+        Para enviarlo realmente al backend despliega el frontend y configura el modo <strong><code>api</code></strong> con tu URL de Render.
       </p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>

@@ -17,7 +17,7 @@ Proyecto base para una tienda web en Angular + TypeScript con backend serverless
 - `src/app/features/checkout`: checkout y envío de pedidos.
 - `src/app/features/contact`: formulario de contacto.
 - `src/app/core/services`: servicios de catálogo, carrito y pedidos.
-- `src/app/core/config/order.config.ts`: modo de envío (`local` o `netlify`).
+- `src/app/core/config/order.config.ts`: modo de envío (`local`, `netlify` o `api`) y URL del backend.
 - `netlify/functions/submit-order.ts`: endpoint backend para notificaciones por email y WhatsApp.
 
 ## Ejecutar localmente
@@ -60,15 +60,15 @@ La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 ## Envío de pedidos en esta fase
 
-- La app está configurada en modo **netlify** (`ORDER_SUBMISSION_MODE = 'netlify'`).
-- El checkout envía pedidos al endpoint `/.netlify/functions/submit-order`.
+- La app está configurada en modo **api** (`ORDER_SUBMISSION_MODE = 'api'`).
+- El checkout envía pedidos al backend Express en Render (`/api/orders`).
 
 ### Cuando quieras activar backend real
 
-1. Cambia `src/app/core/config/order.config.ts` a `ORDER_SUBMISSION_MODE = 'netlify'`.
-2. Configura las variables de entorno en Netlify.
-3. Prueba con `netlify dev` o despliega en Netlify.
-4. A partir de ahí, el checkout enviará al endpoint `/.netlify/functions/submit-order`.
+1. Abre `src/app/core/config/order.config.ts`.
+2. Usa `ORDER_SUBMISSION_MODE = 'api'`.
+3. Define `BACKEND_API_BASE_URL` con tu URL pública de Render.
+4. Despliega frontend y prueba creación de pedidos.
 
 ## Archivo .env
 
