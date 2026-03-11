@@ -6,7 +6,14 @@ function getEnv(name: string): string | undefined {
 function resolveBackendBase(): string | undefined {
   const direct = getEnv('BACKEND_API_URL');
   if (!direct) return undefined;
+
   return direct.replace(/\/$/, '');
+}
+
+function buildTargetUrl(backendBase: string, splat: string, search: string): string {
+  const base = backendBase.replace(/\/$/, '');
+  const apiBase = base.endsWith('/api') ? base : `${base}/api`;
+  return `${apiBase}/${splat}${search}`;
 }
 
 function pickForwardHeaders(request: Request): Record<string, string> {
@@ -39,7 +46,7 @@ function resolveSplat(pathname: string): string {
 export default async (request: Request): Promise<Response> => {
   const backendBase = resolveBackendBase();
   if (!backendBase) {
-    return new Response(JSON.stringify({ error: 'Missing BACKEND_API_URL' }), {
+    return new Response(JSON.stringify({ error: 'Missing BACKEND_API_URL (e.g. https://your-render-app.onrender.com)' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -54,7 +61,7 @@ export default async (request: Request): Promise<Response> => {
     });
   }
 
-  const target = `${backendBase}/api/${splat}${url.search}`;
+  const target = buildTargetUrl(backendBase, splat, url.search);
 
   try {
     const response = await fetch(target, {
@@ -68,7 +75,7 @@ export default async (request: Request): Promise<Response> => {
       headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json' }
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Proxy error' }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Proxy error', target }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' }
     });

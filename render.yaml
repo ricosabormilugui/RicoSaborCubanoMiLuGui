@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: ricosabor-backend
+    runtime: node
+    rootDir: Backend
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: AUTH_TOKEN_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: miLuGui
+      - key: MONGODB_ORDERS_COLLECTION
+        value: orders
+      - key: MONGODB_USERS_COLLECTION
+        value: users
+      - key: RESEND_API_KEY
+        sync: false
+      - key: NOTIFY_EMAIL_FROM
+        sync: false
+      - key: NOTIFY_EMAIL_TO
+        sync: false
+      - key: WHATSAPP_WEBHOOK_TOKEN
+        sync: false
