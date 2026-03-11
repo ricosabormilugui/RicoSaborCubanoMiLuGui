@@ -34,6 +34,9 @@ import { OrderService } from '../../core/services/order.service';
 
       <p class="ok" *ngIf="orderId()">Pedido registrado. Tu número es: <strong>{{ orderId() }}</strong></p>
       <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
+      <p class="warn" *ngIf="notificationWarning()">
+        Notificaciones: {{ notificationWarning() }}
+      </p>
       <p class="warn" *ngIf="isLocalDraft()">
         Estás en modo local (<code>ng serve</code>). Este pedido se guardó solo en tu navegador.
         Para enviarlo realmente al backend usa <strong>Netlify (producción)</strong> o ejecuta <strong><code>netlify dev</code></strong>.
@@ -58,6 +61,7 @@ export class CheckoutPageComponent {
   readonly error = signal('');
   readonly destination = signal('');
   readonly isLocalDraft = signal(false);
+  readonly notificationWarning = signal('');
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -78,6 +82,7 @@ export class CheckoutPageComponent {
     this.error.set('');
     this.destination.set('');
     this.isLocalDraft.set(false);
+    this.notificationWarning.set('');
 
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
@@ -85,6 +90,7 @@ export class CheckoutPageComponent {
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
       this.isLocalDraft.set(result.channel === 'local');
+      this.notificationWarning.set(result.warning ?? '');
       this.cart.clear();
       this.form.reset({ deliveryMode: 'delivery' });
     } catch {
