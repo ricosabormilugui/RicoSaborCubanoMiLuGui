@@ -65,3 +65,16 @@ export async function loginAdmin(req, res) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
+
+
+export async function getCustomerSession(req, res) {
+  try {
+    return res.status(200).json({
+      userId: req.auth?.sub,
+      email: req.auth?.email,
+      role: req.auth?.role ?? "customer"
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+  }
+}

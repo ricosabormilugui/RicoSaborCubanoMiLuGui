@@ -24,6 +24,7 @@ import { CustomerAuthService } from './core/services/customer-auth.service';
           <a class="nav-pill" routerLink="/contacto" routerLinkActive="active">Contacto</a>
           <a class="nav-pill neutral" routerLink="/login" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Entrar</a>
           <a class="nav-pill neutral" routerLink="/registro" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
+          <a class="nav-pill neutral" routerLink="/mis-pedidos" routerLinkActive="active" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
           <button class="nav-pill neutral" type="button" *ngIf="customerAuth.isAuthenticated()" (click)="logoutCustomer()">Salir cliente</button>
           <a class="nav-pill neutral" routerLink="/admin" routerLinkActive="active" *ngIf="adminAuth.isAuthenticated()">Admin</a>
         </nav>
@@ -54,7 +55,9 @@ export class AppComponent {
     public readonly cart: CartService,
     public readonly adminAuth: AdminAuthService,
     public readonly customerAuth: CustomerAuthService
-  ) {}
+  ) {
+    void this.customerAuth.restoreSession();
+  }
 
   logoutCustomer(): void {
     this.customerAuth.logout();

@@ -21,6 +21,24 @@ export async function listOrders({ status, limit = 100 } = {}) {
     .toArray();
 }
 
+export async function listOrdersForCustomer({ userId, email, limit = 100 } = {}) {
+  const db = await getDb();
+  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  const clauses = [];
+
+  if (userId) clauses.push({ userId });
+  if (normalizedEmail) clauses.push({ customerEmailNormalized: normalizedEmail });
+
+  if (!clauses.length) return [];
+
+  return db
+    .collection(getOrdersCollectionName())
+    .find({ $or: clauses })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+}
+
 export async function findOrderById(orderId) {
   const db = await getDb();
   return db.collection(getOrdersCollectionName()).findOne({ orderId });

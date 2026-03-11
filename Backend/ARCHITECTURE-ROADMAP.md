@@ -40,3 +40,9 @@ Se persiste `statusHistory` para auditoría básica.
 5. **Operación**
    - idempotencia en creación de pedido
    - colas para notificaciones (email/whatsapp) y reintentos
+
+
+## Avance adicional (cliente)
+- `GET /api/orders/me`: historial de pedidos del cliente autenticado (por `userId` y respaldo por email normalizado).
+- `GET /api/auth/me`: validación/rehidratación de sesión de cliente en frontend.
+- Vinculación automática de pedidos guest previos por email al momento de registro (`linkedOrders`).

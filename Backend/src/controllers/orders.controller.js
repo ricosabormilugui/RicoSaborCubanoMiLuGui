@@ -1,6 +1,6 @@
 import { sendOrderEmail } from "../services/email.service.js";
 import { sendWhatsAppNotification } from "../services/whatsapp.service.js";
-import { findOrderById, listOrders, saveOrder, updateOrderStatus } from "../repositories/orders.repository.js";
+import { findOrderById, listOrders, listOrdersForCustomer, saveOrder, updateOrderStatus } from "../repositories/orders.repository.js";
 
 const allowedStatuses = new Set(["nuevo", "enviado", "entregado", "anulado"]);
 
@@ -60,6 +60,22 @@ export async function createOrder(req, res) {
     ]);
 
     return res.status(201).json({ orderId: order.orderId, accountMode: order.accountMode });
+  } catch (error) {
+    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+  }
+}
+
+
+export async function listMyOrders(req, res) {
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 100;
+    const orders = await listOrdersForCustomer({
+      userId: req.auth?.sub,
+      email: req.auth?.email,
+      limit: Number.isFinite(limit) ? Math.min(limit, 200) : 100
+    });
+
+    return res.status(200).json({ orders });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
