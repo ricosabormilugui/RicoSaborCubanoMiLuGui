@@ -1,11 +1,11 @@
 import { Injectable } from '@angular/core';
 import { CheckoutFormData, OrderPayload } from '../models/order.model';
-import { ORDER_SUBMISSION_MODE } from '../config/order.config';
+import { BACKEND_API_BASE_URL, ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { CartService } from './cart.service';
 
 export interface SubmitOrderResponse {
   orderId: string;
-  channel: 'netlify' | 'local';
+  channel: 'netlify' | 'local' | 'api';
   destination: string;
   warning?: string;
 }
@@ -13,6 +13,7 @@ export interface SubmitOrderResponse {
 @Injectable({ providedIn: 'root' })
 export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
+  private readonly apiEndpoint = `${BACKEND_API_BASE_URL}/api/orders`;
 
   constructor(private readonly cartService: CartService) {}
 
@@ -42,6 +43,56 @@ export class OrderService {
       return this.saveOrderLocally(payload);
     }
 
+    if (ORDER_SUBMISSION_MODE === 'api') {
+      return this.submitToBackendApi(payload);
+    }
+
+    return this.submitToNetlify(payload);
+  }
+
+  private async submitToBackendApi(payload: OrderPayload): Promise<SubmitOrderResponse> {
+    try {
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let backendError = 'No se pudo enviar el pedido al backend.';
+
+        try {
+          const errorPayload = (await response.json()) as { error?: string };
+          if (errorPayload?.error) {
+            backendError = errorPayload.error;
+          }
+        } catch {
+          // ignored: response body may not be JSON
+        }
+
+        throw new Error(backendError);
+      }
+
+      const data = (await response.json()) as { orderId: string; warnings?: string[] };
+      const warning = (data.warnings ?? []).join(' | ') || undefined;
+
+      return {
+        orderId: data.orderId,
+        channel: 'api',
+        destination: `Backend API (${this.apiEndpoint})`,
+        warning
+      };
+    } catch (error) {
+      if (this.isLocalEnvironment()) {
+        return this.saveOrderLocally(payload);
+      }
+
+      const message = error instanceof Error ? error.message : 'No se pudo enviar el pedido al backend.';
+      throw new Error(message);
+    }
+  }
+
+  private async submitToNetlify(payload: OrderPayload): Promise<SubmitOrderResponse> {
     try {
       const response = await fetch(this.netlifyEndpoint, {
         method: 'POST',
