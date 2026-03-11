@@ -101,7 +101,7 @@ Se agregó un backend en `Backend/` para flujo de pedidos con persistencia en Mo
 
 - Guarda pedido en MongoDB.
 - Envía email por Resend.
-- Envía WhatsApp por `whatsapp-web.js`.
+- Envía WhatsApp por `whatsapp-web.js` (opcional por entorno).
 
 ### Archivos clave
 
@@ -128,7 +128,9 @@ npm install
 npm run dev
 ```
 
-4. Escanea el QR que aparece en terminal para vincular WhatsApp Business.
+4. Si vas a usar WhatsApp localmente, configura `WHATSAPP_ENABLED=true` en `Backend/.env` y escanea el QR que aparece en terminal.
+
+   En Render, deja `WHATSAPP_ENABLED=false` para evitar que el servicio falle al iniciar por falta de Chrome/Chromium.
 
 > Si en desarrollo ves QR en bucle, asegúrate de usar este `npm run dev` (watch limitado a `src/`) para que los cambios de `.wwebjs_auth` no reinicien el proceso.
 
