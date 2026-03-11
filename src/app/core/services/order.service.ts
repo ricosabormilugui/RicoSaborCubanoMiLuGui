@@ -152,9 +152,7 @@ export class OrderService {
       });
 
       globalThis?.localStorage?.setItem(storageKey, JSON.stringify(orders));
-    } catch {
-      // ignoramos errores de storage
-    }
+    } catch {}
 
     return {
       orderId,
