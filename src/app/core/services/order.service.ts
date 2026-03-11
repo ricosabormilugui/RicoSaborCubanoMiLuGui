@@ -50,34 +50,9 @@ export class OrderService {
       return this.saveOrderLocally(payload);
     }
 
-    if (this.isLocalEnvironment()) {
-      try {
-        const response = await fetch(this.backendEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.customerAuth.token()
-              ? { Authorization: `Bearer ${this.customerAuth.token()}` }
-              : {})
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as {
-            orderId: string;
-            accountMode?: string;
-          };
-
-          return {
-            orderId: data.orderId,
-            channel: 'backend',
-            destination: `Backend API (${data.accountMode ?? 'guest'})`
-          };
-        }
-      } catch {
-        // fallback a Netlify
-      }
+    const backendResult = await this.submitToBackend(payload);
+    if (backendResult) {
+      return backendResult;
     }
 
     try {
@@ -125,6 +100,40 @@ export class OrderService {
       }
 
       throw new Error('No se pudo enviar el pedido.');
+    }
+  }
+
+  private async submitToBackend(
+    payload: OrderPayload
+  ): Promise<SubmitOrderResponse | null> {
+    try {
+      const response = await fetch(this.backendEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.customerAuth.token()
+            ? { Authorization: `Bearer ${this.customerAuth.token()}` }
+            : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = (await response.json()) as {
+        orderId: string;
+        accountMode?: string;
+      };
+
+      return {
+        orderId: data.orderId,
+        channel: 'backend',
+        destination: `Backend API (${data.accountMode ?? 'guest'})`
+      };
+    } catch {
+      return null;
     }
   }
 
