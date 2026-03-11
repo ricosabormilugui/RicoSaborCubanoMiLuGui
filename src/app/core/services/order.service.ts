@@ -17,11 +17,15 @@ export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
   private readonly backendEndpoint = `${resolveApiBaseUrl()}/orders`;
 
-  constructor(private readonly cartService: CartService, private readonly customerAuth: CustomerAuthService) {}
+  constructor(
+    private readonly cartService: CartService,
+    private readonly customerAuth: CustomerAuthService
+  ) {}
 
   createPayload(data: CheckoutFormData): OrderPayload {
     const subtotal = Number(this.cartService.subtotal().toFixed(2));
     const profileEmail = this.customerAuth.profile()?.email;
+
     return {
       customer: {
         fullName: data.fullName,
@@ -52,13 +56,19 @@ export class OrderService {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(this.customerAuth.token() ? { Authorization: `Bearer ${this.customerAuth.token()}` } : {})
+            ...(this.customerAuth.token()
+              ? { Authorization: `Bearer ${this.customerAuth.token()}` }
+              : {})
           },
           body: JSON.stringify(payload)
         });
 
         if (response.ok) {
-          const data = (await response.json()) as { orderId: string; accountMode?: string };
+          const data = (await response.json()) as {
+            orderId: string;
+            accountMode?: string;
+          };
+
           return {
             orderId: data.orderId,
             channel: 'backend',
@@ -66,7 +76,7 @@ export class OrderService {
           };
         }
       } catch {
-        // fallback below
+        // fallback a Netlify
       }
     }
 
@@ -78,11 +88,23 @@ export class OrderService {
       });
 
       if (response.ok) {
-        const data = (await response.json()) as { orderId: string; warning?: string; notifications?: Array<{ channel: string; sent: boolean; detail?: string }> };
+        const data = (await response.json()) as {
+          orderId: string;
+          warning?: string;
+          notifications?: Array<{
+            channel: string;
+            sent: boolean;
+            detail?: string;
+          }>;
+        };
+
         const notificationErrors = (data.notifications ?? [])
           .filter((item) => !item.sent && item.detail)
           .map((item) => `${item.channel}: ${item.detail}`);
-        const warning = [data.warning, ...notificationErrors].filter(Boolean).join(' | ') || undefined;
+
+        const warning =
+          [data.warning, ...notificationErrors].filter(Boolean).join(' | ') ||
+          undefined;
 
         return {
           orderId: data.orderId,
@@ -101,6 +123,7 @@ export class OrderService {
       if (this.isLocalEnvironment()) {
         return this.saveOrderLocally(payload);
       }
+
       throw new Error('No se pudo enviar el pedido.');
     }
   }
@@ -116,15 +139,21 @@ export class OrderService {
 
     try {
       const current = globalThis?.localStorage?.getItem(storageKey);
-      const orders = current ? (JSON.parse(current) as Array<OrderPayload & { orderId: string; createdAt: string }>) : [];
+      const orders = current
+        ? (JSON.parse(current) as Array<
+            OrderPayload & { orderId: string; createdAt: string }
+          >)
+        : [];
+
       orders.push({
         orderId,
         createdAt: new Date().toISOString(),
         ...payload
       });
+
       globalThis?.localStorage?.setItem(storageKey, JSON.stringify(orders));
     } catch {
-      // Si storage falla (modo privado / permisos), igualmente devolvemos orderId local
+      // ignoramos errores de storage
     }
 
     return {
