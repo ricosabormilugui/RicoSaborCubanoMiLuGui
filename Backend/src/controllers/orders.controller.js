@@ -48,14 +48,6 @@ function buildOrderIdentity(payload, auth) {
   };
 }
 
-async function runStep(stepName, runner, warnings) {
-  try {
-    await runner();
-  } catch (error) {
-    warnings.push(`${stepName}: ${error.message ?? "failed"}`);
-  }
-}
-
 export async function createOrder(req, res) {
   try {
     const payload = req.body;
@@ -83,22 +75,27 @@ export async function createOrder(req, res) {
         }
       ]
     };
+    await saveOrder(order);
 
     const warnings = [];
 
-    await runStep("persistence", async () => {
-      await saveOrder(order);
-    }, warnings);
-
-    await runStep("email", async () => {
+    try {
       await sendOrderEmail(order);
-    }, warnings);
+    } catch (error) {
+      warnings.push(`email: ${error.message ?? "failed"}`);
+    }
 
-    await runStep("whatsapp", async () => {
+    try {
       await sendWhatsAppNotification(
-        `🛒 Nuevo pedido en MiLuGui\n\nCliente: ${order.customer.fullName}\nTeléfono: ${order.customer.phone}\nTotal: ${order.total ?? 0}€`
+        `🛒 Nuevo pedido en MiLuGui
+
+Cliente: ${order.customer.fullName}
+Teléfono: ${order.customer.phone}
+Total: ${order.total ?? 0}€`
       );
-    }, warnings);
+    } catch (error) {
+      warnings.push(`whatsapp: ${error.message ?? "failed"}`);
+    }
 
     return res.status(201).json({
       orderId: order.orderId,
