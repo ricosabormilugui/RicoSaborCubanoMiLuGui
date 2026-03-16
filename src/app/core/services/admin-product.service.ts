@@ -10,6 +10,10 @@ export interface AdminProductPayload {
   category: string;
   imageUrl: string;
   available: boolean;
+  published: boolean;
+  trackStock: boolean;
+  stock: number;
+  lowStockAlert: number;
   order: number;
 }
 

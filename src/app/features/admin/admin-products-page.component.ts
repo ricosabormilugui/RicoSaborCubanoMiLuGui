@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ProductApiRecord } from '../../core/models/product.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
 import {
   AdminProductPayload,
   AdminProductService
 } from '../../core/services/admin-product.service';
-import { ProductApiRecord } from '../../core/models/product.model';
 
 @Component({
   standalone: true,
@@ -44,26 +44,54 @@ import { ProductApiRecord } from '../../core/models/product.model';
           <input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="URL imagen" />
           <input [(ngModel)]="form.order" name="order" type="number" placeholder="Orden" />
           <label><input type="checkbox" [(ngModel)]="form.available" name="available" /> Disponible</label>
+          <label><input type="checkbox" [(ngModel)]="form.published" name="published" /> Publicado</label>
+          <label><input type="checkbox" [(ngModel)]="form.trackStock" name="trackStock" /> Controlar stock</label>
+          <input [(ngModel)]="form.stock" name="stock" type="number" min="0" placeholder="Stock" />
+          <input [(ngModel)]="form.lowStockAlert" name="lowStockAlert" type="number" min="0" placeholder="Alerta stock bajo" />
           <textarea [(ngModel)]="form.description" name="description" placeholder="Descripción"></textarea>
-          <div class="actions">
+          <div class="actions form-actions">
             <button class="btn btn-primary" type="submit">{{ editId() ? 'Guardar cambios' : '+ Nuevo producto' }}</button>
             <button class="btn" type="button" *ngIf="editId()" (click)="resetForm()">Cancelar edición</button>
           </div>
         </form>
 
-        <article class="order" *ngFor="let product of products()">
-          <header>
-            <h3>{{ product.name }}</h3>
-            <span class="badge" [class.anulado]="!product.available">{{ product.available ? 'disponible' : 'oculto' }}</span>
-          </header>
-          <p><strong>Categoría:</strong> {{ product.category }} · <strong>Precio:</strong> {{ product.price | currency:'EUR' }} · <strong>Orden:</strong> {{ product.order ?? 0 }}</p>
-          <p>{{ product.description }}</p>
-          <div class="actions">
-            <button class="btn" (click)="editProduct(product)">Editar</button>
-            <button class="btn" (click)="toggleAvailability(product)">{{ product.available ? 'Desactivar' : 'Activar' }}</button>
-            <button class="btn" (click)="removeProduct(product)">Eliminar</button>
-          </div>
-        </article>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Publicado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of products()">
+                <td>
+                  <strong>{{ product.name }}</strong>
+                  <small class="meta" *ngIf="isLowStock(product)">⚠ Stock bajo</small>
+                </td>
+                <td>{{ product.category }}</td>
+                <td>{{ product.price | currency:'EUR' }}</td>
+                <td>
+                  <ng-container *ngIf="product.trackStock; else noStockTracking">
+                    {{ product.stock ?? 0 }}
+                  </ng-container>
+                  <ng-template #noStockTracking>—</ng-template>
+                </td>
+                <td>{{ product.published ? '✅' : '❌' }}</td>
+                <td class="actions">
+                  <button class="btn" (click)="editProduct(product)">Editar</button>
+                  <button class="btn" (click)="togglePublished(product)">{{ product.published ? 'Despublicar' : 'Publicar' }}</button>
+                  <button class="btn" (click)="toggleAvailability(product)">{{ product.available ? 'Desactivar' : 'Activar' }}</button>
+                  <button class="btn" (click)="removeProduct(product)">Eliminar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </ng-template>
   `,
@@ -71,11 +99,14 @@ import { ProductApiRecord } from '../../core/models/product.model';
     `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-bottom:.7rem}`,
     `.toolbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}`,
     `.actions{display:flex;gap:.6rem;flex-wrap:wrap}`,
-    `.product-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;border:1px solid #e5e7eb;border-radius:12px;padding:.8rem}`,
+    `.product-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;border:1px solid #e5e7eb;border-radius:12px;padding:.8rem;margin-bottom:1rem}`,
     `.product-form textarea{grid-column:1/-1;min-height:74px}`,
-    `.order{border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;margin-top:.8rem;background:#fff}`,
-    `.badge{padding:.25rem .6rem;border-radius:999px;color:#fff;font-weight:700;background:#2f8a2c}`,
-    `.badge.anulado{background:#c71f26}`,
+    `.form-actions{grid-column:1/-1}`,
+    `.table-wrap{overflow:auto}`,
+    `table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px}`,
+    `th,td{padding:.65rem;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}`,
+    `th{background:#f8fafc}`,
+    `.meta{display:block;color:#c71f26;font-size:.8rem;margin-top:.2rem}`,
     `.err{color:#b42318}`,
     `@media (max-width:900px){.grid,.product-form{grid-template-columns:1fr}}`
   ]
@@ -89,6 +120,10 @@ export class AdminProductsPageComponent {
   readonly editId = signal<string>('');
   readonly products = signal<ProductApiRecord[]>([]);
 
+  readonly lowStockCount = computed(
+    () => this.products().filter((item) => this.isLowStock(item)).length
+  );
+
   form: AdminProductPayload = {
     name: '',
     description: '',
@@ -96,6 +131,10 @@ export class AdminProductsPageComponent {
     category: 'platos',
     imageUrl: '',
     available: true,
+    published: true,
+    trackStock: false,
+    stock: 0,
+    lowStockAlert: 5,
     order: 0
   };
 
@@ -139,6 +178,10 @@ export class AdminProductsPageComponent {
     }
   }
 
+  isLowStock(product: ProductApiRecord): boolean {
+    return Boolean(product.trackStock) && Number(product.stock ?? 0) <= Number(product.lowStockAlert ?? 5);
+  }
+
   editProduct(product: ProductApiRecord): void {
     this.editId.set(product._id);
     this.form = {
@@ -148,6 +191,10 @@ export class AdminProductsPageComponent {
       category: product.category ?? 'platos',
       imageUrl: product.imageUrl ?? '',
       available: product.available ?? true,
+      published: product.published ?? true,
+      trackStock: product.trackStock ?? false,
+      stock: Number(product.stock ?? 0),
+      lowStockAlert: Number(product.lowStockAlert ?? 5),
       order: Number(product.order ?? 0)
     };
   }
@@ -161,6 +208,10 @@ export class AdminProductsPageComponent {
       category: 'platos',
       imageUrl: '',
       available: true,
+      published: true,
+      trackStock: false,
+      stock: 0,
+      lowStockAlert: 5,
       order: 0
     };
   }
@@ -180,6 +231,27 @@ export class AdminProductsPageComponent {
     }
   }
 
+  async togglePublished(product: ProductApiRecord): Promise<void> {
+    try {
+      await this.adminProducts.updateProduct(product._id, {
+        name: product.name,
+        description: product.description ?? '',
+        price: Number(product.price ?? 0),
+        category: product.category ?? 'platos',
+        imageUrl: product.imageUrl ?? '',
+        available: product.available ?? true,
+        published: !(product.published ?? true),
+        trackStock: product.trackStock ?? false,
+        stock: Number(product.stock ?? 0),
+        lowStockAlert: Number(product.lowStockAlert ?? 5),
+        order: Number(product.order ?? 0)
+      });
+      await this.loadProducts();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'No se pudo cambiar publicación.');
+    }
+  }
+
   async toggleAvailability(product: ProductApiRecord): Promise<void> {
     try {
       await this.adminProducts.updateProduct(product._id, {
@@ -189,6 +261,10 @@ export class AdminProductsPageComponent {
         category: product.category ?? 'platos',
         imageUrl: product.imageUrl ?? '',
         available: !(product.available ?? true),
+        published: product.published ?? true,
+        trackStock: product.trackStock ?? false,
+        stock: Number(product.stock ?? 0),
+        lowStockAlert: Number(product.lowStockAlert ?? 5),
         order: Number(product.order ?? 0)
       });
       await this.loadProducts();

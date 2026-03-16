@@ -11,6 +11,10 @@ function toProduct(item: ProductApiRecord): Product {
     category: item.category ?? 'extras',
     imageUrl: item.imageUrl ?? '',
     available: item.available ?? true,
+    published: item.published ?? true,
+    trackStock: item.trackStock ?? false,
+    stock: Number(item.stock ?? 0),
+    lowStockAlert: Number(item.lowStockAlert ?? 5),
     order: item.order ?? 0
   };
 }
@@ -24,6 +28,10 @@ const fallbackProducts: Product[] = [
     category: 'combos',
     imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900',
     available: true,
+    published: true,
+    trackStock: false,
+    stock: 0,
+    lowStockAlert: 5,
     order: 1
   }
 ];

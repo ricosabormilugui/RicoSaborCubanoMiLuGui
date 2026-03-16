@@ -8,6 +8,7 @@ import {
   saveOrder,
   updateOrderStatus
 } from "../repositories/orders.repository.js";
+import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
 
 const allowedStatuses = new Set(["nuevo", "enviado", "entregado", "anulado"]);
 
@@ -77,6 +78,7 @@ export async function createOrder(req, res) {
       ]
     };
     await saveOrder(order);
+    await applyOrderStockAdjustments(order.items);
 
     const warnings = [];
 
