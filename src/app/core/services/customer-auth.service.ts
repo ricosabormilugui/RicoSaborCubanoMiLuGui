@@ -4,7 +4,7 @@ import { resolveApiBaseUrl } from '../config/api.config';
 export interface CustomerProfile {
   userId: string;
   email: string;
-  role: 'customer';
+  role: 'customer' | 'admin';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -70,7 +70,11 @@ export class CustomerAuthService {
       }
 
       const data = (await response.json()) as CustomerProfile;
-      this.profile.set({ userId: data.userId, email: data.email, role: 'customer' });
+      this.profile.set({
+        userId: data.userId,
+        email: data.email,
+        role: data.role === 'admin' ? 'admin' : 'customer'
+      });
       this.persist();
     } catch {
       // Keep local session if backend isn't reachable from frontend environment
@@ -111,12 +115,12 @@ export class CustomerAuthService {
       throw new Error('Credenciales inválidas.');
     }
 
-    const data = (await response.json()) as { token: string; userId: string; role: 'customer' };
+    const data = (await response.json()) as { token: string; userId: string; role: 'customer' | 'admin' };
     this.token.set(data.token ?? '');
     this.profile.set({
       userId: data.userId,
       email,
-      role: 'customer'
+      role: data.role === 'admin' ? 'admin' : 'customer'
     });
     this.persist();
   }

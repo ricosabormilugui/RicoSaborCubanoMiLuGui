@@ -6,7 +6,7 @@ import {
   promoteAdmin,
   registerCustomer
 } from "../controllers/auth.controller.js";
-import { requireCustomer } from "../middleware/auth.middleware.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -14,6 +14,6 @@ router.post("/register", registerCustomer);
 router.post("/login", loginCustomer);
 router.post("/admin/login", loginAdmin);
 router.post("/admin/promote", promoteAdmin);
-router.get("/me", requireCustomer, getCustomerSession);
+router.get("/me", requireAuth, getCustomerSession);
 
 export default router;

@@ -22,6 +22,24 @@ export function optionalAuth(req, _res, next) {
   return next();
 }
 
+
+export function requireAuth(req, res, next) {
+  const token = readBearerToken(req);
+  if (!token) return res.status(401).json({ error: "Missing auth token" });
+
+  try {
+    const payload = verifyToken(token);
+    if (!payload || !payload.role) {
+      return res.status(403).json({ error: "Authenticated access required" });
+    }
+
+    req.auth = payload;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ error: error.message ?? "Invalid token" });
+  }
+}
+
 export function requireAdmin(req, res, next) {
   const token = readBearerToken(req);
   if (!token) return res.status(401).json({ error: "Missing admin token" });
