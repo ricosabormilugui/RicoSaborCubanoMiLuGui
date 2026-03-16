@@ -1,44 +1,50 @@
 import { Injectable, signal } from '@angular/core';
-import { Product } from '../models/product.model';
+import { resolveApiBaseUrl } from '../config/api.config';
+import { Product, ProductApiRecord } from '../models/product.model';
+
+function toProduct(item: ProductApiRecord): Product {
+  return {
+    id: item._id,
+    name: item.name,
+    description: item.description ?? '',
+    price: Number(item.price ?? 0),
+    category: item.category ?? 'extras',
+    imageUrl: item.imageUrl ?? '',
+    available: item.available ?? true,
+    order: item.order ?? 0
+  };
+}
+
+const fallbackProducts: Product[] = [
+  {
+    id: 'combo-1',
+    name: 'Combo Cubano Clásico',
+    description: 'Ropa vieja, arroz moro y plátano maduro.',
+    price: 11.5,
+    category: 'combos',
+    imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900',
+    available: true,
+    order: 1
+  }
+];
 
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
-  readonly products = signal<Product[]>([
-    {
-      id: 'combo-1',
-      name: 'Combo Cubano Clásico',
-      description: 'Ropa vieja, arroz moro y plátano maduro.',
-      price: 11.5,
-      category: 'combos',
-      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900',
-      available: true
-    },
-    {
-      id: 'plato-1',
-      name: 'Lechón Asado',
-      description: 'Porción con yuca y mojo criollo.',
-      price: 13,
-      category: 'platos',
-      imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=900',
-      available: true
-    },
-    {
-      id: 'bebida-1',
-      name: 'Guarapo Natural',
-      description: 'Bebida fresca de caña.',
-      price: 3.2,
-      category: 'bebidas',
-      imageUrl: 'https://images.unsplash.com/photo-1523677011781-c91d1bbe2f9e?w=900',
-      available: true
-    },
-    {
-      id: 'extra-1',
-      name: 'Croquetas (x6)',
-      description: 'Croquetas artesanales.',
-      price: 4.5,
-      category: 'extras',
-      imageUrl: 'https://images.unsplash.com/photo-1625937751474-67c4b7f4f6af?w=900',
-      available: true
+  private readonly endpoint = `${resolveApiBaseUrl()}/products`;
+  readonly products = signal<Product[]>(fallbackProducts);
+
+  async loadProducts(): Promise<void> {
+    try {
+      const response = await fetch(this.endpoint);
+      if (!response.ok) return;
+
+      const data = (await response.json()) as { products?: ProductApiRecord[] };
+      const normalized = (data.products ?? []).map(toProduct);
+      if (normalized.length) {
+        this.products.set(normalized);
+      }
+    } catch {
+      // keep fallback products for local/demo resilience
     }
-  ]);
+  }
 }

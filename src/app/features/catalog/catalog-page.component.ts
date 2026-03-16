@@ -79,5 +79,7 @@ export class CatalogPageComponent {
       .filter((product) => `${product.name} ${product.description}`.toLowerCase().includes(q));
   });
 
-  constructor(public readonly cart: CartService, private readonly catalog: CatalogService) {}
+  constructor(public readonly cart: CartService, private readonly catalog: CatalogService) {
+    void this.catalog.loadProducts();
+  }
 }

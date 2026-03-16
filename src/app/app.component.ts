@@ -25,7 +25,8 @@ import { CustomerAuthService } from './core/services/customer-auth.service';
           <a class="nav-pill neutral" routerLink="/registro" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
           <a class="nav-pill neutral" routerLink="/mis-pedidos" routerLinkActive="active" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
           <button class="nav-pill neutral" type="button" *ngIf="customerAuth.isAuthenticated()" (click)="logoutCustomer()">Salir cliente</button>
-          <a class="nav-pill neutral" routerLink="/admin/pedidos" routerLinkActive="active" *ngIf="isAdmin()">Admin</a>
+          <a class="nav-pill neutral" routerLink="/admin/pedidos" routerLinkActive="active" *ngIf="isAdmin()">Admin pedidos</a>
+          <a class="nav-pill neutral" routerLink="/admin/productos" routerLinkActive="active" *ngIf="isAdmin()">Admin productos</a>
         </nav>
       </div>
     </header>
