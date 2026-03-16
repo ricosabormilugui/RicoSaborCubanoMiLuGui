@@ -16,9 +16,15 @@ import {
   template: `
     <section class="card" *ngIf="!auth.isAuthenticated(); else panel">
       <h1>Acceso administrador</h1>
-      <div class="grid">
-        <input [(ngModel)]="email" placeholder="Email admin" />
-        <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
+      <div class="grid two">
+        <label>
+          <span>Email admin</span>
+          <input [(ngModel)]="email" placeholder="admin@dominio.com" />
+        </label>
+        <label>
+          <span>Contraseña</span>
+          <input [(ngModel)]="password" type="password" placeholder="********" />
+        </label>
       </div>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Entrando...' : 'Entrar' }}</button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
@@ -38,40 +44,122 @@ import {
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <form class="product-form" (ngSubmit)="saveProduct()">
-          <input [(ngModel)]="form.name" name="name" placeholder="Nombre" required />
-          <input [(ngModel)]="form.category" name="category" placeholder="Categoría" required />
-          <input [(ngModel)]="form.price" name="price" type="number" min="0" step="0.01" placeholder="Precio" required />
-          <input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="URL imagen" />
-          <input [(ngModel)]="form.order" name="order" type="number" placeholder="Orden" />
-          <label><input type="checkbox" [(ngModel)]="form.available" name="available" /> Disponible</label>
-          <label><input type="checkbox" [(ngModel)]="form.published" name="published" /> Publicado</label>
-          <label><input type="checkbox" [(ngModel)]="form.trackStock" name="trackStock" /> Controlar stock</label>
-          <input [(ngModel)]="form.stock" name="stock" type="number" min="0" placeholder="Stock" />
-          <input [(ngModel)]="form.lowStockAlert" name="lowStockAlert" type="number" min="0" placeholder="Alerta stock bajo" />
-          <textarea [(ngModel)]="form.description" name="description" placeholder="Descripción"></textarea>
+          <h3>Información básica</h3>
+          <div class="grid two">
+            <label>
+              <span>Nombre del producto</span>
+              <input [(ngModel)]="form.name" name="name" placeholder="Croquetas" required />
+            </label>
+            <label>
+              <span>Categoría</span>
+              <input [(ngModel)]="form.category" name="category" placeholder="platos / bebidas / combos" required />
+            </label>
+            <label>
+              <span>Precio (€)</span>
+              <input [(ngModel)]="form.price" name="price" type="number" min="0" step="0.01" placeholder="13.00" required />
+            </label>
+            <label>
+              <span>Orden en catálogo</span>
+              <input [(ngModel)]="form.order" name="order" type="number" placeholder="0" />
+            </label>
+            <label class="full">
+              <span>Imagen del producto (URL)</span>
+              <input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://..." />
+            </label>
+          </div>
+
+          <div class="preview" *ngIf="form.imageUrl">
+            <p>Vista previa:</p>
+            <img [src]="form.imageUrl" alt="Vista previa producto" class="product-preview" />
+          </div>
+
+          <h3>Inventario</h3>
+          <div class="grid two">
+            <label>
+              <span>Stock disponible</span>
+              <input [(ngModel)]="form.stock" name="stock" type="number" min="0" placeholder="0" />
+              <small>Cantidad actual disponible para vender.</small>
+            </label>
+            <label>
+              <span>Stock mínimo (alerta)</span>
+              <input [(ngModel)]="form.lowStockAlert" name="lowStockAlert" type="number" min="0" placeholder="5" />
+              <small>Se mostrará alerta cuando el stock sea ≤ a este valor.</small>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" [(ngModel)]="form.trackStock" name="trackStock" />
+              <div>
+                <strong>Controlar stock</strong>
+                <small>Si está activo, el sistema reducirá stock al recibir pedidos.</small>
+              </div>
+            </label>
+          </div>
+
+          <h3>Visibilidad y disponibilidad</h3>
+          <div class="grid two">
+            <label class="checkbox">
+              <input type="checkbox" [(ngModel)]="form.published" name="published" />
+              <div>
+                <strong>Publicado en la web</strong>
+                <small>Si lo desactivas, no aparecerá en el catálogo.</small>
+              </div>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" [(ngModel)]="form.available" name="available" />
+              <div>
+                <strong>Disponible para pedidos</strong>
+                <small>Permite o bloquea la compra aunque esté publicado.</small>
+              </div>
+            </label>
+          </div>
+
+          <h3>Descripción</h3>
+          <label class="full">
+            <span>Descripción del producto</span>
+            <textarea [(ngModel)]="form.description" name="description" placeholder="Describe ingredientes, porción y observaciones"></textarea>
+          </label>
+
           <div class="actions form-actions">
             <button class="btn btn-primary" type="submit">{{ editId() ? 'Guardar cambios' : '+ Nuevo producto' }}</button>
             <button class="btn" type="button" *ngIf="editId()" (click)="resetForm()">Cancelar edición</button>
           </div>
         </form>
 
+        <hr />
+
+        <h3>Listado de productos</h3>
+        <div class="grid two filters">
+          <label>
+            <span>Buscar producto</span>
+            <input [(ngModel)]="search" placeholder="Nombre o categoría" />
+          </label>
+          <label>
+            <span>Filtrar por categoría</span>
+            <input [(ngModel)]="categoryFilter" placeholder="Todas" />
+          </label>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>Imagen</th>
                 <th>Producto</th>
                 <th>Categoría</th>
                 <th>Precio</th>
                 <th>Stock</th>
-                <th>Publicado</th>
+                <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let product of products()">
+              <tr *ngFor="let product of filteredProducts()">
+                <td>
+                  <img *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" class="thumb" />
+                  <span *ngIf="!product.imageUrl">—</span>
+                </td>
                 <td>
                   <strong>{{ product.name }}</strong>
-                  <small class="meta" *ngIf="isLowStock(product)">⚠ Stock bajo</small>
+                  <small class="meta">Orden: {{ product.order ?? 0 }}</small>
                 </td>
                 <td>{{ product.category }}</td>
                 <td>{{ product.price | currency:'EUR' }}</td>
@@ -81,10 +169,14 @@ import {
                   </ng-container>
                   <ng-template #noStockTracking>—</ng-template>
                 </td>
-                <td>{{ product.published ? '✅' : '❌' }}</td>
+                <td>
+                  <span class="status" [class.ok]="getStatus(product).kind === 'ok'" [class.warn]="getStatus(product).kind === 'warn'" [class.off]="getStatus(product).kind === 'off'">
+                    {{ getStatus(product).label }}
+                  </span>
+                </td>
                 <td class="actions">
                   <button class="btn" (click)="editProduct(product)">Editar</button>
-                  <button class="btn" (click)="togglePublished(product)">{{ product.published ? 'Despublicar' : 'Publicar' }}</button>
+                  <button class="btn" (click)="togglePublished(product)">{{ product.published ? 'Ocultar' : 'Publicar' }}</button>
                   <button class="btn" (click)="toggleAvailability(product)">{{ product.available ? 'Desactivar' : 'Activar' }}</button>
                   <button class="btn" (click)="removeProduct(product)">Eliminar</button>
                 </td>
@@ -96,33 +188,60 @@ import {
     </ng-template>
   `,
   styles: [
-    `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-bottom:.7rem}`,
+    `.grid{display:grid;gap:.7rem;margin-bottom:.7rem}`,
+    `.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}`,
     `.toolbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}`,
     `.actions{display:flex;gap:.6rem;flex-wrap:wrap}`,
-    `.product-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;border:1px solid #e5e7eb;border-radius:12px;padding:.8rem;margin-bottom:1rem}`,
-    `.product-form textarea{grid-column:1/-1;min-height:74px}`,
-    `.form-actions{grid-column:1/-1}`,
+    `label{display:flex;flex-direction:column;gap:.28rem}`,
+    `label span{font-weight:700;color:#263142}`,
+    `small{color:#556070}`,
+    `.checkbox{display:flex;flex-direction:row;align-items:flex-start;gap:.55rem;border:1px solid #e5e7eb;border-radius:10px;padding:.55rem}`,
+    `.checkbox input{margin-top:.25rem}`,
+    `.product-form{border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;margin-bottom:1rem;background:#fff}`,
+    `.product-form h3{margin:.2rem 0 .5rem;color:#1f4f8f}`,
+    `.product-form textarea{min-height:86px}`,
+    `.full{grid-column:1/-1}`,
+    `.form-actions{margin-top:.6rem}`,
+    `.preview{padding:.55rem 0}`,
+    `.product-preview{width:180px;height:120px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb}`,
+    `hr{border:none;border-top:1px solid #eceff4;margin:1rem 0}`,
+    `.filters{margin-bottom:.9rem}`,
     `.table-wrap{overflow:auto}`,
     `table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px}`,
     `th,td{padding:.65rem;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}`,
     `th{background:#f8fafc}`,
-    `.meta{display:block;color:#c71f26;font-size:.8rem;margin-top:.2rem}`,
+    `.thumb{width:56px;height:56px;object-fit:cover;border-radius:8px}`,
+    `.meta{display:block;color:#5f6b7a;font-size:.78rem;margin-top:.2rem}`,
+    `.status{display:inline-block;padding:.18rem .48rem;border-radius:999px;font-weight:700}`,
+    `.status.ok{background:#dff8e7;color:#146534}`,
+    `.status.warn{background:#fff5d6;color:#8a6400}`,
+    `.status.off{background:#eceff3;color:#475569}`,
     `.err{color:#b42318}`,
-    `@media (max-width:900px){.grid,.product-form{grid-template-columns:1fr}}`
+    `@media (max-width:900px){.grid.two{grid-template-columns:1fr}}`
   ]
 })
 export class AdminProductsPageComponent {
   email = '';
   password = '';
+  search = '';
+  categoryFilter = '';
 
   readonly loading = signal(false);
   readonly error = signal('');
   readonly editId = signal<string>('');
   readonly products = signal<ProductApiRecord[]>([]);
 
-  readonly lowStockCount = computed(
-    () => this.products().filter((item) => this.isLowStock(item)).length
-  );
+  readonly filteredProducts = computed(() => {
+    const query = this.search.trim().toLowerCase();
+    const category = this.categoryFilter.trim().toLowerCase();
+
+    return this.products()
+      .filter((item) => (category ? String(item.category ?? '').toLowerCase().includes(category) : true))
+      .filter((item) => {
+        const text = `${item.name ?? ''} ${item.category ?? ''}`.toLowerCase();
+        return query ? text.includes(query) : true;
+      });
+  });
 
   form: AdminProductPayload = {
     name: '',
@@ -180,6 +299,19 @@ export class AdminProductsPageComponent {
 
   isLowStock(product: ProductApiRecord): boolean {
     return Boolean(product.trackStock) && Number(product.stock ?? 0) <= Number(product.lowStockAlert ?? 5);
+  }
+
+  getStatus(product: ProductApiRecord): { label: string; kind: 'ok' | 'warn' | 'off' } {
+    if (!product.published) return { label: '⚫ No publicado', kind: 'off' };
+    if (!product.available) return { label: '⚫ No disponible', kind: 'off' };
+
+    if (product.trackStock) {
+      const stock = Number(product.stock ?? 0);
+      if (stock <= 0) return { label: '🔴 Sin stock', kind: 'off' };
+      if (this.isLowStock(product)) return { label: '🟡 Stock bajo', kind: 'warn' };
+    }
+
+    return { label: '🟢 Disponible', kind: 'ok' };
   }
 
   editProduct(product: ProductApiRecord): void {
