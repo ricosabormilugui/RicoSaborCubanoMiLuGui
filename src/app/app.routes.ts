@@ -14,6 +14,7 @@ export const appRoutes: Routes = [
   { path: 'checkout', component: CheckoutPageComponent },
   { path: 'contacto', component: ContactPageComponent },
   { path: 'admin', component: AdminPageComponent },
+  { path: 'admin/pedidos', component: AdminPageComponent },
   { path: 'login', component: LoginPageComponent },
   { path: 'registro', component: RegisterPageComponent },
   { path: 'mis-pedidos', component: MyOrdersPageComponent },
