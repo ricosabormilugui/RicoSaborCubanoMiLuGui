@@ -50,11 +50,21 @@ export class OrderService {
       return this.saveOrderLocally(payload);
     }
 
+    if (ORDER_SUBMISSION_MODE === 'netlify') {
+      return this.submitToNetlify(payload);
+    }
+
     const backendResult = await this.submitToBackend(payload);
     if (backendResult) {
       return backendResult;
     }
 
+    throw new Error('No se pudo guardar el pedido en el backend.');
+  }
+
+  private async submitToNetlify(
+    payload: OrderPayload
+  ): Promise<SubmitOrderResponse> {
     try {
       const response = await fetch(this.netlifyEndpoint, {
         method: 'POST',
@@ -62,44 +72,40 @@ export class OrderService {
         body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
-        const data = (await response.json()) as {
-          orderId: string;
-          warning?: string;
-          notifications?: Array<{
-            channel: string;
-            sent: boolean;
-            detail?: string;
-          }>;
-        };
-
-        const notificationErrors = (data.notifications ?? [])
-          .filter((item) => !item.sent && item.detail)
-          .map((item) => `${item.channel}: ${item.detail}`);
-
-        const warning =
-          [data.warning, ...notificationErrors].filter(Boolean).join(' | ') ||
-          undefined;
-
-        return {
-          orderId: data.orderId,
-          channel: 'netlify',
-          destination: 'Netlify Function (submit-order)',
-          warning
-        };
+      if (!response.ok) {
+        throw new Error('No se pudo enviar el pedido por Netlify Function.');
       }
 
-      if (this.isLocalEnvironment()) {
-        return this.saveOrderLocally(payload);
-      }
+      const data = (await response.json()) as {
+        orderId: string;
+        warning?: string;
+        notifications?: Array<{
+          channel: string;
+          sent: boolean;
+          detail?: string;
+        }>;
+      };
 
-      throw new Error('No se pudo enviar el pedido.');
+      const notificationErrors = (data.notifications ?? [])
+        .filter((item) => !item.sent && item.detail)
+        .map((item) => `${item.channel}: ${item.detail}`);
+
+      const warning =
+        [data.warning, ...notificationErrors].filter(Boolean).join(' | ') ||
+        undefined;
+
+      return {
+        orderId: data.orderId,
+        channel: 'netlify',
+        destination: 'Netlify Function (submit-order)',
+        warning
+      };
     } catch {
       if (this.isLocalEnvironment()) {
         return this.saveOrderLocally(payload);
       }
 
-      throw new Error('No se pudo enviar el pedido.');
+      throw new Error('No se pudo enviar el pedido por Netlify Function.');
     }
   }
 
