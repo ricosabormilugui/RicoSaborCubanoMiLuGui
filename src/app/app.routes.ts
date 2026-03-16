@@ -7,14 +7,15 @@ import { AdminPageComponent } from './features/admin/admin-page.component';
 import { LoginPageComponent } from './features/auth/login-page.component';
 import { RegisterPageComponent } from './features/auth/register-page.component';
 import { MyOrdersPageComponent } from './features/account/my-orders-page.component';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const appRoutes: Routes = [
   { path: '', component: CatalogPageComponent },
   { path: 'carrito', component: CartPageComponent },
   { path: 'checkout', component: CheckoutPageComponent },
   { path: 'contacto', component: ContactPageComponent },
-  { path: 'admin', component: AdminPageComponent },
-  { path: 'admin/pedidos', component: AdminPageComponent },
+  { path: 'admin', component: AdminPageComponent, canActivate: [adminGuard] },
+  { path: 'admin/pedidos', component: AdminPageComponent, canActivate: [adminGuard] },
   { path: 'login', component: LoginPageComponent },
   { path: 'registro', component: RegisterPageComponent },
   { path: 'mis-pedidos', component: MyOrdersPageComponent },

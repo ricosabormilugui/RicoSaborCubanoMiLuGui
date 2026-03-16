@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
-import { AdminAuthService } from './core/services/admin-auth.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
 
 @Component({
@@ -26,7 +25,7 @@ import { CustomerAuthService } from './core/services/customer-auth.service';
           <a class="nav-pill neutral" routerLink="/registro" routerLinkActive="active" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
           <a class="nav-pill neutral" routerLink="/mis-pedidos" routerLinkActive="active" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
           <button class="nav-pill neutral" type="button" *ngIf="customerAuth.isAuthenticated()" (click)="logoutCustomer()">Salir cliente</button>
-          <a class="nav-pill neutral" routerLink="/admin" routerLinkActive="active" *ngIf="adminAuth.isAuthenticated()">Admin</a>
+          <a class="nav-pill neutral" routerLink="/admin/pedidos" routerLinkActive="active" *ngIf="isAdmin()">Admin</a>
         </nav>
       </div>
     </header>
@@ -53,7 +52,6 @@ import { CustomerAuthService } from './core/services/customer-auth.service';
 export class AppComponent {
   constructor(
     public readonly cart: CartService,
-    public readonly adminAuth: AdminAuthService,
     public readonly customerAuth: CustomerAuthService
   ) {
     void this.customerAuth.restoreSession();
@@ -61,5 +59,9 @@ export class AppComponent {
 
   logoutCustomer(): void {
     this.customerAuth.logout();
+  }
+
+  isAdmin(): boolean {
+    return this.customerAuth.profile()?.role === 'admin';
   }
 }
