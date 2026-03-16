@@ -39,6 +39,43 @@ npm install
 npm start
 ```
 
+## Modo desarrollo local (sin Netlify/Render)
+
+Para desarrollar sin depender de créditos ni despliegues:
+
+- Frontend Angular en `http://localhost:4200`
+- Backend Express en `http://localhost:3001`
+- MongoDB Atlas como base de datos
+
+### 1) Backend local
+
+```bash
+cd Backend
+npm install
+npm run dev
+```
+
+Variables mínimas sugeridas en `Backend/.env`:
+
+```env
+PORT=3001
+NODE_ENV=development
+MONGODB_URI=...
+MONGODB_DB_NAME=ricoSaborCubano
+AUTH_TOKEN_SECRET=dev_secret
+CORS_ORIGIN=http://localhost:4200
+```
+
+### 2) Frontend local
+
+```bash
+cd ..
+npm install
+npm start
+```
+
+El frontend en desarrollo usa `src/environments/environment.ts` con `apiUrl: 'http://localhost:3001'`, por lo que los pedidos van a `http://localhost:3001/api/orders`.
+
 ---
 
 # Build
