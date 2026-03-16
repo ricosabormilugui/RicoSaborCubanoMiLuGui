@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { sendOrderEmail } from "../services/email.service.js";
 import { sendWhatsAppNotification } from "../services/whatsapp.service.js";
 import {
@@ -63,7 +64,7 @@ export async function createOrder(req, res) {
       ...payload,
       ...orderIdentity,
       customerEmailNormalized,
-      orderId: `MLG-${Date.now()}`,
+      orderId: `MLG-${randomUUID().slice(0, 8).toUpperCase()}`,
       createdAt: new Date().toISOString(),
       status: "nuevo",
       statusHistory: [

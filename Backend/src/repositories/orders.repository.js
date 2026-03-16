@@ -4,17 +4,33 @@ function getOrdersCollectionName() {
   return process.env.MONGODB_ORDERS_COLLECTION ?? "orders";
 }
 
-export async function saveOrder(order) {
+let ensureOrderIndexesPromise;
+
+async function getOrdersCollection() {
   const db = await getDb();
-  await db.collection(getOrdersCollectionName()).insertOne(order);
+  const collection = db.collection(getOrdersCollectionName());
+
+  if (!ensureOrderIndexesPromise) {
+    ensureOrderIndexesPromise = collection.createIndex(
+      { orderId: 1 },
+      { name: "orderId_unique", unique: true }
+    );
+  }
+
+  await ensureOrderIndexesPromise;
+  return collection;
+}
+
+export async function saveOrder(order) {
+  const collection = await getOrdersCollection();
+  await collection.insertOne(order);
 }
 
 export async function listOrders({ status, limit = 100 } = {}) {
-  const db = await getDb();
+  const collection = await getOrdersCollection();
   const query = status ? { status } : {};
 
-  return db
-    .collection(getOrdersCollectionName())
+  return collection
     .find(query)
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -22,7 +38,7 @@ export async function listOrders({ status, limit = 100 } = {}) {
 }
 
 export async function listOrdersForCustomer({ userId, email, limit = 100 } = {}) {
-  const db = await getDb();
+  const collection = await getOrdersCollection();
   const normalizedEmail = String(email ?? "").trim().toLowerCase();
   const clauses = [];
 
@@ -31,8 +47,7 @@ export async function listOrdersForCustomer({ userId, email, limit = 100 } = {})
 
   if (!clauses.length) return [];
 
-  return db
-    .collection(getOrdersCollectionName())
+  return collection
     .find({ $or: clauses })
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -40,16 +55,16 @@ export async function listOrdersForCustomer({ userId, email, limit = 100 } = {})
 }
 
 export async function findOrderById(orderId) {
-  const db = await getDb();
-  return db.collection(getOrdersCollectionName()).findOne({ orderId });
+  const collection = await getOrdersCollection();
+  return collection.findOne({ orderId });
 }
 
 export async function linkGuestOrdersByEmailToUser(email, userId) {
-  const db = await getDb();
+  const collection = await getOrdersCollection();
   const normalizedEmail = String(email ?? "").trim().toLowerCase();
   if (!normalizedEmail) return 0;
 
-  const result = await db.collection(getOrdersCollectionName()).updateMany(
+  const result = await collection.updateMany(
     {
       customerEmailNormalized: normalizedEmail,
       accountMode: "guest",
@@ -69,8 +84,7 @@ export async function linkGuestOrdersByEmailToUser(email, userId) {
 }
 
 export async function updateOrderStatus(orderId, nextStatus, metadata = {}) {
-  const db = await getDb();
-  const collection = db.collection(getOrdersCollectionName());
+  const collection = await getOrdersCollection();
   const now = new Date().toISOString();
   const result = await collection.findOneAndUpdate(
     { orderId },
