@@ -4,7 +4,7 @@ import { CustomerAuthService } from './customer-auth.service';
 
 export interface CustomerOrder {
   orderId: string;
-  status: 'nuevo' | 'enviado' | 'entregado' | 'anulado';
+  status: 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
   createdAt: string;
   total?: number;
   items?: Array<{ name: string; quantity: number }>;

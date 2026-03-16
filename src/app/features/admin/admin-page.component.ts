@@ -27,8 +27,12 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <select [(ngModel)]="statusFilter" (change)="loadOrders()">
               <option value="">Todos</option>
               <option value="nuevo">Nuevo</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="preparando">Preparando</option>
+              <option value="listo">Listo</option>
               <option value="enviado">Enviado</option>
               <option value="entregado">Entregado</option>
+              <option value="cancelado">Cancelado</option>
               <option value="anulado">Anulado</option>
             </select>
             <button class="btn" (click)="loadOrders()">Actualizar</button>
@@ -59,8 +63,12 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           <div class="status-tools">
             <select #nextStatus>
               <option value="nuevo">Nuevo</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="preparando">Preparando</option>
+              <option value="listo">Listo</option>
               <option value="enviado">Enviado</option>
               <option value="entregado">Entregado</option>
+              <option value="cancelado">Cancelado</option>
               <option value="anulado">Anulado</option>
             </select>
             <input #note placeholder="Nota de estado (opcional)" />
@@ -79,8 +87,12 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.order header{display:flex;justify-content:space-between;align-items:center;gap:.6rem}`,
     `.badge{padding:.25rem .6rem;border-radius:999px;color:#fff;font-weight:700;text-transform:capitalize}`,
     `.badge.nuevo{background:#1f4f8f}`,
+    `.badge.confirmado{background:#2563eb}`,
+    `.badge.preparando{background:#f59e0b}`,
+    `.badge.listo{background:#0ea5e9}`,
     `.badge.enviado{background:#2f8a2c}`,
     `.badge.entregado{background:#7c3aed}`,
+    `.badge.cancelado{background:#9ca3af}`,
     `.badge.anulado{background:#c71f26}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
     `.err{color:#b42318}`,

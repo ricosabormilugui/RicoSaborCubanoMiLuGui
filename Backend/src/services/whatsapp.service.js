@@ -59,15 +59,15 @@ async function initializeWhatsApp() {
 
 void initializeWhatsApp();
 
-export async function sendWhatsAppNotification(message) {
-  if (!isWhatsAppEnabled) {
-    return;
-  }
+function normalizePhone(phone) {
+  return String(phone ?? "").replace(/[^0-9]/g, "");
+}
 
-  const phone = process.env.NOTIFY_WHATSAPP_TO;
-  if (!phone) {
-    return;
-  }
+export async function sendWhatsAppToPhone(phone, message) {
+  if (!isWhatsAppEnabled) return;
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) return;
 
   await initializeWhatsApp();
 
@@ -77,9 +77,16 @@ export async function sendWhatsAppNotification(message) {
   }
 
   try {
-    const chatId = `${phone}@c.us`;
+    const chatId = `${normalized}@c.us`;
     await getClient().sendMessage(chatId, message);
   } catch (error) {
     console.error("Error enviando WhatsApp:", error.message);
   }
+}
+
+export async function sendWhatsAppNotification(message) {
+  const phone = process.env.NOTIFY_WHATSAPP_TO;
+  if (!phone) return;
+
+  await sendWhatsAppToPhone(phone, message);
 }

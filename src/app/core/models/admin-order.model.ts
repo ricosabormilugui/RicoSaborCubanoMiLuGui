@@ -1,4 +1,4 @@
-export type AdminOrderStatus = 'nuevo' | 'enviado' | 'entregado' | 'anulado';
+export type AdminOrderStatus = 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
 
 export interface AdminOrder {
   orderId: string;

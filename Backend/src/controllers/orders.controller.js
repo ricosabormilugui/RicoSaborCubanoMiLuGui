@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { sendOrderEmail } from "../services/email.service.js";
 import { sendWhatsAppNotification } from "../services/whatsapp.service.js";
+import { notifyCustomerOrderStatus } from "../services/order-notification.service.js";
 import {
   findOrderById,
   listOrders,
@@ -10,7 +11,7 @@ import {
 } from "../repositories/orders.repository.js";
 import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
 
-const allowedStatuses = new Set(["nuevo", "enviado", "entregado", "anulado"]);
+const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 
 function isWebhookAuthorized(req) {
   const expectedToken = process.env.WHATSAPP_WEBHOOK_TOKEN;
@@ -172,7 +173,15 @@ export async function updateOrderStatusForAdmin(req, res) {
       updatedBy: req.auth?.email ?? "admin"
     });
 
-    return res.status(200).json({ order: updated });
+    const notificationWarnings = await notifyCustomerOrderStatus(updated, {
+      status,
+      statusNote: statusNote ?? null
+    });
+
+    return res.status(200).json({
+      order: updated,
+      warnings: notificationWarnings.length ? notificationWarnings : undefined
+    });
 
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });

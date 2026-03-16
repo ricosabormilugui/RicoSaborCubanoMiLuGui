@@ -169,3 +169,46 @@ export async function sendOrderEmail(order) {
 }
 */
 
+
+
+function mapOrderStatusLabel(status) {
+  const labels = {
+    nuevo: "Nuevo",
+    confirmado: "Confirmado",
+    preparando: "Preparando",
+    listo: "Listo",
+    enviado: "Enviado",
+    entregado: "Entregado",
+    cancelado: "Cancelado",
+    anulado: "Anulado"
+  };
+
+  return labels[status] ?? status;
+}
+
+export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
+  const customerEmail = String(order?.customer?.email ?? "").trim();
+  if (!customerEmail) return;
+
+  const apiKey = getRequiredEnv("RESEND_API_KEY");
+  const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
+
+  const customerName = escapeHtml(order?.customer?.fullName ?? "cliente");
+  const statusLabel = escapeHtml(mapOrderStatusLabel(status ?? order?.status));
+  const note = statusNote ? `<p style="margin:0;"><strong>Nota:</strong> ${escapeHtml(statusNote)}</p>` : "";
+
+  await sendEmail(apiKey, {
+    from,
+    to: [customerEmail],
+    subject: `Actualización de tu pedido ${order?.orderId ?? ""} · MiLuGui`,
+    html: `
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+        <h2 style="margin-bottom:12px;">Tu pedido ${escapeHtml(order?.orderId ?? "")} ha cambiado de estado</h2>
+        <p>Hola <strong>${customerName}</strong>,</p>
+        <p>El nuevo estado de tu pedido es: <strong>${statusLabel}</strong>.</p>
+        ${note}
+        <p style="margin-top:18px;">Gracias por confiar en MiLuGui.</p>
+      </div>
+    `
+  });
+}
