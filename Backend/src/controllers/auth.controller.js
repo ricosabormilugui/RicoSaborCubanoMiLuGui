@@ -42,12 +42,13 @@ export async function loginCustomer(req, res) {
     }
 
     const user = await findUserByEmail(email);
-    if (!user || user.role !== "customer" || !verifyPassword(password, user.passwordHash)) {
+    if (!user || !verifyPassword(password, user.passwordHash)) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = signToken({ sub: String(user._id), role: "customer", email: user.email });
-    return res.status(200).json({ token, userId: String(user._id), role: "customer" });
+    const role = user.role === "admin" ? "admin" : "customer";
+    const token = signToken({ sub: String(user._id), role, email: user.email });
+    return res.status(200).json({ token, userId: String(user._id), role });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
