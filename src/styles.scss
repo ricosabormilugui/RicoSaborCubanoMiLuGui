@@ -40,6 +40,7 @@ body {
   margin: 0;
   background: radial-gradient(circle at top, color-mix(in srgb, var(--bg-main) 92%, #000 8%), var(--bg-main));
   color: var(--text-main);
+  transition: background .3s ease, color .3s ease;
 }
 
 .container {
@@ -109,4 +110,12 @@ input::placeholder, textarea::placeholder { color: var(--text-soft); }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+button {
+  transition: all .2s ease;
+}
+
+button:active {
+  transform: scale(.95);
 }
