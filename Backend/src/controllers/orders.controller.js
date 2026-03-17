@@ -15,6 +15,17 @@ import { applyOrderStockAdjustments } from "../repositories/products.repository.
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
 
+
+function parseLimit(value, { fallback, max }) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return Math.min(Math.floor(parsed), max);
+}
+
 function buildNotificationHistory(notifications) {
   const now = new Date().toISOString();
   return ["whatsapp", "email"].map((type) => ({
@@ -132,12 +143,12 @@ Total: ${order.total ?? 0}€`
 
 export async function listMyOrders(req, res) {
   try {
-    const limit = req.query.limit ? Number(req.query.limit) : 100;
+    const limit = parseLimit(req.query.limit, { fallback: 100, max: 200 });
 
     const orders = await listOrdersForCustomer({
       userId: req.auth?.sub,
       email: req.auth?.email,
-      limit: Number.isFinite(limit) ? Math.min(limit, 200) : 100
+      limit
     });
 
     return res.status(200).json({ orders });
@@ -150,11 +161,11 @@ export async function listMyOrders(req, res) {
 export async function listOrdersForAdmin(req, res) {
   try {
     const status = req.query.status;
-    const limit = req.query.limit ? Number(req.query.limit) : 100;
+    const limit = parseLimit(req.query.limit, { fallback: 100, max: 500 });
 
     const orders = await listOrders({
       status,
-      limit: Number.isFinite(limit) ? Math.min(limit, 500) : 100
+      limit
     });
 
     return res.status(200).json({ orders });
