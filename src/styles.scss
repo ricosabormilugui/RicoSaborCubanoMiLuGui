@@ -36,6 +36,10 @@
 
 * { box-sizing: border-box; }
 
+html, body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   background: radial-gradient(circle at top, color-mix(in srgb, var(--bg-main) 92%, #000 8%), var(--bg-main));
@@ -44,8 +48,10 @@ body {
 }
 
 .container {
-  width: min(1220px, calc(100% - 2rem));
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
 }
 
 .card {
