@@ -50,15 +50,30 @@ export class ContactPageComponent {
     this.sending.set(true);
 
     try {
-      const { notifications } = await this.contactService.submit(this.form.getRawValue());
-      const emailLine = notifications.email.sent
-        ? '📧 Email enviado al negocio'
-        : `⚠️ Email no enviado: ${notifications.email.warning ?? 'sin detalle'}`;
-      const whatsappLine = notifications.whatsapp.sent
-        ? '📱 WhatsApp enviado al negocio'
-        : `⚠️ WhatsApp no enviado: ${notifications.whatsapp.warning ?? 'sin detalle'}`;
+      const requestId = crypto.randomUUID();
+      const result = await this.contactService.submit({
+        ...this.form.getRawValue(),
+        requestId
+      });
 
-      this.notice.set(`✅ Solicitud enviada\n${emailLine}\n${whatsappLine}`);
+      const emailLine = result.notifications.email.sent
+        ? '📧 Email enviado'
+        : `❗ Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`;
+      const whatsappLine = result.notifications.whatsapp.sent
+        ? '📱 WhatsApp enviado'
+        : `❗ WhatsApp no enviado: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`;
+
+      if (result.duplicated) {
+        this.notice.set(`ℹ️ Solicitud ya registrada (evitamos duplicado)\n${emailLine}\n${whatsappLine}`);
+      } else if (result.ok) {
+        const fullSent = result.notifications.email.sent && result.notifications.whatsapp.sent;
+        this.notice.set(fullSent
+          ? `✅ Solicitud enviada\n${emailLine}\n${whatsappLine}`
+          : `⚠️ Solicitud registrada\n${emailLine}\n${whatsappLine}`);
+      } else {
+        this.error.set(`❌ No se pudo completar el envío por canales\n${emailLine}\n${whatsappLine}`);
+      }
+
       this.form.reset();
     } catch (error) {
       this.error.set(`❌ No se pudo enviar la solicitud\n${error instanceof Error ? error.message : 'Error inesperado.'}`);

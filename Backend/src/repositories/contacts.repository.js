@@ -16,7 +16,8 @@ async function getContactsCollection() {
       collection.createIndex({ createdAt: -1 }, { name: "contacts_createdAt" }),
       collection.createIndex({ status: 1, createdAt: -1 }, { name: "contacts_status_createdAt" }),
       collection.createIndex({ phone: 1 }, { name: "contacts_phone" }),
-      collection.createIndex({ email: 1 }, { name: "contacts_email" })
+      collection.createIndex({ email: 1 }, { name: "contacts_email" }),
+      collection.createIndex({ requestId: 1 }, { name: "contacts_requestId_unique", unique: true, sparse: true })
     ]);
   }
 
@@ -60,6 +61,15 @@ export async function listContacts({ status, search, limit = 100 } = {}) {
     .sort({ createdAt: -1 })
     .limit(limit)
     .toArray();
+}
+
+
+export async function findContactByRequestId(requestId) {
+  const normalized = String(requestId ?? "").trim();
+  if (!normalized) return null;
+
+  const collection = await getContactsCollection();
+  return collection.findOne({ requestId: normalized });
 }
 
 export async function findContactById(id) {

@@ -189,26 +189,36 @@ function mapOrderStatusLabel(status) {
 
 function buildContactHtml({ name, phone, email, message }) {
   return `
-    <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;line-height:1.5;">
-      <h2 style="margin:0 0 12px;">Nueva solicitud de contacto web</h2>
-      <p style="margin:0 0 6px;"><strong>Nombre:</strong> ${escapeHtml(name)}</p>
-      <p style="margin:0 0 6px;"><strong>Teléfono:</strong> ${escapeHtml(phone)}</p>
-      <p style="margin:0 0 6px;"><strong>Email:</strong> ${escapeHtml(email)}</p>
-      <p style="margin:14px 0 6px;"><strong>Mensaje:</strong></p>
-      <p style="margin:0;white-space:pre-line;">${escapeHtml(message)}</p>
-    </div>
+    <h2>📩 Nueva solicitud web</h2>
+    <p><b>Nombre:</b> ${escapeHtml(name)}</p>
+    <p><b>Teléfono:</b> ${escapeHtml(phone || "—")}</p>
+    <p><b>Email:</b> ${escapeHtml(email || "—")}</p>
+    <hr/>
+    <p><b>Mensaje:</b></p>
+    <p>${escapeHtml(message).replaceAll("\n", "<br/>")}</p>
   `;
 }
 
-export async function sendContactEmail({ subject, text, details } = {}) {
+function buildContactText({ name, phone, email, message }) {
+  return `📩 NUEVA SOLICITUD WEB
+
+👤 Nombre: ${name}
+📞 Teléfono: ${phone || "—"}
+📧 Email: ${email || "—"}
+
+📝 Mensaje:
+${message}`;
+}
+
+export async function sendContactEmail({ subject, details } = {}) {
   const apiKey = getRequiredEnv("RESEND_API_KEY");
   const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
   const to = getRequiredEnv("NOTIFY_EMAIL_TO");
 
   const normalizedDetails = {
     name: String(details?.name ?? "No indicado"),
-    phone: String(details?.phone ?? "No indicado"),
-    email: String(details?.email ?? "No indicado"),
+    phone: String(details?.phone ?? "").trim(),
+    email: String(details?.email ?? "").trim(),
     message: String(details?.message ?? "")
   };
 
@@ -216,7 +226,7 @@ export async function sendContactEmail({ subject, text, details } = {}) {
     from,
     to: [to],
     subject: subject || "Nueva solicitud de contacto",
-    text: String(text ?? ""),
+    text: buildContactText(normalizedDetails),
     html: buildContactHtml(normalizedDetails)
   });
 }

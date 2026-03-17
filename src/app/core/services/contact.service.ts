@@ -6,9 +6,13 @@ export interface ContactFormPayload {
   phone?: string;
   email?: string;
   message: string;
+  requestId: string;
 }
 
 export interface ContactSubmitResult {
+  ok: boolean;
+  duplicated?: boolean;
+  contactId?: string;
   notifications: {
     email: { sent: boolean; warning: string | null };
     whatsapp: { sent: boolean; warning: string | null };
@@ -26,28 +30,28 @@ export class ContactService {
       body: JSON.stringify(payload)
     });
 
-    if (!response.ok) {
-      let detail = '';
-      try {
-        const data = (await response.json()) as { error?: string };
-        detail = data.error ?? '';
-      } catch {
-        detail = await response.text();
-      }
-
-      throw new Error(detail || 'No se pudo enviar la solicitud de contacto.');
-    }
-
-    const data = (await response.json()) as {
+    let data: {
       ok?: boolean;
+      duplicated?: boolean;
+      contactId?: string;
       notifications?: ContactSubmitResult['notifications'];
+      error?: string;
     };
 
-    if (!data.ok) {
-      throw new Error('Respuesta inválida del servidor de contacto.');
+    try {
+      data = (await response.json()) as typeof data;
+    } catch {
+      data = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || 'No se pudo enviar la solicitud de contacto.');
     }
 
     return {
+      ok: Boolean(data.ok),
+      duplicated: data.duplicated,
+      contactId: data.contactId,
       notifications: {
         email: data.notifications?.email ?? { sent: false, warning: 'unknown' },
         whatsapp: data.notifications?.whatsapp ?? { sent: false, warning: 'unknown' }
