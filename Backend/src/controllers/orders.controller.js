@@ -14,7 +14,55 @@ import { applyOrderStockAdjustments } from "../repositories/products.repository.
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
+const SLOTS = ["12:00-14:00", "14:00-16:00", "18:00-20:00"];
+const CLOSED_DAYS = [0];
+const CUT_OFF_HOUR = 16;
 
+function normalizeDelivery(payload) {
+  const date = payload?.deliveryDate ?? payload?.delivery?.date ?? null;
+  const slot = payload?.deliverySlot ?? payload?.delivery?.slot ?? null;
+  const type = payload?.deliveryType ?? payload?.delivery?.type ?? "delivery";
+
+  return {
+    date,
+    slot,
+    type: type === "pickup" ? "pickup" : "delivery"
+  };
+}
+
+function validateDelivery(delivery) {
+  if (!delivery?.date || !delivery?.slot) {
+    return "Delivery date and slot required";
+  }
+
+  if (!SLOTS.includes(delivery.slot)) {
+    return "Horario inválido";
+  }
+
+  const selected = new Date(delivery.date);
+  if (Number.isNaN(selected.getTime())) {
+    return "Fecha inválida";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  selected.setHours(0, 0, 0, 0);
+
+  if (selected < today) {
+    return "Fecha inválida";
+  }
+
+  if (CLOSED_DAYS.includes(selected.getDay())) {
+    return "No hay servicio ese día";
+  }
+
+  const now = new Date();
+  if (selected.toDateString() === now.toDateString() && now.getHours() >= CUT_OFF_HOUR) {
+    return "Ya no puedes pedir para hoy";
+  }
+
+  return null;
+}
 
 function parseLimit(value, { fallback, max }) {
   const parsed = Number(value);
@@ -84,11 +132,26 @@ export async function createOrder(req, res) {
 
     const orderIdentity = buildOrderIdentity(payload, req.auth);
     const customerEmailNormalized = normalizeCustomerEmail(payload, req.auth);
+    const normalizedDelivery = normalizeDelivery(payload);
+    const deliveryValidationError = validateDelivery(normalizedDelivery);
+
+    if (deliveryValidationError) {
+      return res.status(400).json({ error: deliveryValidationError });
+    }
 
     const order = {
       ...payload,
       ...orderIdentity,
       customerEmailNormalized,
+      deliveryDate: normalizedDelivery.date,
+      deliverySlot: normalizedDelivery.slot,
+      deliveryType: normalizedDelivery.type,
+      delivery: {
+        ...(payload.delivery ?? {}),
+        date: normalizedDelivery.date,
+        slot: normalizedDelivery.slot,
+        type: normalizedDelivery.type
+      },
       orderId: `MLG-${randomUUID().slice(0, 8).toUpperCase()}`,
       createdAt: new Date().toISOString(),
       status: "nuevo",

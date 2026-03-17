@@ -25,6 +25,13 @@ function getDeliveryModeLabel(mode) {
   return mode === "pickup" ? "Recogida en local" : "Entrega a domicilio";
 }
 
+function formatDeliveryDate(value) {
+  if (!value) return "No definida";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 function buildOrderItemsRows(items = []) {
   return items
     .map((item) => {
@@ -47,10 +54,12 @@ function buildOrderItemsRows(items = []) {
 
 function buildCustomerOrderEmail(order) {
   const customerName = escapeHtml(order.customer?.fullName ?? "cliente");
-  const deliveryMode = getDeliveryModeLabel(order.delivery?.mode);
+  const deliveryType = order.deliveryType ?? order.delivery?.type;
+  const deliveryMode = getDeliveryModeLabel(deliveryType);
   const address = order.delivery?.address ? escapeHtml(order.delivery.address) : "No aplica";
   const reference = order.delivery?.reference ? escapeHtml(order.delivery.reference) : "No indicada";
-  const preferredTime = order.delivery?.preferredTime ? escapeHtml(order.delivery.preferredTime) : "Sin preferencia";
+  const deliveryDate = formatDeliveryDate(order.deliveryDate ?? order.delivery?.date);
+  const deliverySlot = escapeHtml(order.deliverySlot ?? order.delivery?.slot ?? "Sin franja");
   const notes = order.notes ? escapeHtml(order.notes) : "Sin notas";
 
   return `
@@ -93,7 +102,8 @@ function buildCustomerOrderEmail(order) {
             <p style="margin:0 0 8px;"><strong>Entrega:</strong> ${deliveryMode}</p>
             <p style="margin:0 0 8px;"><strong>Dirección:</strong> ${address}</p>
             <p style="margin:0 0 8px;"><strong>Referencia:</strong> ${reference}</p>
-            <p style="margin:0 0 8px;"><strong>Horario preferido:</strong> ${preferredTime}</p>
+            <p style="margin:0 0 8px;"><strong>Fecha:</strong> ${deliveryDate}</p>
+            <p style="margin:0 0 8px;"><strong>Franja:</strong> ${deliverySlot}</p>
             <p style="margin:0;"><strong>Notas:</strong> ${notes}</p>
           </div>
 
@@ -133,6 +143,7 @@ export async function sendOrderEmail(order) {
       <p><strong>Teléfono:</strong> ${order.customer?.phone ?? "N/A"}</p>
       <p><strong>Email:</strong> ${customerEmail || "N/A"}</p>
       <p><strong>Total:</strong> ${formatCurrency(order.total)}</p>
+      <p><strong>Entrega:</strong> ${formatDeliveryDate(order.deliveryDate ?? order.delivery?.date)} · ${escapeHtml(order.deliverySlot ?? order.delivery?.slot ?? "Sin franja")}</p>
     `
   });
 
@@ -261,6 +272,8 @@ export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
   const customerName = escapeHtml(order?.customer?.fullName ?? "cliente");
   const statusLabel = escapeHtml(mapOrderStatusLabel(status ?? order?.status));
   const note = statusNote ? `<p style="margin:0;"><strong>Nota:</strong> ${escapeHtml(statusNote)}</p>` : "";
+  const deliveryDate = formatDeliveryDate(order?.deliveryDate ?? order?.delivery?.date);
+  const deliverySlot = escapeHtml(order?.deliverySlot ?? order?.delivery?.slot ?? "Sin franja");
 
   await sendEmail(apiKey, {
     from,
@@ -271,6 +284,7 @@ export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
         <h2 style="margin-bottom:12px;">Tu pedido ${escapeHtml(order?.orderId ?? "")} ha cambiado de estado</h2>
         <p>Hola <strong>${customerName}</strong>,</p>
         <p>El nuevo estado de tu pedido es: <strong>${statusLabel}</strong>.</p>
+        <p><strong>Entrega:</strong> ${deliveryDate} · ${deliverySlot}</p>
         ${note}
         <p style="margin-top:18px;">Gracias por confiar en MiLuGui.</p>
       </div>

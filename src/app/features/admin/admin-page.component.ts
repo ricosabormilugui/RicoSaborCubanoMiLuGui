@@ -55,6 +55,8 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <strong>Tel:</strong> {{ order.customer?.phone || 'N/A' }} ·
             <strong>Cuenta:</strong> {{ order.accountMode || 'guest' }} ·
             <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }} ·
+            <strong>📅:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} ·
+            <strong>🕒:</strong> {{ order.deliverySlot || 'N/A' }} ·
             <strong>📱 WhatsApp:</strong> {{ whatsappStatus(order) }}
           </p>
           <ul>

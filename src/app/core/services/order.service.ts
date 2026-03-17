@@ -4,6 +4,7 @@ import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
+import { DeliveryStateService } from './delivery-state.service';
 
 export interface SubmitOrderResponse {
   orderId: string;
@@ -19,12 +20,19 @@ export class OrderService {
 
   constructor(
     private readonly cartService: CartService,
-    private readonly customerAuth: CustomerAuthService
+    private readonly customerAuth: CustomerAuthService,
+    private readonly deliveryState: DeliveryStateService
   ) {}
 
   createPayload(data: CheckoutFormData): OrderPayload {
     const subtotal = Number(this.cartService.subtotal().toFixed(2));
     const profileEmail = this.customerAuth.profile()?.email;
+
+    this.deliveryState.setDeliveryState({
+      date: data.deliveryDate,
+      slot: data.deliverySlot,
+      type: data.deliveryType
+    });
 
     return {
       customer: {
@@ -32,11 +40,15 @@ export class OrderService {
         phone: data.phone,
         email: data.email || profileEmail
       },
+      deliveryDate: data.deliveryDate,
+      deliverySlot: data.deliverySlot,
+      deliveryType: data.deliveryType,
       delivery: {
-        mode: data.deliveryMode,
+        date: data.deliveryDate,
+        slot: data.deliverySlot,
+        type: data.deliveryType,
         address: data.address,
-        reference: data.reference,
-        preferredTime: data.preferredTime
+        reference: data.reference
       },
       notes: data.notes,
       items: this.cartService.items(),

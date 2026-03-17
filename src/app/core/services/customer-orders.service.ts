@@ -7,6 +7,9 @@ export interface CustomerOrder {
   status: 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
   createdAt: string;
   total?: number;
+  deliveryDate?: string;
+  deliverySlot?: string;
+  deliveryType?: "delivery" | "pickup";
   items?: Array<{ name: string; quantity: number }>;
   notes?: string;
 }

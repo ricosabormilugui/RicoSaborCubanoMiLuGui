@@ -18,12 +18,26 @@ function mapStatusLabel(status) {
   return labels[status] ?? status;
 }
 
+function formatDeliveryDate(value) {
+  if (!value) return "No definida";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" });
+}
+
+function mapDeliveryTypeLabel(type) {
+  return type === "pickup" ? "Recogida" : "Delivery";
+}
+
 function buildWhatsAppMessage(order, status, statusNote) {
   const customerName = order?.customer?.fullName ?? "cliente";
   const total = Number(order?.total ?? 0).toFixed(2);
   const noteLine = statusNote ? `\n📝 *Nota:* ${statusNote}` : "";
+  const deliveryDate = formatDeliveryDate(order?.deliveryDate ?? order?.delivery?.date);
+  const deliverySlot = order?.deliverySlot ?? order?.delivery?.slot ?? "Sin franja";
+  const deliveryType = mapDeliveryTypeLabel(order?.deliveryType ?? order?.delivery?.type);
 
-  return `🍽️ *Rico Sabor Cubano*\n\nHola ${customerName} 👋\n\n📦 *Pedido:* ${order.orderId}\n💰 *Total:* €${total}\n\n📍 *Estado:* ${mapStatusLabel(status)}${noteLine}\n\nGracias por tu pedido 🙌`;
+  return `🍽️ *Rico Sabor Cubano*\n\nHola ${customerName} 👋\n\n📦 *Pedido:* ${order.orderId}\n💰 *Total:* €${total}\n📅 *Entrega:* ${deliveryDate}\n🕒 *Hora:* ${deliverySlot}\n🚚 *Tipo:* ${deliveryType}\n\n📍 *Estado:* ${mapStatusLabel(status)}${noteLine}\n\nGracias por tu pedido 🙌`;
 }
 
 export async function notifyCustomerOrderStatus(order, { status, statusNote } = {}) {

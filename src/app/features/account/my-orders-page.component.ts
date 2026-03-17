@@ -21,6 +21,7 @@ import { CustomerOrdersService, CustomerOrder } from '../../core/services/custom
         <article class="order" *ngFor="let order of orders()">
           <h3>{{ order.orderId }} · {{ order.status }}</h3>
           <p><strong>Fecha:</strong> {{ order.createdAt | date:'short' }} · <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }}</p>
+          <p><strong>Entrega:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} · {{ order.deliverySlot || 'N/A' }} · {{ order.deliveryType || 'delivery' }}</p>
           <ul>
             <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}</li>
           </ul>

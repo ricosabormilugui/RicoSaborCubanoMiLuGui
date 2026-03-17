@@ -6,14 +6,17 @@ export interface CartItem {
   quantity: number;
 }
 
+export type DeliveryType = 'delivery' | 'pickup';
+
 export interface CheckoutFormData {
   fullName: string;
   phone: string;
   email?: string;
-  deliveryMode: 'delivery' | 'pickup';
+  deliveryType: DeliveryType;
+  deliveryDate: string;
+  deliverySlot: string;
   address?: string;
   reference?: string;
-  preferredTime?: string;
   notes?: string;
 }
 
@@ -23,11 +26,15 @@ export interface OrderPayload {
     phone: string;
     email?: string;
   };
+  deliveryDate: string;
+  deliverySlot: string;
+  deliveryType: DeliveryType;
   delivery: {
-    mode: 'delivery' | 'pickup';
+    date: string;
+    slot: string;
+    type: DeliveryType;
     address?: string;
     reference?: string;
-    preferredTime?: string;
   };
   notes?: string;
   items: CartItem[];

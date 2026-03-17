@@ -18,6 +18,9 @@ export interface AdminOrder {
     unitPrice: number;
     quantity: number;
   }>;
+  deliveryDate?: string;
+  deliverySlot?: string;
+  deliveryType?: "delivery" | "pickup";
   notes?: string;
   subtotal?: number;
   taxAmount?: number;

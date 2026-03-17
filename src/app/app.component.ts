@@ -7,6 +7,7 @@ import { CartService } from './core/services/cart.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
 import { NotificationService } from './core/services/notification.service';
 import { CatalogService } from './core/services/catalog.service';
+import { DeliveryStateService } from './core/services/delivery-state.service';
 import { NotificationsComponent } from './shared/ui/notifications.component';
 
 type ThemeMode = 'dark' | 'light';
@@ -50,7 +51,7 @@ type ThemeMode = 'dark' | 'light';
 
               <button class="icon-btn" type="button" (click)="openCalendar()" aria-label="Elegir fecha de entrega">
                 📅
-                <span *ngIf="deliveryDate()" class="badge-date">{{ deliveryDate() | date:'dd/MM' }}</span>
+                <span *ngIf="deliveryState.date()" class="badge-date">{{ deliveryState.date() | date:'dd/MM' }}</span>
               </button>
 
               <button class="icon-btn" type="button" (click)="openContact()" aria-label="Contacto">📞</button>
@@ -181,7 +182,6 @@ export class AppComponent {
   readonly userMenuOpen = signal(false);
   readonly searchOpen = signal(false);
   readonly searchQuery = signal('');
-  readonly deliveryDate = signal<Date | null>(null);
 
   readonly searchResults = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
@@ -192,7 +192,8 @@ export class AppComponent {
   constructor(
     public readonly cart: CartService,
     public readonly customerAuth: CustomerAuthService,
-    private readonly catalog: CatalogService
+    private readonly catalog: CatalogService,
+    readonly deliveryState: DeliveryStateService
   ) {
     void this.customerAuth.restoreSession();
     void this.catalog.loadProducts();
@@ -270,17 +271,8 @@ export class AppComponent {
   }
 
   openCalendar(): void {
-    const selected = globalThis.prompt('Fecha de entrega (YYYY-MM-DD)');
-    if (!selected) return;
-    const parsed = new Date(selected);
-    if (Number.isNaN(parsed.getTime())) {
-      this.notifications.warning('Fecha inválida', 'Usa el formato YYYY-MM-DD.');
-      return;
-    }
-
-    this.deliveryDate.set(parsed);
     this.closeMenu();
-    this.notifications.success('Fecha guardada', `Entrega estimada: ${parsed.toLocaleDateString()}`);
+    void this.router.navigateByUrl('/checkout');
   }
 
   openContact(): void {
