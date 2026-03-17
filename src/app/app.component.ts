@@ -1,5 +1,6 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, ElementRef, HostListener, computed, effect, inject, signal } from '@angular/core';
+import { animate, style, transition, trigger } from '@angular/animations';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
@@ -112,21 +113,31 @@ type ThemeMode = 'dark' | 'light';
 
       <main class="page-content">
         <div class="container main-layout">
-          <router-outlet />
+          <div class="route-fade" [@fade]="currentRoute()">
+            <router-outlet />
+          </div>
         </div>
       </main>
 
       <app-notifications />
     </div>
   `,
+  animations: [
+    trigger('fade', [
+      transition('* <=> *', [
+        style({ opacity: 0 }),
+        animate('200ms ease', style({ opacity: 1 }))
+      ])
+    ])
+  ],
   styles: [
     `.top-banner{background:#ef4444;text-align:center;padding:6px;font-size:14px;color:#fff;font-weight:700}`,
     `.app-shell{width:100%;min-height:100vh;display:flex;flex-direction:column}`,
     `.navbar{width:100%;padding:12px 0;background:rgba(20,20,30,.9);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,.05)}`,
     `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:1rem}`,
-    `.nav-left,.nav-right{flex:1}`,
+    `.nav-left,.nav-right{flex:1;display:flex;align-items:center;gap:8px}`,
     `.nav-center{flex:1;text-align:center;text-decoration:none;color:#fff}`,
-    `.logo{font-size:34px;font-weight:700;font-family:Georgia,'Times New Roman',serif;line-height:1}`,
+    `.logo{font-size:clamp(20px,2.5vw,28px);font-weight:800;font-family:Georgia,'Times New Roman',serif;line-height:1}`,
     `.subtitle{font-size:12px;opacity:.7}`,
     `.nav-right{display:flex;align-items:center;justify-content:flex-end;gap:8px}`,
     `.icon-btn{background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;transition:.2s;text-decoration:none;display:inline-grid;place-items:center;width:36px;height:36px;border-radius:10px;position:relative}`,
@@ -157,9 +168,10 @@ type ThemeMode = 'dark' | 'light';
     `.search-head button{background:none;border:0;color:var(--text-main);font-size:20px;cursor:pointer}`,
     `.result{padding:.6rem .7rem;border-radius:8px;background:var(--surface-1);cursor:pointer}`,
     `.result:hover{background:var(--surface-2)}`,
-    `.page-content{width:100%;max-width:1600px;margin:0 auto;padding:20px clamp(16px,4vw,40px);flex:1}`,
+    `.page-content{width:100%;max-width:1400px;margin:0 auto;padding:clamp(16px,4vw,40px);flex:1}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
-    `@media (max-width:1000px){.logo{font-size:28px}.cart-box{display:none}.nav-right{justify-content:flex-end}}`
+    `@media (max-width:1000px){.cart-box{display:none}.nav-right{justify-content:flex-end}}`,
+    `@media (max-width:768px){.nav-center .subtitle{display:none}.cart-box{padding:4px 6px;font-size:12px}.icon-btn{font-size:16px}}`
   ]
 })
 export class AppComponent {
@@ -293,6 +305,10 @@ export class AppComponent {
 
   isAdmin(): boolean {
     return this.customerAuth.profile()?.role === 'admin';
+  }
+
+  currentRoute(): string {
+    return this.router.url;
   }
 
   private applyTheme(theme: ThemeMode): void {

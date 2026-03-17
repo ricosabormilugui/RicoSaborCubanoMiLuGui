@@ -9,7 +9,7 @@ import { NotificationService } from '../../core/services/notification.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <section class="card">
+    <section class="card auth-card">
       <h1>Crear cuenta</h1>
       <p>También puedes comprar como invitado y registrarte más tarde.</p>
       <div class="grid">
@@ -23,7 +23,7 @@ import { NotificationService } from '../../core/services/notification.service';
       <p>¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a>.</p>
     </section>
   `,
-  styles: [`.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}.err{color:#b42318}.ok{color:#0f7a3b}@media(max-width:900px){.grid{grid-template-columns:1fr}}`]
+  styles: [`.auth-card{width:100%;max-width:720px;margin:40px auto;padding:30px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}.err{color:#b42318}.ok{color:#0f7a3b}@media(max-width:900px){.grid{grid-template-columns:1fr}.auth-card{padding:20px}}`]
 })
 export class RegisterPageComponent {
   fullName = '';
