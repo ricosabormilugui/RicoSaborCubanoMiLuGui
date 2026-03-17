@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { sendOrderEmail } from "../services/email.service.js";
-import { sendWhatsAppNotification } from "../services/whatsapp.service.js";
+import { sendWhatsAppNotification, sendWhatsAppToPhone } from "../services/whatsapp.service.js";
 import { notifyCustomerOrderStatus } from "../services/order-notification.service.js";
 import {
   findOrderById,
@@ -195,14 +195,20 @@ export async function notifyWhatsApp(req, res) {
 
   try {
     const message = req.body?.message;
+    const phone = req.body?.phone;
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    if (phone) {
+      await sendWhatsAppToPhone(phone, message);
+      return res.status(200).json({ sent: true, target: "phone" });
+    }
+
     await sendWhatsAppNotification(message);
 
-    return res.status(200).json({ sent: true });
+    return res.status(200).json({ sent: true, target: "default" });
 
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });

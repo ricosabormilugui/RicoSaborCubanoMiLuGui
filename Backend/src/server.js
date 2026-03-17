@@ -4,6 +4,7 @@ import ordersRouter from "./routes/orders.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import productsRouter from "./routes/products.routes.js";
+import { notifyWhatsApp } from "./controllers/orders.controller.js";
 
 const app = express();
 const corsOrigin = process.env.CORS_ORIGIN || "*";
@@ -25,6 +26,9 @@ app.use(express.json());
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+// Alias sin /api para integraciones antiguas de webhook
+app.post("/whatsapp/notify", notifyWhatsApp);
 
 app.use("/api", ordersRouter);
 app.use("/api", productsRouter);

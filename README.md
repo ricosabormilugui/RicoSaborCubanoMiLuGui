@@ -142,6 +142,32 @@ la función añadirá automáticamente:
 /api/whatsapp/notify
 ```
 
+
+### WhatsApp local (checklist rápido)
+
+1. En `Backend/.env` usa:
+
+```env
+WHATSAPP_ENABLED=true
+NOTIFY_WHATSAPP_TO=346XXXXXXXX
+```
+
+2. Endpoint recomendado del webhook:
+
+```text
+POST /api/whatsapp/notify
+```
+
+Alias compatible (sin `/api`):
+
+```text
+POST /whatsapp/notify
+```
+
+3. Si envías por webhook externo, usa URL completa con `/api/whatsapp/notify`.
+
+4. El teléfono debe ir en formato internacional numérico (sin `+` ni espacios), por ejemplo `34644423790`.
+
 ---
 
 # Diagnóstico de notificaciones

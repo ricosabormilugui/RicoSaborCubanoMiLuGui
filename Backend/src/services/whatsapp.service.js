@@ -64,29 +64,32 @@ function normalizePhone(phone) {
 }
 
 export async function sendWhatsAppToPhone(phone, message) {
-  if (!isWhatsAppEnabled) return;
+  if (!isWhatsAppEnabled) {
+    throw new Error("WhatsApp disabled (set WHATSAPP_ENABLED=true)");
+  }
 
   const normalized = normalizePhone(phone);
-  if (!normalized) return;
+  if (!normalized) {
+    throw new Error("Invalid target phone for WhatsApp");
+  }
 
   await initializeWhatsApp();
 
   if (!isClientReady) {
-    console.warn("WhatsApp no está listo; se omite la notificación.");
-    return;
+    throw new Error("WhatsApp client not ready (scan QR first)");
   }
 
-  try {
-    const chatId = `${normalized}@c.us`;
-    await getClient().sendMessage(chatId, message);
-  } catch (error) {
-    console.error("Error enviando WhatsApp:", error.message);
-  }
+  const chatId = `${normalized}@c.us`;
+  console.log(`Sending WhatsApp to ${normalized}`);
+  await getClient().sendMessage(chatId, message);
+  console.log(`WhatsApp message sent to ${normalized}`);
 }
 
 export async function sendWhatsAppNotification(message) {
   const phone = process.env.NOTIFY_WHATSAPP_TO;
-  if (!phone) return;
+  if (!phone) {
+    throw new Error("Missing NOTIFY_WHATSAPP_TO");
+  }
 
   await sendWhatsAppToPhone(phone, message);
 }
