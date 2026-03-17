@@ -34,25 +34,22 @@ import { CustomerAuthService } from '../../core/services/customer-auth.service';
         </button>
       </form>
 
-      <p class="ok" *ngIf="orderId()">Pedido registrado. Tu número es: <strong>{{ orderId() }}</strong></p>
+      <div class="app-alert app-alert-success" *ngIf="orderId()">✅ Pedido registrado. Tu número es: <strong>{{ orderId() }}</strong></div>
       <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
-      <p class="warn" *ngIf="notificationWarning()">
+      <div class="app-alert app-alert-warn" *ngIf="notificationWarning()">
         Notificaciones: {{ notificationWarning() }}
-      </p>
-      <p class="warn" *ngIf="isLocalDraft()">
+      </div>
+      <div class="app-alert app-alert-info" *ngIf="isLocalDraft()">
         Estás en modo local (<code>ng serve</code>). Este pedido se guardó solo en tu navegador.
         Para enviarlo realmente al backend despliega el frontend y configura el modo <strong><code>api</code></strong> con tu URL de Render.
-      </p>
-      <p class="err" *ngIf="error()">{{ error() }}</p>
+      </div>
+      <div class="app-alert app-alert-error" *ngIf="error()">{{ error() }}</div>
     </section>
   `,
   styles: [
     `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}`,
     `textarea{width:100%;margin:.8rem 0;min-height:80px}`,
-    `.ok{color:#0f7a3b}`,
     `.meta{color:#374151;font-size:.95rem}`,
-    `.warn{background:#fff8e1;border:1px solid #f7d68a;border-radius:10px;padding:.7rem;color:#7a5610}`,
-    `.err{color:#b42318}`
   ]
 })
 export class CheckoutPageComponent {
@@ -90,6 +87,7 @@ export class CheckoutPageComponent {
   async submit(): Promise<void> {
     if (this.form.invalid) return;
     this.loading.set(true);
+    this.orderId.set('');
     this.error.set('');
     this.destination.set('');
     this.isLocalDraft.set(false);
@@ -103,7 +101,12 @@ export class CheckoutPageComponent {
       this.isLocalDraft.set(result.channel === 'local');
       this.notificationWarning.set(result.warning ?? '');
       this.cart.clear();
-      this.form.reset({ deliveryMode: 'delivery' });
+
+      const accountEmail = this.customerAuth.profile()?.email ?? '';
+      this.form.reset({
+        deliveryMode: 'delivery',
+        email: accountEmail
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No fue posible registrar el pedido. Intenta nuevamente.';
       this.error.set(message);
