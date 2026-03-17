@@ -5,6 +5,7 @@ import { CheckoutPageComponent } from './features/checkout/checkout-page.compone
 import { ContactPageComponent } from './features/contact/contact-page.component';
 import { AdminPageComponent } from './features/admin/admin-page.component';
 import { AdminProductsPageComponent } from './features/admin/admin-products-page.component';
+import { AdminKitchenPageComponent } from './features/admin/admin-kitchen-page.component';
 import { LoginPageComponent } from './features/auth/login-page.component';
 import { RegisterPageComponent } from './features/auth/register-page.component';
 import { MyOrdersPageComponent } from './features/account/my-orders-page.component';
@@ -17,6 +18,7 @@ export const appRoutes: Routes = [
   { path: 'contacto', component: ContactPageComponent },
   { path: 'admin', component: AdminPageComponent, canActivate: [adminGuard] },
   { path: 'admin/pedidos', component: AdminPageComponent, canActivate: [adminGuard] },
+  { path: 'admin/cocina', component: AdminKitchenPageComponent, canActivate: [adminGuard] },
   { path: 'admin/productos', component: AdminProductsPageComponent, canActivate: [adminGuard] },
   { path: 'login', component: LoginPageComponent },
   { path: 'registro', component: RegisterPageComponent },

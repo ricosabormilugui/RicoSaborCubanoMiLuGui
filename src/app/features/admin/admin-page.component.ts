@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AdminOrder, AdminOrderStatus } from '../../core/models/admin-order.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <section class="card" *ngIf="!auth.isAuthenticated(); else panel">
       <h1>Acceso administrador</h1>
@@ -36,6 +37,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
               <option value="anulado">Anulado</option>
             </select>
             <button class="btn" (click)="loadOrders()">Actualizar</button>
+            <button class="btn" routerLink="/admin/cocina">Ir a cocina</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>
