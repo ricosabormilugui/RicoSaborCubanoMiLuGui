@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContactFormPayload, ContactService } from '../../core/services/contact.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -65,6 +66,7 @@ export class ContactPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly contactService = inject(ContactService);
   private readonly isProduction = environment.production;
+  private readonly notifications = inject(NotificationService);
 
   readonly sending = signal(false);
   readonly notice = signal('');
@@ -111,18 +113,23 @@ export class ContactPageComponent {
 
       if (anySent || result.duplicated) {
         this.notice.set('Te responderemos en breve.');
+        this.notifications.success('Solicitud enviada', 'Te responderemos en breve.');
       } else {
-        this.error.set(this.isProduction
+        const message = this.isProduction
           ? 'Inténtalo de nuevo en unos segundos.'
-          : `Email: ${result.notifications.email.warning ?? 'sin detalle'} · WhatsApp: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`);
+          : `Email: ${result.notifications.email.warning ?? 'sin detalle'} · WhatsApp: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`;
+        this.error.set(message);
+        this.notifications.warning('Solicitud con incidencias', message);
       }
 
       if (!isRetry) this.form.reset();
     } catch (error) {
       this.canRetry.set(true);
-      this.error.set(this.isProduction
+      const message = this.isProduction
         ? 'Inténtalo de nuevo en unos segundos.'
-        : (error instanceof Error ? error.message : 'Error inesperado.'));
+        : (error instanceof Error ? error.message : 'Error inesperado.');
+      this.error.set(message);
+      this.notifications.error('No se pudo enviar la solicitud', message);
     } finally {
       this.sending.set(false);
     }

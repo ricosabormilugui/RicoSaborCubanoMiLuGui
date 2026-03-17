@@ -3,6 +3,7 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   standalone: true,
@@ -28,16 +29,23 @@ export class LoginPageComponent {
   readonly loading = signal(false);
   readonly error = signal('');
 
-  constructor(public readonly auth: CustomerAuthService, private readonly router: Router) {}
+  constructor(
+    public readonly auth: CustomerAuthService,
+    private readonly router: Router,
+    private readonly notifications: NotificationService
+  ) {}
 
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
     try {
       await this.auth.login(this.email, this.password);
+      this.notifications.success('Sesión iniciada', 'Bienvenido de nuevo.');
       await this.router.navigateByUrl('/checkout');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
+      this.error.set(message);
+      this.notifications.error('Error al iniciar sesión', message);
     } finally {
       this.loading.set(false);
     }

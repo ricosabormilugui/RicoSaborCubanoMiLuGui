@@ -3,6 +3,8 @@ import { Component, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { Product } from '../../core/models/product.model';
 
 @Component({
   standalone: true,
@@ -41,7 +43,7 @@ import { CatalogService } from '../../core/services/catalog.service';
             <strong>{{ product.price | currency:'EUR' }}</strong>
             <h3>{{ product.name }}</h3>
             <p>{{ product.description }}</p>
-            <button class="btn btn-primary" (click)="cart.add(product)">+ Añadir</button>
+            <button class="btn btn-primary" (click)="addToCart(product)">+ Añadir</button>
           </div>
         </article>
       </div>
@@ -81,7 +83,16 @@ export class CatalogPageComponent {
       .filter((product) => `${product.name} ${product.description}`.toLowerCase().includes(q));
   });
 
-  constructor(public readonly cart: CartService, private readonly catalog: CatalogService) {
+  constructor(
+    public readonly cart: CartService,
+    private readonly catalog: CatalogService,
+    private readonly notifications: NotificationService
+  ) {
     void this.catalog.loadProducts();
   }
+  addToCart(product: Product): void {
+    this.cart.add(product);
+    this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+  }
 }
+

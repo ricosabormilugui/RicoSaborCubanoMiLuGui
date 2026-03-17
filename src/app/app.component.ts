@@ -3,13 +3,14 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
+import { NotificationsComponent } from './shared/ui/notifications.component';
 
 type ThemeMode = 'dark' | 'light';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, NotificationsComponent],
   template: `
     <div class="promo-strip">Regalo sorpresa en tu primer pedido</div>
 
@@ -52,6 +53,8 @@ type ThemeMode = 'dark' | 'light';
     <main class="container main">
       <router-outlet />
     </main>
+
+    <app-notifications />
   `,
   styles: [
     `.promo-strip{height:32px;display:grid;place-items:center;background:var(--accent-red);color:#fff;font-weight:700;letter-spacing:.2px}`,

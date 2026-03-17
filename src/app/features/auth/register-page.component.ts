@@ -3,6 +3,7 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   standalone: true,
@@ -33,7 +34,11 @@ export class RegisterPageComponent {
   readonly error = signal('');
   readonly success = signal('');
 
-  constructor(private readonly auth: CustomerAuthService, private readonly router: Router) {}
+  constructor(
+    private readonly auth: CustomerAuthService,
+    private readonly router: Router,
+    private readonly notifications: NotificationService
+  ) {}
 
   async register(): Promise<void> {
     this.loading.set(true);
@@ -41,10 +46,16 @@ export class RegisterPageComponent {
     this.success.set('');
     try {
       const result = await this.auth.register(this.fullName, this.email, this.password);
-      this.success.set(result.linkedOrders > 0 ? `Cuenta creada. Se vincularon ${result.linkedOrders} pedidos previos con tu email.` : 'Cuenta creada correctamente.');
+      const successMessage = result.linkedOrders > 0
+        ? `Cuenta creada. Se vincularon ${result.linkedOrders} pedidos previos con tu email.`
+        : 'Cuenta creada correctamente.';
+      this.success.set(successMessage);
+      this.notifications.success('Registro completado', successMessage);
       await this.router.navigateByUrl('/checkout');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo crear la cuenta.');
+      const message = error instanceof Error ? error.message : 'No se pudo crear la cuenta.';
+      this.error.set(message);
+      this.notifications.error('Error al registrarte', message);
     } finally {
       this.loading.set(false);
     }

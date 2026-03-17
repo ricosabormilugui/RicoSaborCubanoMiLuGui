@@ -5,6 +5,7 @@ import { CartService } from '../../core/services/cart.service';
 import { CheckoutFormData } from '../../core/models/order.model';
 import { OrderService } from '../../core/services/order.service';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   standalone: true,
@@ -76,7 +77,8 @@ export class CheckoutPageComponent {
   constructor(
     public readonly cart: CartService,
     private readonly orderService: OrderService,
-    private readonly customerAuth: CustomerAuthService
+    private readonly customerAuth: CustomerAuthService,
+    private readonly notifications: NotificationService
   ) {
     const email = this.customerAuth.profile()?.email ?? '';
     if (email) {
@@ -100,6 +102,11 @@ export class CheckoutPageComponent {
       this.destination.set(result.destination);
       this.isLocalDraft.set(result.channel === 'local');
       this.notificationWarning.set(result.warning ?? '');
+
+      this.notifications.success('Pedido creado', `Tu número es ${result.orderId}.`);
+      if (result.warning) {
+        this.notifications.warning('Pedido con aviso', result.warning);
+      }
       this.cart.clear();
 
       const accountEmail = this.customerAuth.profile()?.email ?? '';
@@ -110,6 +117,7 @@ export class CheckoutPageComponent {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No fue posible registrar el pedido. Intenta nuevamente.';
       this.error.set(message);
+      this.notifications.error('No se pudo enviar el pedido', message);
     } finally {
       this.loading.set(false);
     }
