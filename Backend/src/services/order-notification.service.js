@@ -18,9 +18,24 @@ function mapStatusLabel(status) {
 
 function buildWhatsAppMessage(order, status, statusNote) {
   const customerName = order?.customer?.fullName ?? "cliente";
+  const statusLabel = mapStatusLabel(status);
+  const total = Number(order?.total ?? 0).toFixed(2);
+
+  const statusMap = {
+    nuevo: "🆕 Pedido recibido",
+    confirmado: "✅ Pedido confirmado",
+    preparando: "👨‍🍳 En preparación",
+    listo: "📦 Listo",
+    enviado: "🚚 En camino",
+    entregado: "🎉 Entregado",
+    cancelado: "❌ Cancelado",
+    anulado: "❌ Anulado"
+  };
+
+  const statusLine = statusMap[status] ?? statusLabel;
   const noteLine = statusNote ? `\nNota: ${statusNote}` : "";
 
-  return `📦 Actualización de pedido ${order.orderId}\nHola ${customerName}, tu pedido ahora está: ${mapStatusLabel(status)}.${noteLine}`;
+  return `Hola ${customerName} 👋\n\nTu pedido ${order.orderId} ahora está:\n\n${statusLine}${noteLine}\n\nTotal: €${total}\n\nGracias por confiar en Rico Sabor Cubano 🇨🇺`;
 }
 
 export async function notifyCustomerOrderStatus(order, { status, statusNote } = {}) {

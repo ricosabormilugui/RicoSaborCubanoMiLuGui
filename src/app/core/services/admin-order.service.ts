@@ -41,7 +41,12 @@ export class AdminOrderService {
     return data.orders ?? [];
   }
 
-  async updateStatus(orderId: string, status: AdminOrderStatus, statusNote?: string, deliverySignature?: string): Promise<void> {
+  async updateStatus(
+    orderId: string,
+    status: AdminOrderStatus,
+    statusNote?: string,
+    deliverySignature?: string
+  ): Promise<{ warnings: string[] }> {
     const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}/status`, {
       method: 'PATCH',
       headers: {
@@ -52,8 +57,18 @@ export class AdminOrderService {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
+      let detail = '';
+      try {
+        const data = (await response.json()) as { error?: string };
+        detail = data.error ?? '';
+      } catch {
+        detail = await response.text();
+      }
+
       throw new Error(detail || 'No fue posible actualizar estado del pedido.');
     }
+
+    const data = (await response.json()) as { warnings?: string[] };
+    return { warnings: data.warnings ?? [] };
   }
 }

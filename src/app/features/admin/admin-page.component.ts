@@ -40,6 +40,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           </div>
         </div>
 
+        <p class="ok" *ngIf="notice()">{{ notice() }}</p>
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <article class="order" *ngFor="let order of orders()">
@@ -96,6 +97,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.badge.anulado{background:#c71f26}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
     `.err{color:#b42318}`,
+    `.ok{color:#0f7a3b}`,
     `@media (max-width:900px){.status-tools{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}`
   ]
 })
@@ -106,6 +108,7 @@ export class AdminPageComponent {
 
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly notice = signal('');
   readonly orders = signal<Array<{ orderId: string; status: AdminOrderStatus; customer?: { fullName?: string; phone?: string }; accountMode?: 'guest' | 'registered'; total?: number; items?: Array<{ quantity: number; name: string; description?: string }>; notes?: string }>>([]);
 
   readonly orderCount = computed(() => this.orders().length);
@@ -119,6 +122,7 @@ export class AdminPageComponent {
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
+    this.notice.set('');
     try {
       await this.adminOrders.login(this.email, this.password);
       await this.loadOrders();
@@ -148,8 +152,16 @@ export class AdminPageComponent {
   }
 
   async updateStatus(orderId: string, status: string, statusNote: string, deliverySignature: string): Promise<void> {
+    this.notice.set('');
+    this.error.set('');
+
     try {
-      await this.adminOrders.updateStatus(orderId, status as AdminOrderStatus, statusNote, deliverySignature);
+      const result = await this.adminOrders.updateStatus(orderId, status as AdminOrderStatus, statusNote, deliverySignature);
+      const warningMessage = result.warnings.length
+        ? `Estado actualizado, pero con alertas de notificación: ${result.warnings.join(' | ')}`
+        : 'Estado actualizado y notificación enviada al cliente.';
+
+      this.notice.set(warningMessage);
       await this.loadOrders();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo actualizar el estado.');
