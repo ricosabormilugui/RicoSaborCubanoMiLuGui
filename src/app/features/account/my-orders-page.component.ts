@@ -31,7 +31,7 @@ import { CustomerOrdersService, CustomerOrder } from '../../core/services/custom
       </div>
     </section>
   `,
-  styles: [`.order{border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;margin-top:.8rem;background:#fff}.err{color:#b42318}`]
+  styles: [`.order{border:1px solid var(--border-soft);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--surface-1);color:var(--text-main)}.order h3,.order p,.order li,.order strong{color:inherit}.err{color:var(--error-text)}`]
 })
 export class MyOrdersPageComponent {
   readonly orders = signal<CustomerOrder[]>([]);
