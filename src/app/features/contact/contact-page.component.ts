@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContactFormPayload, ContactService } from '../../core/services/contact.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   standalone: true,
@@ -36,6 +37,7 @@ import { ContactFormPayload, ContactService } from '../../core/services/contact.
 export class ContactPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly contactService = inject(ContactService);
+  private readonly isProduction = environment.production;
 
   readonly sending = signal(false);
   readonly notice = signal('');
@@ -77,33 +79,27 @@ export class ContactPageComponent {
       const result = await this.contactService.submit(payload);
       this.lastContactId.set(result.contactId ?? '');
 
-      const emailLine = result.notifications.email.sent
-        ? '📧 Email enviado'
-        : `❗ Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`;
-      const whatsappLine = result.notifications.whatsapp.sent
-        ? '📱 WhatsApp enviado'
-        : `❗ WhatsApp no enviado: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`;
+      const emailOk = Boolean(result.notifications.email.sent);
+      const whatsappOk = Boolean(result.notifications.whatsapp.sent);
+      const anySent = emailOk || whatsappOk;
+      this.canRetry.set(!anySent);
 
-      if (result.duplicated) {
-        this.notice.set(`ℹ️ Solicitud ya registrada (evitamos duplicado)\n${emailLine}\n${whatsappLine}`);
-        this.canRetry.set(true);
-      } else if (result.ok) {
-        const fullSent = result.notifications.email.sent && result.notifications.whatsapp.sent;
-        this.notice.set(fullSent
-          ? `✅ Solicitud enviada\n${emailLine}\n${whatsappLine}`
-          : `⚠️ Solicitud registrada\n${emailLine}\n${whatsappLine}`);
-        this.canRetry.set(!fullSent);
+      if (anySent || result.duplicated) {
+        this.notice.set('✅ Solicitud enviada correctamente\nTe responderemos en breve.');
       } else {
-        this.error.set(`❌ No se pudo completar el envío por canales\n${emailLine}\n${whatsappLine}`);
-        this.canRetry.set(true);
+        this.error.set(this.isProduction
+          ? '❌ No hemos podido enviar tu solicitud\nInténtalo de nuevo.'
+          : `❌ No se pudo completar el envío por canales\nEmail: ${result.notifications.email.warning ?? 'sin detalle'}\nWhatsApp: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`);
       }
 
       if (!isRetry) {
         this.form.reset();
       }
     } catch (error) {
-      this.error.set(`❌ No se pudo enviar la solicitud\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
       this.canRetry.set(true);
+      this.error.set(this.isProduction
+        ? '❌ No hemos podido enviar tu solicitud\nInténtalo de nuevo.'
+        : `❌ No se pudo enviar la solicitud\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
     } finally {
       this.sending.set(false);
     }
