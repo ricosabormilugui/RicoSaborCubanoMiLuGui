@@ -3,6 +3,7 @@ import { sendOrderEmail } from "../services/email.service.js";
 import { sendWhatsAppNotification, sendWhatsAppToPhone } from "../services/whatsapp.service.js";
 import { notifyCustomerOrderStatus } from "../services/order-notification.service.js";
 import {
+  appendOrderNotifications,
   findOrderById,
   listOrders,
   listOrdersForCustomer,
@@ -12,6 +13,17 @@ import {
 import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
+const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
+
+function buildNotificationHistory(notifications) {
+  const now = new Date().toISOString();
+  return ["whatsapp", "email"].map((type) => ({
+    type,
+    status: notifications?.[type]?.sent ? "sent" : "failed",
+    date: now,
+    error: notifications?.[type]?.warning ?? null
+  }));
+}
 
 function isWebhookAuthorized(req) {
   const expectedToken = process.env.WHATSAPP_WEBHOOK_TOKEN;
@@ -69,6 +81,7 @@ export async function createOrder(req, res) {
       orderId: `MLG-${randomUUID().slice(0, 8).toUpperCase()}`,
       createdAt: new Date().toISOString(),
       status: "nuevo",
+      notifications: [],
       statusHistory: [
         {
           status: "nuevo",
@@ -101,9 +114,14 @@ Total: ${order.total ?? 0}€`
       warnings.push(`whatsapp: ${error.message ?? "failed"}`);
     }
 
+    const notifications = await notifyCustomerOrderStatus(order, { status: "nuevo" });
+    await appendOrderNotifications(order.orderId, buildNotificationHistory(notifications));
+
     return res.status(201).json({
+      ok: true,
       orderId: order.orderId,
       accountMode: order.accountMode,
+      notifications,
       warnings: warnings.length ? warnings : undefined
     });
 
@@ -165,6 +183,17 @@ export async function updateOrderStatusForAdmin(req, res) {
       return res.status(404).json({ error: "Order not found" });
     }
 
+    if (existing.status === status) {
+      return res.status(200).json({
+        ok: true,
+        order: existing,
+        notifications: {
+          whatsapp: { sent: false, warning: "status-unchanged" },
+          email: { sent: false, warning: "status-unchanged" }
+        }
+      });
+    }
+
     const updated = await updateOrderStatus(orderId, status, {
       statusNote: statusNote ?? null,
       deliverySignature: status === "entregado"
@@ -173,14 +202,24 @@ export async function updateOrderStatusForAdmin(req, res) {
       updatedBy: req.auth?.email ?? "admin"
     });
 
-    const notificationWarnings = await notifyCustomerOrderStatus(updated, {
-      status,
-      statusNote: statusNote ?? null
-    });
+    const notifications = notifyStatuses.has(status)
+      ? await notifyCustomerOrderStatus(updated, {
+        status,
+        statusNote: statusNote ?? null
+      })
+      : {
+        whatsapp: { sent: false, warning: "status-not-notified" },
+        email: { sent: false, warning: "status-not-notified" }
+      };
+
+    await appendOrderNotifications(orderId, buildNotificationHistory(notifications));
+
+    const refreshedOrder = await findOrderById(orderId);
 
     return res.status(200).json({
-      order: updated,
-      warnings: notificationWarnings.length ? notificationWarnings : undefined
+      ok: true,
+      order: refreshedOrder ?? updated,
+      notifications
     });
 
   } catch (error) {

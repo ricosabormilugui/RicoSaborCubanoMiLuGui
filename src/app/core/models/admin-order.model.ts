@@ -29,4 +29,10 @@ export interface AdminOrder {
     note?: string | null;
     signature?: string | null;
   }>;
+  notifications?: Array<{
+    type: 'whatsapp' | 'email';
+    status: 'sent' | 'failed';
+    date: string;
+    error?: string | null;
+  }>;
 }

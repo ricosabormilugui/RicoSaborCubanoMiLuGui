@@ -108,3 +108,24 @@ export async function updateOrderStatus(orderId, nextStatus, metadata = {}) {
 
   return result;
 }
+
+export async function appendOrderNotifications(orderId, notifications = []) {
+  if (!Array.isArray(notifications) || !notifications.length) {
+    return;
+  }
+
+  const collection = await getOrdersCollection();
+  await collection.updateOne(
+    { orderId },
+    {
+      $push: {
+        notifications: {
+          $each: notifications
+        }
+      },
+      $set: {
+        updatedAt: new Date().toISOString()
+      }
+    }
+  );
+}

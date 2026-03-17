@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AdminOrderStatus } from '../../core/models/admin-order.model';
+import { AdminOrder, AdminOrderStatus } from '../../core/models/admin-order.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
 
@@ -51,7 +51,8 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           <p>
             <strong>Tel:</strong> {{ order.customer?.phone || 'N/A' }} ·
             <strong>Cuenta:</strong> {{ order.accountMode || 'guest' }} ·
-            <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }}
+            <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }} ·
+            <strong>📱 WhatsApp:</strong> {{ whatsappStatus(order) }}
           </p>
           <ul>
             <li *ngFor="let item of order.items">
@@ -96,8 +97,8 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.badge.cancelado{background:#9ca3af}`,
     `.badge.anulado{background:#c71f26}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
-    `.err{color:#b42318}`,
-    `.ok{color:#0f7a3b}`,
+    `.err{color:#b42318;white-space:pre-line}`,
+    `.ok{color:#0f7a3b;white-space:pre-line}`,
     `@media (max-width:900px){.status-tools{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}`
   ]
 })
@@ -109,7 +110,7 @@ export class AdminPageComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
-  readonly orders = signal<Array<{ orderId: string; status: AdminOrderStatus; customer?: { fullName?: string; phone?: string }; accountMode?: 'guest' | 'registered'; total?: number; items?: Array<{ quantity: number; name: string; description?: string }>; notes?: string }>>([]);
+  readonly orders = signal<AdminOrder[]>([]);
 
   readonly orderCount = computed(() => this.orders().length);
 
@@ -157,14 +158,27 @@ export class AdminPageComponent {
 
     try {
       const result = await this.adminOrders.updateStatus(orderId, status as AdminOrderStatus, statusNote, deliverySignature);
-      const warningMessage = result.warnings.length
-        ? `Estado actualizado, pero con alertas de notificación: ${result.warnings.join(' | ')}`
-        : 'Estado actualizado y notificación enviada al cliente.';
+      const { whatsapp } = result.notifications;
+      const warningMessage = whatsapp.sent
+        ? '✅ Estado actualizado correctamente\n📱 Notificación enviada al cliente'
+        : `⚠️ Estado actualizado\n❗ WhatsApp no enviado: ${whatsapp.warning ?? 'motivo no disponible'}`;
 
       this.notice.set(warningMessage);
       await this.loadOrders();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo actualizar el estado.');
+      this.error.set(`❌ No se pudo actualizar el pedido\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
     }
+  }
+
+  whatsappStatus(order: AdminOrder): string {
+    const whatsappEvents = (order.notifications ?? []).filter((event) => event.type === 'whatsapp');
+    if (!whatsappEvents.length) {
+      return '— No enviado';
+    }
+
+    const latest = whatsappEvents[whatsappEvents.length - 1];
+    return latest.status === 'sent'
+      ? '✔ Enviado'
+      : `⚠ Fallo${latest.error ? ` (${latest.error})` : ''}`;
   }
 }

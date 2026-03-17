@@ -3,6 +3,18 @@ import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminOrder, AdminOrderStatus } from '../models/admin-order.model';
 import { AdminAuthService } from './admin-auth.service';
 
+export interface NotificationChannelResult {
+  sent: boolean;
+  warning: string | null;
+}
+
+export interface UpdateStatusResult {
+  notifications: {
+    whatsapp: NotificationChannelResult;
+    email: NotificationChannelResult;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminOrderService {
   private readonly apiBase = resolveApiBaseUrl();
@@ -46,7 +58,7 @@ export class AdminOrderService {
     status: AdminOrderStatus,
     statusNote?: string,
     deliverySignature?: string
-  ): Promise<{ warnings: string[] }> {
+  ): Promise<UpdateStatusResult> {
     const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}/status`, {
       method: 'PATCH',
       headers: {
@@ -68,7 +80,18 @@ export class AdminOrderService {
       throw new Error(detail || 'No fue posible actualizar estado del pedido.');
     }
 
-    const data = (await response.json()) as { warnings?: string[] };
-    return { warnings: data.warnings ?? [] };
+    const data = (await response.json()) as {
+      notifications?: {
+        whatsapp?: NotificationChannelResult;
+        email?: NotificationChannelResult;
+      };
+    };
+
+    return {
+      notifications: {
+        whatsapp: data.notifications?.whatsapp ?? { sent: false, warning: 'unknown' },
+        email: data.notifications?.email ?? { sent: false, warning: 'unknown' }
+      }
+    };
   }
 }

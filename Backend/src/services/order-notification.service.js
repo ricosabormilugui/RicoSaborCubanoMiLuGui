@@ -1,6 +1,8 @@
 import { sendOrderStatusEmail } from "./email.service.js";
 import { sendWhatsAppToPhone } from "./whatsapp.service.js";
 
+const NOTIFY_STATUSES = new Set(["confirmado", "preparando", "listo", "enviado", "nuevo"]);
+
 function mapStatusLabel(status) {
   const labels = {
     nuevo: "Nuevo",
@@ -18,43 +20,44 @@ function mapStatusLabel(status) {
 
 function buildWhatsAppMessage(order, status, statusNote) {
   const customerName = order?.customer?.fullName ?? "cliente";
-  const statusLabel = mapStatusLabel(status);
   const total = Number(order?.total ?? 0).toFixed(2);
+  const noteLine = statusNote ? `\n📝 *Nota:* ${statusNote}` : "";
 
-  const statusMap = {
-    nuevo: "🆕 Pedido recibido",
-    confirmado: "✅ Pedido confirmado",
-    preparando: "👨‍🍳 En preparación",
-    listo: "📦 Listo",
-    enviado: "🚚 En camino",
-    entregado: "🎉 Entregado",
-    cancelado: "❌ Cancelado",
-    anulado: "❌ Anulado"
-  };
-
-  const statusLine = statusMap[status] ?? statusLabel;
-  const noteLine = statusNote ? `\nNota: ${statusNote}` : "";
-
-  return `Hola ${customerName} 👋\n\nTu pedido ${order.orderId} ahora está:\n\n${statusLine}${noteLine}\n\nTotal: €${total}\n\nGracias por confiar en Rico Sabor Cubano 🇨🇺`;
+  return `🍽️ *Rico Sabor Cubano*\n\nHola ${customerName} 👋\n\n📦 *Pedido:* ${order.orderId}\n💰 *Total:* €${total}\n\n📍 *Estado:* ${mapStatusLabel(status)}${noteLine}\n\nGracias por tu pedido 🙌`;
 }
 
 export async function notifyCustomerOrderStatus(order, { status, statusNote } = {}) {
-  const warnings = [];
+  const nextStatus = status ?? order?.status;
+  const notifications = {
+    whatsapp: { sent: false, warning: null },
+    email: { sent: false, warning: null }
+  };
+
+  if (!NOTIFY_STATUSES.has(nextStatus)) {
+    notifications.whatsapp.warning = "status-not-notified";
+    notifications.email.warning = "status-not-notified";
+    return notifications;
+  }
 
   try {
-    await sendOrderStatusEmail(order, { status, statusNote });
+    await sendOrderStatusEmail(order, { status: nextStatus, statusNote });
+    notifications.email.sent = true;
   } catch (error) {
-    warnings.push(`email-status: ${error.message ?? "failed"}`);
+    notifications.email.warning = error.message ?? "failed";
   }
 
   try {
     const phone = String(order?.customer?.phone ?? "").trim();
-    if (phone) {
-      await sendWhatsAppToPhone(phone, buildWhatsAppMessage(order, status, statusNote));
+    if (!phone) {
+      notifications.whatsapp.warning = "cliente sin teléfono";
+      return notifications;
     }
+
+    await sendWhatsAppToPhone(phone, buildWhatsAppMessage(order, nextStatus, statusNote));
+    notifications.whatsapp.sent = true;
   } catch (error) {
-    warnings.push(`whatsapp-status: ${error.message ?? "failed"}`);
+    notifications.whatsapp.warning = error.message ?? "failed";
   }
 
-  return warnings;
+  return notifications;
 }
