@@ -88,7 +88,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-bottom:.7rem}`,
     `.toolbar{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}`,
     `.actions{display:flex;gap:.6rem;flex-wrap:wrap}`,
-    `.order{border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;margin-top:.8rem;background:#fff}`,
+    `.order{border:1px solid var(--border-soft);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--surface-1);color:var(--text-main)}`,
     `.order header{display:flex;justify-content:space-between;align-items:center;gap:.6rem}`,
     `.badge{padding:.25rem .6rem;border-radius:999px;color:#fff;font-weight:700;text-transform:capitalize}`,
     `.badge.nuevo{background:#1f4f8f}`,
@@ -100,8 +100,9 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.badge.cancelado{background:#9ca3af}`,
     `.badge.anulado{background:#c71f26}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
-    `.err{color:#b42318;white-space:pre-line}`,
-    `.ok{color:#0f7a3b;white-space:pre-line}`,
+    `.order p,.order li,.order h3,.order small,.order strong{color:inherit}`,
+    `.err{color:var(--error-text);white-space:pre-line}`,
+    `.ok{color:var(--ok-text);white-space:pre-line}`,
     `@media (max-width:900px){.status-tools{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}`
   ]
 })
