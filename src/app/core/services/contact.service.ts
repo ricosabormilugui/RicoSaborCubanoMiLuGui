@@ -7,6 +7,7 @@ export interface ContactFormPayload {
   email?: string;
   message: string;
   requestId: string;
+  bypassContentDedup?: boolean;
 }
 
 export interface ContactSubmitResult {
@@ -44,7 +45,7 @@ export class ContactService {
       data = {};
     }
 
-    if (!response.ok) {
+    if (response.status >= 400) {
       throw new Error(data.error || 'No se pudo enviar la solicitud de contacto.');
     }
 

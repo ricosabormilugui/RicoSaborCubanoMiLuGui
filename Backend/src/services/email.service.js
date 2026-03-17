@@ -227,7 +227,8 @@ export async function sendContactEmail({ subject, details } = {}) {
     to: [to],
     subject: subject || "Nueva solicitud de contacto",
     text: buildContactText(normalizedDetails),
-    html: buildContactHtml(normalizedDetails)
+    html: buildContactHtml(normalizedDetails),
+    reply_to: normalizedDetails.email || undefined
   });
 }
 

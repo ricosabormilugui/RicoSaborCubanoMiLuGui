@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ContactService } from '../../core/services/contact.service';
+import { ContactFormPayload, ContactService } from '../../core/services/contact.service';
 
 @Component({
   standalone: true,
@@ -18,7 +18,10 @@ import { ContactService } from '../../core/services/contact.service';
           {{ sending() ? 'Enviando...' : 'Enviar solicitud' }}
         </button>
       </form>
+
       <p class="ok" *ngIf="notice()">{{ notice() }}</p>
+      <p class="meta" *ngIf="lastContactId()">ID de solicitud: {{ lastContactId() }}</p>
+      <button class="btn" *ngIf="canRetry()" (click)="retryLastSubmission()" [disabled]="sending()">Reintentar</button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>
   `,
@@ -26,7 +29,8 @@ import { ContactService } from '../../core/services/contact.service';
     `form{display:grid;gap:.7rem}`,
     `input,textarea{padding:.6rem;border:1px solid #cfd8e3;border-radius:8px}`,
     `.ok{color:#0f7a3b;white-space:pre-line}`,
-    `.err{color:#b42318;white-space:pre-line}`
+    `.err{color:#b42318;white-space:pre-line}`,
+    `.meta{color:#475467;font-size:.9rem}`
   ]
 })
 export class ContactPageComponent {
@@ -36,6 +40,9 @@ export class ContactPageComponent {
   readonly sending = signal(false);
   readonly notice = signal('');
   readonly error = signal('');
+  readonly canRetry = signal(false);
+  readonly lastContactId = signal('');
+  private lastPayload: Omit<ContactFormPayload, 'requestId'> | null = null;
 
   readonly form = this.fb.nonNullable.group({
     name: ['', Validators.required],
@@ -45,16 +52,30 @@ export class ContactPageComponent {
   });
 
   async submit(): Promise<void> {
+    this.lastPayload = this.form.getRawValue();
+    await this.submitInternal(false);
+  }
+
+  async retryLastSubmission(): Promise<void> {
+    if (!this.lastPayload) return;
+    await this.submitInternal(true);
+  }
+
+  private async submitInternal(isRetry: boolean): Promise<void> {
     this.notice.set('');
     this.error.set('');
     this.sending.set(true);
 
     try {
       const requestId = crypto.randomUUID();
-      const result = await this.contactService.submit({
-        ...this.form.getRawValue(),
-        requestId
-      });
+      const payload = {
+        ...(this.lastPayload ?? this.form.getRawValue()),
+        requestId,
+        bypassContentDedup: isRetry
+      };
+
+      const result = await this.contactService.submit(payload);
+      this.lastContactId.set(result.contactId ?? '');
 
       const emailLine = result.notifications.email.sent
         ? '📧 Email enviado'
@@ -65,18 +86,24 @@ export class ContactPageComponent {
 
       if (result.duplicated) {
         this.notice.set(`ℹ️ Solicitud ya registrada (evitamos duplicado)\n${emailLine}\n${whatsappLine}`);
+        this.canRetry.set(true);
       } else if (result.ok) {
         const fullSent = result.notifications.email.sent && result.notifications.whatsapp.sent;
         this.notice.set(fullSent
           ? `✅ Solicitud enviada\n${emailLine}\n${whatsappLine}`
           : `⚠️ Solicitud registrada\n${emailLine}\n${whatsappLine}`);
+        this.canRetry.set(!fullSent);
       } else {
         this.error.set(`❌ No se pudo completar el envío por canales\n${emailLine}\n${whatsappLine}`);
+        this.canRetry.set(true);
       }
 
-      this.form.reset();
+      if (!isRetry) {
+        this.form.reset();
+      }
     } catch (error) {
       this.error.set(`❌ No se pudo enviar la solicitud\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
+      this.canRetry.set(true);
     } finally {
       this.sending.set(false);
     }

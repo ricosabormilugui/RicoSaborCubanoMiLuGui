@@ -32,8 +32,12 @@ function toObjectId(id) {
 
 export async function createContact(contact) {
   const collection = await getContactsCollection();
-  const result = await collection.insertOne(contact);
-  return { ...contact, _id: result.insertedId };
+  const normalized = {
+    ...contact,
+    email: String(contact.email ?? "").trim().toLowerCase()
+  };
+  const result = await collection.insertOne(normalized);
+  return { ...normalized, _id: result.insertedId };
 }
 
 export async function listContacts({ status, search, limit = 100 } = {}) {
@@ -70,6 +74,38 @@ export async function findContactByRequestId(requestId) {
 
   const collection = await getContactsCollection();
   return collection.findOne({ requestId: normalized });
+}
+
+
+export async function findRecentDuplicateContact({ email, message, withinMs = 2 * 60_000 } = {}) {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase();
+  const normalizedMessage = String(message ?? '').trim();
+  if (!normalizedEmail || !normalizedMessage) return null;
+
+  const cutoff = new Date(Date.now() - withinMs).toISOString();
+  const collection = await getContactsCollection();
+  return collection.findOne({
+    email: normalizedEmail,
+    message: normalizedMessage,
+    createdAt: { $gte: cutoff }
+  });
+}
+
+export async function updateContactLastNotifications(id, lastNotifications) {
+  const objectId = toObjectId(id);
+  if (!objectId) return null;
+
+  const collection = await getContactsCollection();
+  return collection.findOneAndUpdate(
+    { _id: objectId },
+    {
+      $set: {
+        lastNotifications,
+        updatedAt: new Date().toISOString()
+      }
+    },
+    { returnDocument: 'after' }
+  );
 }
 
 export async function findContactById(id) {

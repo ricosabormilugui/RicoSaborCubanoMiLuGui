@@ -60,7 +60,13 @@ async function initializeWhatsApp() {
 void initializeWhatsApp();
 
 function normalizePhone(phone) {
-  return String(phone ?? "").replace(/[^0-9]/g, "");
+  return String(phone ?? "")
+    .replace(/[^0-9]/g, "")
+    .replace(/^0+/, "");
+}
+
+function isValidNormalizedPhone(phone) {
+  return /^[0-9]{9,15}$/.test(phone);
 }
 
 export async function sendWhatsAppToPhone(phone, message) {
@@ -69,7 +75,7 @@ export async function sendWhatsAppToPhone(phone, message) {
   }
 
   const normalized = normalizePhone(phone);
-  if (!normalized) {
+  if (!normalized || !isValidNormalizedPhone(normalized)) {
     throw new Error("Invalid target phone for WhatsApp");
   }
 
