@@ -12,11 +12,10 @@ type ThemeMode = 'dark' | 'light';
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, NotificationsComponent],
   template: `
-    <div class="promo-strip">Regalo sorpresa en tu primer pedido</div>
-
     <header class="header">
-      <div class="container nav-wrap">
-        <div class="left-links">
+      <div class="container nav-shell">
+        <div class="left-zone">
+          <button class="icon-btn" type="button" aria-label="Menú">☰</button>
           <a routerLink="/" class="mini-link">Tuppers</a>
           <a routerLink="/" class="mini-link">Keto</a>
           <a routerLink="/" class="mini-link">Veganos</a>
@@ -27,11 +26,19 @@ type ThemeMode = 'dark' | 'light';
           <span>Cubano · Mi Lu Gui</span>
         </a>
 
-        <div class="actions">
+        <div class="right-zone">
+          <a class="icon-link" routerLink="/" aria-label="Buscar">⌕</a>
+          <a class="icon-link" routerLink="/contacto" aria-label="Contacto">☎</a>
+          <a class="icon-link" routerLink="/mis-pedidos" aria-label="Pedidos">🗓</a>
+          <a class="icon-link" routerLink="/login" aria-label="Cuenta">👤</a>
+
           <button class="theme-toggle" type="button" (click)="toggleTheme()">
-            {{ theme() === 'dark' ? '☀️ Light' : '🌙 Dark' }}
+            {{ theme() === 'dark' ? '☀️' : '🌙' }}
           </button>
-          <a class="cart-chip" routerLink="/carrito">{{ cart.totalItems() }} productos</a>
+
+          <a class="cart-chip" routerLink="/carrito">
+            <span>{{ cart.totalItems() }} productos</span>
+          </a>
         </div>
       </div>
 
@@ -57,23 +64,24 @@ type ThemeMode = 'dark' | 'light';
     <app-notifications />
   `,
   styles: [
-    `.promo-strip{height:32px;display:grid;place-items:center;background:var(--accent-red);color:#fff;font-weight:700;letter-spacing:.2px}`,
-    `.header{position:sticky;top:0;background:color-mix(in srgb, var(--surface-0) 92%, transparent);backdrop-filter:blur(9px);border-bottom:1px solid var(--border-soft);z-index:15}`,
-    `.nav-wrap{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:.65rem 0;gap:.8rem}`,
-    `.left-links{display:flex;gap:1rem;align-items:center}`,
-    `.mini-link{text-decoration:none;color:var(--text-soft);font-weight:600;font-size:.95rem}`,
-    `.mini-link:hover{color:var(--text-main)}`,
-    `.brand{display:flex;flex-direction:column;line-height:1.08;text-decoration:none;align-items:center}`,
-    `.brand strong{font-size:2rem;color:var(--text-main);letter-spacing:.3px}`,
-    `.brand span{font-size:.86rem;color:var(--text-soft)}`,
-    `.actions{display:flex;justify-content:flex-end;gap:.55rem;align-items:center}`,
-    `.theme-toggle,.cart-chip{border:1px solid var(--border-soft);background:var(--surface-1);color:var(--text-main);border-radius:10px;padding:.45rem .75rem;text-decoration:none;font-weight:700}`,
-    `.theme-toggle{cursor:pointer}`,
-    `.routes-nav{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 0 .75rem}`,
-    `.nav-pill{padding:.42rem .8rem;border-radius:999px;text-decoration:none;color:var(--text-main);background:var(--surface-2);font-weight:700;border:1px solid transparent;cursor:pointer}`,
+    `.header{position:sticky;top:0;background:#1d1c2b;border-bottom:1px solid #2f2d42;z-index:15}`,
+    `.nav-shell{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:84px;gap:1rem}`,
+    `.left-zone,.right-zone{display:flex;align-items:center;gap:.9rem}`,
+    `.right-zone{justify-content:flex-end}`,
+    `.mini-link{text-decoration:none;color:#f3f3f8;font-weight:700;font-size:1.02rem}`,
+    `.mini-link:hover{color:var(--accent-red)}`,
+    `.brand{text-decoration:none;display:flex;flex-direction:column;align-items:center;line-height:1.05}`,
+    `.brand strong{font-family:Georgia,'Times New Roman',serif;font-size:2.05rem;color:#fff;letter-spacing:.3px}`,
+    `.brand span{font-size:.82rem;color:#d8d8e6}`,
+    `.icon-btn,.icon-link{border:0;background:transparent;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;text-decoration:none}`,
+    `.icon-btn{padding:.15rem .35rem}`,
+    `.theme-toggle{border:1px solid #4d4a66;background:#242338;color:#fff;border-radius:8px;padding:.35rem .55rem;cursor:pointer}`,
+    `.cart-chip{border:1px solid #f2f2f5;border-radius:8px;padding:.45rem .75rem;text-decoration:none;color:#fff;font-weight:700;background:transparent;min-width:122px;text-align:center}`,
+    `.routes-nav{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 0 .7rem}`,
+    `.nav-pill{padding:.42rem .8rem;border-radius:999px;text-decoration:none;color:#eef0ff;background:#31304b;font-weight:700;border:1px solid transparent;cursor:pointer}`,
     `.nav-pill.active{background:var(--accent-red);color:#fff}`,
     `.main{padding:1rem 0 2.5rem}`,
-    `@media (max-width:950px){.nav-wrap{grid-template-columns:1fr}.left-links,.actions{justify-content:center}.brand{order:-1}}`
+    `@media (max-width:1050px){.nav-shell{grid-template-columns:1fr}.left-zone,.right-zone{justify-content:center}.brand{order:-1}}`
   ]
 })
 export class AppComponent {
