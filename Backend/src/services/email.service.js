@@ -221,6 +221,25 @@ export async function sendContactEmail({ subject, text, details } = {}) {
   });
 }
 
+
+export async function sendDirectEmail({ to, subject, text, html } = {}) {
+  const apiKey = getRequiredEnv("RESEND_API_KEY");
+  const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
+  const target = String(to ?? "").trim();
+
+  if (!target) {
+    throw new Error("Missing recipient email");
+  }
+
+  await sendEmail(apiKey, {
+    from,
+    to: [target],
+    subject: subject || "Mensaje · Rico Sabor Cubano",
+    text: String(text ?? ""),
+    html: html || undefined
+  });
+}
+
 export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
   const customerEmail = String(order?.customer?.email ?? "").trim();
   if (!customerEmail) return;

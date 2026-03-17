@@ -38,6 +38,7 @@ import {
             <button class="btn" (click)="loadProducts()">Actualizar</button>
             <button class="btn" routerLink="/admin/pedidos">Ir a pedidos</button>
             <button class="btn" routerLink="/admin/cocina">Ir a cocina</button>
+            <button class="btn" routerLink="/admin/contactos">Contactos</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>

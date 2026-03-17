@@ -35,6 +35,7 @@ type KitchenLane = 'nuevos' | 'preparando' | 'listos';
           <div class="actions">
             <button class="btn" (click)="loadKitchenOrders()">Actualizar ahora</button>
             <button class="btn" routerLink="/admin/pedidos">Ir a pedidos</button>
+            <button class="btn" routerLink="/admin/contactos">Contactos</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>
