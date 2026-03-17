@@ -186,6 +186,41 @@ function mapOrderStatusLabel(status) {
   return labels[status] ?? status;
 }
 
+
+function buildContactHtml({ name, phone, email, message }) {
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;line-height:1.5;">
+      <h2 style="margin:0 0 12px;">Nueva solicitud de contacto web</h2>
+      <p style="margin:0 0 6px;"><strong>Nombre:</strong> ${escapeHtml(name)}</p>
+      <p style="margin:0 0 6px;"><strong>Teléfono:</strong> ${escapeHtml(phone)}</p>
+      <p style="margin:0 0 6px;"><strong>Email:</strong> ${escapeHtml(email)}</p>
+      <p style="margin:14px 0 6px;"><strong>Mensaje:</strong></p>
+      <p style="margin:0;white-space:pre-line;">${escapeHtml(message)}</p>
+    </div>
+  `;
+}
+
+export async function sendContactEmail({ subject, text, details } = {}) {
+  const apiKey = getRequiredEnv("RESEND_API_KEY");
+  const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
+  const to = getRequiredEnv("NOTIFY_EMAIL_TO");
+
+  const normalizedDetails = {
+    name: String(details?.name ?? "No indicado"),
+    phone: String(details?.phone ?? "No indicado"),
+    email: String(details?.email ?? "No indicado"),
+    message: String(details?.message ?? "")
+  };
+
+  await sendEmail(apiKey, {
+    from,
+    to: [to],
+    subject: subject || "Nueva solicitud de contacto",
+    text: String(text ?? ""),
+    html: buildContactHtml(normalizedDetails)
+  });
+}
+
 export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
   const customerEmail = String(order?.customer?.email ?? "").trim();
   if (!customerEmail) return;

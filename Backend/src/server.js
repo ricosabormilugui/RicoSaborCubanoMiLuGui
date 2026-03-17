@@ -4,6 +4,7 @@ import ordersRouter from "./routes/orders.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import productsRouter from "./routes/products.routes.js";
+import contactRouter from "./routes/contact.routes.js";
 import { notifyWhatsApp } from "./controllers/orders.controller.js";
 
 const app = express();
@@ -32,6 +33,7 @@ app.post("/whatsapp/notify", notifyWhatsApp);
 
 app.use("/api", ordersRouter);
 app.use("/api", productsRouter);
+app.use("/api", contactRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 
