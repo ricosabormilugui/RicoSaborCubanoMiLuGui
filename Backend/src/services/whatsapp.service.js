@@ -59,14 +59,24 @@ async function initializeWhatsApp() {
 
 void initializeWhatsApp();
 
-function normalizePhone(phone) {
-  return String(phone ?? "")
+export function normalizePhone(phone) {
+  let clean = String(phone ?? "")
     .replace(/[^0-9]/g, "")
     .replace(/^0+/, "");
+
+  if (clean.length === 9) {
+    clean = `34${clean}`;
+  }
+
+  return clean;
 }
 
 function isValidNormalizedPhone(phone) {
   return /^[0-9]{9,15}$/.test(phone);
+}
+
+export function toWhatsApp(phone) {
+  return `${normalizePhone(phone)}@c.us`;
 }
 
 export async function sendWhatsAppToPhone(phone, message) {
@@ -85,9 +95,16 @@ export async function sendWhatsAppToPhone(phone, message) {
     throw new Error("WhatsApp client not ready (scan QR first)");
   }
 
+  const whatsappClient = getClient();
   const chatId = `${normalized}@c.us`;
+  const exists = await whatsappClient.isRegisteredUser(chatId);
+
+  if (!exists) {
+    throw new Error("whatsapp-not-registered");
+  }
+
   console.log(`Sending WhatsApp to ${normalized}`);
-  await getClient().sendMessage(chatId, message);
+  await whatsappClient.sendMessage(chatId, message);
   console.log(`WhatsApp message sent to ${normalized}`);
 }
 

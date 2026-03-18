@@ -10,7 +10,8 @@ export type DeliveryType = 'delivery' | 'pickup';
 
 export interface CheckoutFormData {
   fullName: string;
-  phone: string;
+  phoneCountryCode: string;
+  phoneNumber: string;
   email?: string;
   deliveryType: DeliveryType;
   deliveryDate: string;

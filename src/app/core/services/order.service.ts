@@ -37,7 +37,7 @@ export class OrderService {
     return {
       customer: {
         fullName: data.fullName,
-        phone: data.phone,
+        phone: this.buildPhone(data.phoneCountryCode, data.phoneNumber),
         email: data.email || profileEmail
       },
       deliveryDate: data.deliveryDate,
@@ -143,16 +143,47 @@ export class OrderService {
       const data = (await response.json()) as {
         orderId: string;
         accountMode?: string;
+        warnings?: string[];
+        notifications?: {
+          whatsapp?: { sent?: boolean; warning?: string | null };
+          email?: { sent?: boolean; warning?: string | null };
+        };
       };
+
+      const whatsappSent = data.notifications?.whatsapp?.sent;
+      const whatsappWarning = data.notifications?.whatsapp?.warning;
+      const warningParts: string[] = [];
+
+      if (Array.isArray(data.warnings) && data.warnings.length) {
+        warningParts.push(...data.warnings);
+      }
+
+      if (whatsappSent === false) {
+        warningParts.push(
+          whatsappWarning === 'whatsapp-not-registered'
+            ? 'Este número no tiene WhatsApp activo. Te enviaremos email.'
+            : `WhatsApp no enviado${whatsappWarning ? `: ${whatsappWarning}` : ''}`
+        );
+      } else if (whatsappSent === true) {
+        warningParts.push('Recibirás confirmación por WhatsApp.');
+      }
 
       return {
         orderId: data.orderId,
         channel: 'backend',
-        destination: `Backend API (${data.accountMode ?? 'guest'})`
+        destination: `Backend API (${data.accountMode ?? 'guest'})`,
+        warning: warningParts.length ? warningParts.join(' | ') : undefined
       };
     } catch {
       return null;
     }
+  }
+
+
+  private buildPhone(countryCode: string, number: string): string {
+    const code = String(countryCode ?? '').replace(/\D/g, '');
+    const cleanNumber = String(number ?? '').replace(/\D/g, '');
+    return `${code}${cleanNumber}`;
   }
 
   private isLocalEnvironment(): boolean {

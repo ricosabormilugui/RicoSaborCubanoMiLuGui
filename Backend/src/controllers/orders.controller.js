@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { sendOrderEmail } from "../services/email.service.js";
-import { sendWhatsAppNotification, sendWhatsAppToPhone } from "../services/whatsapp.service.js";
+import { normalizePhone, sendWhatsAppNotification, sendWhatsAppToPhone } from "../services/whatsapp.service.js";
 import { notifyCustomerOrderStatus } from "../services/order-notification.service.js";
 import {
   appendOrderNotifications,
@@ -139,8 +139,18 @@ export async function createOrder(req, res) {
       return res.status(400).json({ error: deliveryValidationError });
     }
 
+    const canonicalPhone = normalizePhone(payload?.customer?.phone);
+
+    if (!canonicalPhone || canonicalPhone.length < 9) {
+      return res.status(400).json({ error: "Invalid customer phone" });
+    }
+
     const order = {
       ...payload,
+      customer: {
+        ...(payload.customer ?? {}),
+        phone: canonicalPhone
+      },
       ...orderIdentity,
       customerEmailNormalized,
       deliveryDate: normalizedDelivery.date,
@@ -315,7 +325,7 @@ export async function notifyWhatsApp(req, res) {
     }
 
     if (phone) {
-      await sendWhatsAppToPhone(phone, message);
+      await sendWhatsAppToPhone(normalizePhone(phone), message);
       return res.status(200).json({ sent: true, target: "phone" });
     }
 

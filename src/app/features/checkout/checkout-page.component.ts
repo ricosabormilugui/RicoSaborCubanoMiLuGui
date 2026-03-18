@@ -20,7 +20,22 @@ import { DeliveryStateService } from '../../core/services/delivery-state.service
       <form [formGroup]="form" (ngSubmit)="submit()" *ngIf="cart.items().length">
         <div class="grid">
           <input formControlName="fullName" placeholder="Nombre completo" />
-          <input formControlName="phone" placeholder="Teléfono" />
+
+          <div class="phone-input">
+            <select formControlName="phoneCountryCode" aria-label="Prefijo telefónico">
+              <option value="34">🇪🇸 +34</option>
+              <option value="1">🇺🇸 +1</option>
+              <option value="52">🇲🇽 +52</option>
+            </select>
+            <input
+              formControlName="phoneNumber"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel-national"
+              placeholder="644 423 790"
+              (input)="sanitizePhoneDigits()" />
+          </div>
+
           <input formControlName="email" placeholder="Email (opcional)" />
           <select formControlName="deliveryType">
             <option value="delivery">Domicilio</option>
@@ -56,7 +71,7 @@ import { DeliveryStateService } from '../../core/services/delivery-state.service
       <div class="app-alert app-alert-success" *ngIf="orderId()">✅ Pedido registrado. Tu número es: <strong>{{ orderId() }}</strong></div>
       <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
       <div class="app-alert app-alert-warn" *ngIf="notificationWarning()">
-        Notificaciones: {{ notificationWarning() }}
+        {{ notificationWarning() }}
       </div>
       <div class="app-alert app-alert-info" *ngIf="isLocalDraft()">
         Estás en modo local (<code>ng serve</code>). Este pedido se guardó solo en tu navegador.
@@ -67,13 +82,14 @@ import { DeliveryStateService } from '../../core/services/delivery-state.service
   `,
   styles: [
     `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}`,
+    `.phone-input{display:grid;grid-template-columns:150px 1fr;gap:.5rem}`,
     `.slots{margin:.8rem 0}`,
     `.slot-buttons{display:flex;gap:.6rem;flex-wrap:wrap}`,
     `.slot-btn{background:var(--surface-1);color:var(--text-main);border:1px solid var(--border-soft);border-radius:999px;padding:.45rem .9rem;cursor:pointer}`,
     `.slot-btn.active{background:#14532d;color:#fff;border-color:#14532d}`,
     `textarea{width:100%;margin:.8rem 0;min-height:80px}`,
     `.meta{color:#374151;font-size:.95rem}`,
-    `@media (max-width:700px){.grid{grid-template-columns:1fr}}`
+    `@media (max-width:700px){.grid{grid-template-columns:1fr}.phone-input{grid-template-columns:1fr}}`
   ]
 })
 export class CheckoutPageComponent {
@@ -89,7 +105,8 @@ export class CheckoutPageComponent {
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
-    phone: ['', [Validators.required]],
+    phoneCountryCode: ['34', [Validators.required]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9]{7,12}$/)]],
     email: [''],
     deliveryType: this.fb.nonNullable.control<'delivery' | 'pickup'>('delivery'),
     deliveryDate: ['', [Validators.required]],
@@ -115,13 +132,26 @@ export class CheckoutPageComponent {
     });
   }
 
+  sanitizePhoneDigits(): void {
+    const clean = String(this.form.controls.phoneNumber.value ?? '').replace(/\D/g, '');
+    if (clean !== this.form.controls.phoneNumber.value) {
+      this.form.controls.phoneNumber.setValue(clean);
+    }
+  }
+
   async submit(): Promise<void> {
     if (!this.form.value.deliveryDate || !this.form.value.deliverySlot) {
       this.notifications.warning('Datos incompletos', 'Selecciona fecha y horario');
       return;
     }
 
-    if (this.form.invalid) return;
+    this.sanitizePhoneDigits();
+
+    if (this.form.invalid) {
+      this.notifications.warning('Teléfono inválido', 'Revisa el prefijo y escribe solo dígitos en el número.');
+      return;
+    }
+
     this.loading.set(true);
     this.orderId.set('');
     this.error.set('');
@@ -139,12 +169,14 @@ export class CheckoutPageComponent {
 
       this.notifications.success('Pedido creado', `Tu número es ${result.orderId}.`);
       if (result.warning) {
-        this.notifications.warning('Pedido con aviso', result.warning);
+        this.notifications.warning('Aviso de notificación', result.warning);
       }
       this.cart.clear();
 
       const accountEmail = this.customerAuth.profile()?.email ?? '';
       this.form.reset({
+        phoneCountryCode: '34',
+        phoneNumber: '',
         deliveryType: 'delivery',
         deliveryDate: '',
         deliverySlot: '',
