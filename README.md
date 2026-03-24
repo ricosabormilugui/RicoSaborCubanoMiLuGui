@@ -18,7 +18,7 @@ Proyecto base para una tienda web en Angular + TypeScript con backend serverless
 - `src/app/features/contact`: formulario de contacto.
 - `src/app/core/services`: servicios de catálogo, carrito y pedidos.
 - `src/app/core/config/order.config.ts`: modo de envío (`local` o `netlify`).
-- `netlify/functions/submit-order.ts`: endpoint backend para persistencia y notificaciones.
+- `netlify/functions/submit-order.ts`: endpoint backend para notificaciones por email y WhatsApp.
 
 ## Ejecutar localmente
 
@@ -33,43 +33,36 @@ npm start
 npm run build
 ```
 
-## Backend con MongoDB Atlas + notificaciones
+## Backend con email + WhatsApp
 
-La función `netlify/functions/submit-order.ts` ahora hace lo siguiente:
+La función `netlify/functions/submit-order.ts` hace lo siguiente:
 
 1. Valida el payload del pedido.
-2. Guarda pedido en MongoDB Atlas (`orders` por defecto).
-3. Envía notificaciones opcionales por email y/o SMS.
+2. Envía notificación por email (Resend).
+3. Envía notificación por WhatsApp (Twilio).
 4. Devuelve `orderId` para mostrar confirmación en checkout.
 
 ### Variables de entorno (Netlify)
 
-#### MongoDB Atlas (obligatorias)
-
-- `MONGODB_URI` → URI de conexión de Atlas.
-- `MONGODB_DB_NAME` → nombre de la base de datos.
-- `MONGODB_ORDERS_COLLECTION` → opcional, por defecto `orders`.
-
-#### Email (opcional, Resend)
+#### Email (Resend)
 
 - `RESEND_API_KEY`
 - `NOTIFY_EMAIL_FROM` (ej: `Pedidos <pedidos@tudominio.com>`)
 - `NOTIFY_EMAIL_TO` (correo que recibe alertas)
 
-#### SMS (opcional, Twilio)
+#### WhatsApp (Twilio)
 
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
-- `TWILIO_FROM_NUMBER`
-- `NOTIFY_SMS_TO`
+- `TWILIO_WHATSAPP_FROM` (solo número, ej: `+14155238886`)
+- `NOTIFY_WHATSAPP_TO` (solo número destino, ej: `+34600111222`)
 
-> Si no configuras email/SMS, el pedido se guarda igual en MongoDB sin notificación.
+> La función acepta el pedido aunque un canal no esté configurado. En la respuesta JSON (`notifications`) verás el detalle por canal para diagnosticar fallos de email/WhatsApp.
 
-## Envío de pedidos en esta fase (sin despliegue aún)
+## Envío de pedidos en esta fase
 
-- La app está configurada por defecto en modo **local** (`ORDER_SUBMISSION_MODE = 'local'`).
-- En ese modo, el checkout guarda pedidos en `localStorage` con IDs `LOCAL-...` (clave: `ricosabor-local-orders`).
-- Esto evita errores mientras todavía no has desplegado en Netlify.
+- La app está configurada en modo **netlify** (`ORDER_SUBMISSION_MODE = 'netlify'`).
+- El checkout envía pedidos al endpoint `/.netlify/functions/submit-order`.
 
 ### Cuando quieras activar backend real
 
@@ -80,6 +73,64 @@ La función `netlify/functions/submit-order.ts` ahora hace lo siguiente:
 
 ## Archivo .env
 
-- Se incluye `.env` para desarrollo local con todas las variables del backend (Mongo Atlas, Resend, Twilio).
+- Se incluye `.env` para desarrollo local con todas las variables del backend (Resend + Twilio WhatsApp).
 - Se incluye `.env.example` como plantilla para compartir configuración sin secretos.
 - En Netlify debes configurar las mismas variables en **Site settings > Environment variables**.
+
+## Backend Node/Express (email + WhatsApp)
+
+Se agregó un backend en `Backend/` para flujo de pedidos con persistencia en MongoDB y notificaciones:
+
+- Guarda pedido en MongoDB.
+- Envía email por Resend.
+- Envía WhatsApp por `whatsapp-web.js`.
+
+### Archivos clave
+
+- `Backend/src/services/whatsapp.service.js`
+- `Backend/src/services/email.service.js`
+- `Backend/src/services/orders.repository.js`
+- `Backend/src/controllers/orders.controller.js`
+- `Backend/src/routes/orders.routes.js`
+- `Backend/src/server.js`
+
+### Configuración
+
+1. Copia `Backend/.env.example` a `Backend/.env`.
+2. Instala dependencias del backend:
+
+```bash
+cd Backend
+npm install
+```
+
+3. Arranca backend:
+
+```bash
+npm run dev
+```
+
+4. Escanea el QR que aparece en terminal para vincular WhatsApp Business.
+
+> Si en desarrollo ves QR en bucle, asegúrate de usar este `npm run dev` (watch limitado a `src/`) para que los cambios de `.wwebjs_auth` no reinicien el proceso.
+
+5. Para ejecución estable (sin watch), usa:
+
+```bash
+npm start
+```
+
+> Importante: se ignoraron `.wwebjs_auth/` y `.wwebjs_cache/` en git para no versionar sesión de WhatsApp.
+
+
+### Troubleshooting Netlify: `Could not read package.json`
+
+Si el log muestra `ENOENT: no such file or directory, open '/opt/build/repo/package.json'`:
+
+1. En Netlify ve a **Site settings → Build & deploy → Build settings**.
+2. Deja **Base directory** vacío (o `.`) para usar la raíz del repo.
+3. Build command: `npm run build`.
+4. Publish directory: `dist/ricosabor-tienda/browser`.
+5. Si tenías valores en la UI que pisan `netlify.toml`, pulsa **Clear** para que use el archivo del repo.
+
+Este proyecto define esos valores en `netlify.toml` en la raíz.
