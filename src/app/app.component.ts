@@ -35,7 +35,7 @@ type ThemeMode = 'dark' | 'light';
           </div>
 
           <a class="nav-center" routerLink="/">
-            <div class="logo">RicoSabor</div>
+            <div class="logo">Rico Sabor Cubano</div>
           </a>
 
           <div class="nav-right">
