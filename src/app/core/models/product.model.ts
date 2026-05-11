@@ -7,12 +7,17 @@ export interface Product {
   price: number;
   category: ProductCategory;
   imageUrl: string;
+  slug?: string;
   available: boolean;
   published: boolean;
   trackStock: boolean;
   stock: number;
   lowStockAlert: number;
   order?: number;
+  isBestSeller?: boolean;
+  featured?: boolean;
+  salesCount?: number;
+  soldCount?: number;
 }
 
 export interface ProductApiRecord {
@@ -22,10 +27,15 @@ export interface ProductApiRecord {
   price: number;
   category: ProductCategory;
   imageUrl?: string;
+  slug?: string;
   available?: boolean;
   published?: boolean;
   trackStock?: boolean;
   stock?: number;
   lowStockAlert?: number;
   order?: number;
+  isBestSeller?: boolean;
+  featured?: boolean;
+  salesCount?: number;
+  soldCount?: number;
 }

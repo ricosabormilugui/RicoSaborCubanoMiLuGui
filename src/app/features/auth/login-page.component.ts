@@ -12,20 +12,39 @@ import { NotificationService } from '../../core/services/notification.service';
     <section class="card auth-card">
       <h1>Iniciar sesión</h1>
       <div class="grid">
-        <input [(ngModel)]="email" placeholder="Email" />
-        <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
+        <input [(ngModel)]="email" placeholder="Email" autocomplete="email" />
+        <div class="password-field">
+          <input [(ngModel)]="password" [type]="showPassword() ? 'text' : 'password'" placeholder="Contraseña" autocomplete="current-password" />
+          <button class="password-toggle" type="button" (click)="togglePassword()" [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+            {{ showPassword() ? '🙈' : '👁️' }}
+          </button>
+        </div>
       </div>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Entrando...' : 'Entrar' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
-      <p>¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a>.</p>
+      <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a>.</p>
     </section>
   `,
-  styles: [`.auth-card{width:100%;max-width:720px;margin:40px auto;padding:30px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}.err{color:#b42318}.ok{color:#0f7a3b}@media(max-width:900px){.grid{grid-template-columns:1fr}.auth-card{padding:20px}}`]
+  styles: [
+    `.auth-card{width:100%;max-width:720px;margin:40px auto;padding:30px}`,
+    `.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}`,
+    `.password-field{position:relative}`,
+    `.password-field input{width:100%;padding-right:3rem}`,
+    `.password-toggle{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:transparent;color:var(--text-main);cursor:pointer}`,
+    `.password-toggle:hover,.password-toggle:focus-visible{background:var(--surface-2);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:1px}`,
+    `.auth-help{color:var(--text-soft)}`,
+    `.auth-help a{color:var(--accent-green);font-weight:700;text-underline-offset:3px}`,
+    `.auth-help a:hover,.auth-help a:focus-visible{color:var(--text-main);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:3px;border-radius:4px}`,
+    `.err{color:var(--error-text)}`,
+    `.ok{color:var(--ok-text)}`,
+    `@media(max-width:900px){.grid{grid-template-columns:1fr}.auth-card{padding:20px}}`
+  ]
 })
 export class LoginPageComponent {
   email = '';
   password = '';
+  readonly showPassword = signal(false);
   readonly loading = signal(false);
   readonly error = signal('');
 
@@ -34,6 +53,10 @@ export class LoginPageComponent {
     private readonly router: Router,
     private readonly notifications: NotificationService
   ) {}
+
+  togglePassword(): void {
+    this.showPassword.set(!this.showPassword());
+  }
 
   async login(): Promise<void> {
     this.loading.set(true);

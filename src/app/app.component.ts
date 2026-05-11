@@ -9,6 +9,8 @@ import { NotificationService } from './core/services/notification.service';
 import { CatalogService } from './core/services/catalog.service';
 import { DeliveryStateService } from './core/services/delivery-state.service';
 import { NotificationsComponent } from './shared/ui/notifications.component';
+import { matchesProductSearch } from './core/models/product-filter';
+import { Product } from './core/models/product.model';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -112,10 +114,13 @@ type ThemeMode = 'dark' | 'light';
             <h3>Buscar productos</h3>
             <button type="button" (click)="toggleSearch()">✕</button>
           </div>
-          <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Ej. croquetas, combo..." />
-          <div class="result" *ngFor="let item of searchResults()" (click)="openCatalogFromSearch()">
-            {{ item.name }}
+          <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keydown.enter)="openCatalogFromSearch()" placeholder="Ej. croquetas, combo..." aria-label="Buscar productos" />
+          <button class="search-submit" type="button" (click)="openCatalogFromSearch()">Buscar en catálogo</button>
+          <div class="result" *ngFor="let item of searchResults()" (click)="openCatalogFromSearch(item)">
+            <strong>{{ item.name }}</strong>
+            <span>{{ item.category }}</span>
           </div>
+          <div class="no-results" *ngIf="searchQuery().trim() && !searchResults().length">No se encontraron productos.</div>
         </div>
         <div class="overlay" (click)="toggleSearch()"></div>
       </section>
@@ -164,8 +169,11 @@ type ThemeMode = 'dark' | 'light';
     `.search-head{display:flex;justify-content:space-between;align-items:center}`,
     `.search-head h3{margin:0}`,
     `.search-head button{background:none;border:0;color:var(--text-main);font-size:20px;cursor:pointer}`,
-    `.result{padding:.6rem .7rem;border-radius:8px;background:var(--surface-1);cursor:pointer}`,
-    `.result:hover{background:var(--surface-2)}`,
+    `.search-submit{justify-self:start;border:1px solid var(--border-soft);background:var(--surface-2);color:var(--text-main);border-radius:10px;padding:.5rem .8rem;font-weight:700;cursor:pointer}`,
+    `.result{display:grid;gap:2px;padding:.6rem .7rem;border-radius:8px;background:var(--surface-1);cursor:pointer;color:var(--text-main)}`,
+    `.result span{color:var(--text-soft);font-size:.85rem}`,
+    `.result:hover,.result:focus-visible{background:var(--surface-2)}`,
+    `.no-results{padding:.7rem;color:var(--text-soft);font-weight:700}`,
     `.page-content{width:100%;max-width:1400px;margin:0 auto;padding:clamp(16px,4vw,40px);flex:1}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
     `@media (min-width:768px){.desktop-only{display:flex;gap:8px}.mobile-only{display:none}.logo{font-size:24px}}`
@@ -186,7 +194,7 @@ export class AppComponent {
   readonly searchResults = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     if (!query) return this.catalog.products().slice(0, 6);
-    return this.catalog.products().filter((item) => item.name.toLowerCase().includes(query)).slice(0, 6);
+    return this.catalog.products().filter((item) => matchesProductSearch(item, query)).slice(0, 6);
   });
 
   constructor(
@@ -241,10 +249,11 @@ export class AppComponent {
     if (!this.searchOpen()) this.searchQuery.set('');
   }
 
-  openCatalogFromSearch(): void {
+  openCatalogFromSearch(product?: Product): void {
+    const query = product?.name ?? this.searchQuery().trim();
     this.searchOpen.set(false);
     this.searchQuery.set('');
-    void this.router.navigateByUrl('/');
+    void this.router.navigate(['/'], { queryParams: query ? { q: query } : {} });
   }
 
   openCart(): void {

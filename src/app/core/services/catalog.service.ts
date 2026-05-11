@@ -10,12 +10,17 @@ function toProduct(item: ProductApiRecord): Product {
     price: Number(item.price ?? 0),
     category: item.category ?? 'extras',
     imageUrl: item.imageUrl ?? '',
+    slug: item.slug ?? '',
     available: item.available ?? true,
     published: item.published ?? true,
     trackStock: item.trackStock ?? false,
     stock: Number(item.stock ?? 0),
     lowStockAlert: Number(item.lowStockAlert ?? 5),
-    order: item.order ?? 0
+    order: item.order ?? 0,
+    isBestSeller: item.isBestSeller ?? false,
+    featured: item.featured ?? false,
+    salesCount: Number(item.salesCount ?? 0),
+    soldCount: Number(item.soldCount ?? 0)
   };
 }
 
@@ -27,12 +32,17 @@ const fallbackProducts: Product[] = [
     price: 11.5,
     category: 'combos',
     imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=900',
+    slug: 'combo-cubano-clasico',
     available: true,
     published: true,
     trackStock: false,
     stock: 0,
     lowStockAlert: 5,
-    order: 1
+    order: 1,
+    isBestSeller: true,
+    featured: true,
+    salesCount: 42,
+    soldCount: 42
   }
 ];
 
