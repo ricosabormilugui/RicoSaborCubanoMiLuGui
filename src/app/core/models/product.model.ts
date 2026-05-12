@@ -1,4 +1,4 @@
-export type ProductCategory = 'combos' | 'platos' | 'bebidas' | 'extras' | string;
+export type ProductCategory = 'combos' | 'platos' | 'tartas' | 'dulces-gourmet' | 'bebidas' | 'extras' | string;
 
 export interface Product {
   id: string;

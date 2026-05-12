@@ -34,7 +34,9 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
             </select>
             <input [(ngModel)]="search" (keyup.enter)="loadContacts()" placeholder="Buscar nombre/teléfono/email" />
             <button class="btn" (click)="loadContacts()">Buscar</button>
+            <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
             <button class="btn" routerLink="/admin/pedidos">Pedidos</button>
+            <button class="btn" routerLink="/admin/clientes">Clientes</button>
             <button class="btn" routerLink="/admin/productos">Productos</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
@@ -73,7 +75,6 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
             <div class="reply-box">
               <textarea [(ngModel)]="replyMessage" placeholder="Escribe una respuesta al cliente..."></textarea>
               <label><input type="checkbox" [(ngModel)]="sendEmail" /> Enviar email</label>
-              <label><input type="checkbox" [(ngModel)]="sendWhatsApp" /> Enviar WhatsApp</label>
               <button class="btn btn-primary" (click)="sendReply()" [disabled]="sendingReply()">{{ sendingReply() ? 'Enviando...' : 'Responder' }}</button>
             </div>
           </section>
@@ -95,10 +96,10 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
     `.contact-item{background:var(--surface-0);border:1px solid var(--border-soft);border-radius:10px;padding:.55rem;margin-bottom:.5rem;cursor:pointer;color:var(--text-main)}`,
     `.contact-item.active{border-color:var(--accent-red);background:color-mix(in srgb, var(--accent-red) 10%, var(--surface-0))}`,
     `.contact-item header{display:flex;justify-content:space-between;align-items:center;gap:.45rem}`,
-    `.badge{padding:.2rem .5rem;border-radius:999px;color:#fff;font-size:.75rem;text-transform:capitalize}`,
-    `.badge.nuevo{background:#b45309}`,
-    `.badge.leido{background:#1d4ed8}`,
-    `.badge.respondido{background:#15803d}`,
+    `.badge{padding:.2rem .5rem;border-radius:999px;color:var(--on-accent);font-size:.75rem;text-transform:capitalize}`,
+    `.badge.nuevo{background:var(--contact-new-bg)}`,
+    `.badge.leido{background:var(--contact-read-bg)}`,
+    `.badge.respondido{background:var(--contact-answered-bg)}`,
     `.detail{border:1px solid var(--border-soft);border-radius:12px;padding:.8rem;background:var(--surface-0);color:var(--text-main)}`,
     `.detail.empty{display:grid;place-items:center;color:var(--text-soft)}`,
     `.meta{color:var(--text-soft);font-size:.85rem}`,
@@ -120,7 +121,6 @@ export class AdminContactsPageComponent {
   statusFilter: '' | AdminContactStatus = '';
   replyMessage = '';
   sendEmail = true;
-  sendWhatsApp = true;
 
   readonly loading = signal(false);
   readonly sendingReply = signal(false);
@@ -206,18 +206,15 @@ export class AdminContactsPageComponent {
     this.sendingReply.set(true);
 
     try {
-      const result = await this.adminContacts.replyContact(contact.id, this.replyMessage, this.sendEmail, this.sendWhatsApp);
+      const result = await this.adminContacts.replyContact(contact.id, this.replyMessage, this.sendEmail);
       this.selectedContact.set(result.contact);
       this.contacts.update((current) => current.map((item) => item.id === result.contact.id ? result.contact : item));
 
       const emailLine = result.notifications.email.sent
         ? '📧 Respuesta enviada por email'
         : `⚠️ Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`;
-      const waLine = result.notifications.whatsapp.sent
-        ? '📱 Respuesta enviada por WhatsApp'
-        : `⚠️ WhatsApp no enviado: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`;
 
-      this.notice.set(`✅ Respuesta guardada\n${emailLine}\n${waLine}`);
+      this.notice.set(`✅ Respuesta guardada\n${emailLine}`);
       this.replyMessage = '';
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo responder el contacto.');

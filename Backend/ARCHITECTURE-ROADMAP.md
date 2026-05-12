@@ -39,7 +39,7 @@ Se persiste `statusHistory` para auditoría básica.
    - snapshots de impuestos en cada pedido (tipo/tasa/base/cuota)
 5. **Operación**
    - idempotencia en creación de pedido
-   - colas para notificaciones (email/whatsapp) y reintentos
+   - colas para notificaciones por email y reintentos
 
 
 ## Avance adicional (cliente)

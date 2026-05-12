@@ -37,8 +37,10 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
               <option value="anulado">Anulado</option>
             </select>
             <button class="btn" (click)="loadOrders()">Actualizar</button>
+            <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
             <button class="btn" routerLink="/admin/cocina">Ir a cocina</button>
             <button class="btn" routerLink="/admin/contactos">Contactos</button>
+            <button class="btn" routerLink="/admin/clientes">Clientes</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>
@@ -54,10 +56,13 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           <p>
             <strong>Tel:</strong> {{ order.customer?.phone || 'N/A' }} ·
             <strong>Cuenta:</strong> {{ order.accountMode || 'guest' }} ·
+            <strong>Envío:</strong> {{ shippingLabel(order) }} ·
+            <strong>Subtotal:</strong> {{ (order.subtotal ?? 0) | currency:'EUR' }} ·
+            <strong *ngIf="(order.discountAmount ?? 0) > 0">Cupón {{ order.couponCode }}: -{{ (order.discountAmount ?? 0) | currency:'EUR' }} ·</strong>
             <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }} ·
             <strong>📅:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} ·
             <strong>🕒:</strong> {{ order.deliverySlot || 'N/A' }} ·
-            <strong>📱 WhatsApp:</strong> {{ whatsappStatus(order) }}
+            <strong>Pago:</strong> {{ paymentLabel(order) }} · {{ paymentStatusLabel(order) }}
           </p>
           <ul>
             <li *ngFor="let item of order.items">
@@ -92,15 +97,15 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.actions{display:flex;gap:.6rem;flex-wrap:wrap}`,
     `.order{border:1px solid var(--border-soft);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--surface-1);color:var(--text-main)}`,
     `.order header{display:flex;justify-content:space-between;align-items:center;gap:.6rem}`,
-    `.badge{padding:.25rem .6rem;border-radius:999px;color:#fff;font-weight:700;text-transform:capitalize}`,
-    `.badge.nuevo{background:#1f4f8f}`,
-    `.badge.confirmado{background:#2563eb}`,
-    `.badge.preparando{background:#f59e0b}`,
-    `.badge.listo{background:#0ea5e9}`,
-    `.badge.enviado{background:#2f8a2c}`,
-    `.badge.entregado{background:#7c3aed}`,
-    `.badge.cancelado{background:#9ca3af}`,
-    `.badge.anulado{background:#c71f26}`,
+    `.badge{padding:.25rem .6rem;border-radius:999px;color:var(--on-accent);font-weight:700;text-transform:capitalize}`,
+    `.badge.nuevo{background:var(--status-new-bg)}`,
+    `.badge.confirmado{background:var(--status-confirmed-bg)}`,
+    `.badge.preparando{background:var(--status-preparing-bg)}`,
+    `.badge.listo{background:var(--status-ready-bg)}`,
+    `.badge.enviado{background:var(--status-sent-bg)}`,
+    `.badge.entregado{background:var(--status-delivered-bg)}`,
+    `.badge.cancelado{background:var(--status-cancelled-bg)}`,
+    `.badge.anulado{background:var(--status-void-bg)}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
     `.order p,.order li,.order h3,.order small,.order strong{color:inherit}`,
     `.err{color:var(--error-text);white-space:pre-line}`,
@@ -164,27 +169,40 @@ export class AdminPageComponent {
 
     try {
       const result = await this.adminOrders.updateStatus(orderId, status as AdminOrderStatus, statusNote, deliverySignature);
-      const { whatsapp } = result.notifications;
-      const warningMessage = whatsapp.sent
-        ? '✅ Estado actualizado correctamente\n📱 Notificación enviada al cliente'
-        : `⚠️ Estado actualizado\n❗ WhatsApp no enviado: ${whatsapp.warning ?? 'motivo no disponible'}`;
+      const { email } = result.notifications;
+      const message = email.sent
+        ? '✅ Estado actualizado correctamente\n📧 Notificación enviada por email'
+        : `⚠️ Estado actualizado\n❗ Email no enviado: ${email.warning ?? 'motivo no disponible'}`;
 
-      this.notice.set(warningMessage);
+      this.notice.set(message);
       await this.loadOrders();
     } catch (error) {
       this.error.set(`❌ No se pudo actualizar el pedido\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
     }
   }
 
-  whatsappStatus(order: AdminOrder): string {
-    const whatsappEvents = (order.notifications ?? []).filter((event) => event.type === 'whatsapp');
-    if (!whatsappEvents.length) {
-      return '— No enviado';
-    }
-
-    const latest = whatsappEvents[whatsappEvents.length - 1];
-    return latest.status === 'sent'
-      ? '✔ Enviado'
-      : `⚠ Fallo${latest.error ? ` (${latest.error})` : ''}`;
+  shippingLabel(order: AdminOrder): string {
+    if (order.deliveryType === 'pickup') return 'Recogida · 0,00 €';
+    const zone = order.shipping?.zoneName ? `${order.shipping.zoneName} · ` : '';
+    const cost = order.shipping?.cost ?? order.shippingCost ?? 0;
+    return `${zone}${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cost)}`;
   }
+
+  paymentLabel(order: AdminOrder): string {
+    const method = order.payment?.method ?? order.paymentMethod;
+
+    if (method === 'bank_transfer') return 'Transferencia bancaria';
+    if (method === 'cash') return 'Efectivo / Cash';
+    return 'Bizum';
+  }
+
+  paymentStatusLabel(order: AdminOrder): string {
+    const status = order.payment?.status ?? order.paymentStatus;
+
+    if (status === 'paid') return 'pagado';
+    if (status === 'failed') return 'fallido';
+    if (status === 'cancelled') return 'cancelado';
+    return 'pendiente de pago';
+  }
+
 }

@@ -33,7 +33,15 @@ export class CustomerAuthService {
     try {
       const raw = globalThis?.localStorage?.getItem(this.profileKey);
       if (!raw) return null;
-      return JSON.parse(raw) as CustomerProfile;
+
+      const parsed = JSON.parse(raw) as Partial<CustomerProfile>;
+      if (!parsed.userId || !parsed.email) return null;
+
+      return {
+        userId: String(parsed.userId),
+        email: String(parsed.email),
+        role: parsed.role === 'admin' ? 'admin' : 'customer'
+      };
     } catch {
       return null;
     }

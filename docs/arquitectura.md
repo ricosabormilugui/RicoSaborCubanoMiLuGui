@@ -71,7 +71,7 @@ export interface Order {
 
 - Persistencia en Supabase/Firebase.
 - Dashboard interno de pedidos.
-- Integración WhatsApp Business API.
+- Contacto manual por WhatsApp mediante enlace wa.me, sin API automática.
 - Historial de cliente y recompra.
 
 

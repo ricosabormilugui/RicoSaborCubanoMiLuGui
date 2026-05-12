@@ -43,16 +43,15 @@ export class AdminContactService {
   async replyContact(
     id: string,
     message: string,
-    sendEmail: boolean,
-    sendWhatsApp: boolean
-  ): Promise<{ contact: AdminContact; notifications: { email: { sent: boolean; warning: string | null }; whatsapp: { sent: boolean; warning: string | null } } }> {
+    sendEmail: boolean
+  ): Promise<{ contact: AdminContact; notifications: { email: { sent: boolean; warning: string | null } } }> {
     const response = await fetch(`${this.apiBase}/admin/contacts/${encodeURIComponent(id)}/reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.auth.token()}`
       },
-      body: JSON.stringify({ message, sendEmail, sendWhatsApp })
+      body: JSON.stringify({ message, sendEmail })
     });
 
     if (!response.ok) {
@@ -71,7 +70,6 @@ export class AdminContactService {
       contact: AdminContact;
       notifications: {
         email: { sent: boolean; warning: string | null };
-        whatsapp: { sent: boolean; warning: string | null };
       };
     };
 

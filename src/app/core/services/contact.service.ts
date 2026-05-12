@@ -16,7 +16,6 @@ export interface ContactSubmitResult {
   contactId?: string;
   notifications: {
     email: { sent: boolean; warning: string | null };
-    whatsapp: { sent: boolean; warning: string | null };
   };
 }
 
@@ -54,8 +53,7 @@ export class ContactService {
       duplicated: data.duplicated,
       contactId: data.contactId,
       notifications: {
-        email: data.notifications?.email ?? { sent: false, warning: 'unknown' },
-        whatsapp: data.notifications?.whatsapp ?? { sent: false, warning: 'unknown' }
+        email: data.notifications?.email ?? { sent: false, warning: 'unknown' }
       }
     };
   }

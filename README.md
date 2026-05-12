@@ -10,7 +10,7 @@ Proyecto base para una tienda web en **Angular + TypeScript** con backend server
 - Carrito con suma automática y control de cantidades.
 - Checkout sin pago online (captura datos de cliente + entrega + notas).
 - Envío de pedido configurable: local, Netlify o backend API.
-- Envío de notificaciones por **email** y **WhatsApp**.
+- Envío de notificaciones automáticas por **email**.
 - Formulario de solicitud de información.
 
 ---
@@ -86,14 +86,21 @@ npm run build
 
 ---
 
-# Backend con email + WhatsApp
+# Backend con email y contacto manual por WhatsApp
+
+Las notificaciones automáticas se envían solo por email mediante Resend.
+
+WhatsApp no usa API, webhook ni envío automático. La web solo muestra un enlace manual `wa.me` para que el cliente abra una conversación voluntariamente:
+
+```text
+https://wa.me/34614272838?text=Hola%2C%20quiero%20hacer%20una%20consulta%20sobre%20un%20producto%20o%20pedido.
+```
 
 La función **Netlify** `netlify/functions/submit-order.ts`:
 
 1. Valida el payload del pedido.
 2. Envía notificación por email (Resend).
-3. Envía notificación por WhatsApp vía webhook a tu backend.
-4. Devuelve `orderId` para mostrar confirmación en checkout.
+3. Devuelve `orderId` para mostrar confirmación en checkout.
 
 ---
 
@@ -116,60 +123,6 @@ NOTIFY_EMAIL_TO=ventas@tudominio.com
 
 ---
 
-## WhatsApp (Webhook a backend)
-
-```
-WHATSAPP_WEBHOOK_URL
-BACKEND_API_URL
-WHATSAPP_WEBHOOK_TOKEN
-```
-
-Ejemplo:
-
-```
-WHATSAPP_WEBHOOK_URL=https://tu-backend.onrender.com/api/whatsapp/notify
-```
-
-Si defines:
-
-```
-BACKEND_API_URL=https://tu-backend.onrender.com
-```
-
-la función añadirá automáticamente:
-
-```
-/api/whatsapp/notify
-```
-
-
-### WhatsApp local (checklist rápido)
-
-1. En `Backend/.env` usa:
-
-```env
-WHATSAPP_ENABLED=true
-NOTIFY_WHATSAPP_TO=346XXXXXXXX
-```
-
-2. Endpoint recomendado del webhook:
-
-```text
-POST /api/whatsapp/notify
-```
-
-Alias compatible (sin `/api`):
-
-```text
-POST /whatsapp/notify
-```
-
-3. Si envías por webhook externo, usa URL completa con `/api/whatsapp/notify`.
-
-4. El teléfono debe ir en formato internacional numérico (sin `+` ni espacios), por ejemplo `34644423790`.
-
----
-
 # Diagnóstico de notificaciones
 
 Si el checkout confirma pedido pero no llegan notificaciones:
@@ -186,13 +139,12 @@ Ejemplo de respuesta:
 ```json
 {
  "notifications": [
-   { "channel": "email", "sent": true },
-   { "channel": "whatsapp", "sent": false, "detail": "Webhook 500" }
+   { "channel": "email", "sent": true }
  ]
 }
 ```
 
-Esto permite ver exactamente qué canal falló.
+Esto permite ver el resultado del email automático.
 
 ---
 
@@ -256,7 +208,7 @@ Funcionalidades:
 
 - persistencia en MongoDB
 - email con Resend
-- WhatsApp con `whatsapp-web.js`
+- Contacto manual por enlace wa.me
 - autenticación
 - panel admin
 
@@ -269,7 +221,6 @@ Backend/src/server.js
 Backend/src/routes/orders.routes.js
 Backend/src/controllers/orders.controller.js
 Backend/src/services/email.service.js
-Backend/src/services/whatsapp.service.js
 Backend/src/repositories/orders.repository.js
 ```
 
@@ -289,14 +240,6 @@ GET /health
 
 ```
 POST /api/orders
-```
-
----
-
-## WhatsApp webhook
-
-```
-POST /api/whatsapp/notify
 ```
 
 ---
@@ -355,62 +298,6 @@ npm run dev
 
 ---
 
-# WhatsApp local
-
-Para usar `whatsapp-web.js` localmente:
-
-```
-WHATSAPP_ENABLED=true
-```
-
-Escanea el QR que aparece en terminal.
-
----
-
-En **Render**:
-
-```
-WHATSAPP_ENABLED=false
-```
-
-Esto evita errores al iniciar por falta de Chromium.
-
----
-
-# Deploy backend en Render
-
-Este repo incluye **render.yaml** para despliegue automático.
-
-### Pasos
-
-1️⃣ Render → **New + → Blueprint**
-
-2️⃣ Conectar repositorio
-
-3️⃣ Completar variables:
-
-```
-MONGODB_URI
-RESEND_API_KEY
-NOTIFY_EMAIL_FROM
-NOTIFY_EMAIL_TO
-ADMIN_EMAIL
-ADMIN_PASSWORD
-AUTH_JWT_SECRET
-```
-
-4️⃣ Deploy
-
----
-
-# Conectar Netlify con backend Render
-
-En Netlify añadir variable:
-
-```
-BACKEND_API_URL=https://ricosabor-backend.onrender.com
-```
-
 ---
 
 # Troubleshooting Netlify
@@ -459,7 +346,7 @@ MongoDB
    ↓
 Email (Resend)
    ↓
-WhatsApp (whatsapp-web.js)
+WhatsApp manual
 ```
 
 ---
@@ -468,7 +355,7 @@ WhatsApp (whatsapp-web.js)
 
 - pedidos sin pasarela de pago
 - email automático
-- WhatsApp automático
+- WhatsApp manual por enlace
 - panel admin
 - persistencia MongoDB
 - deploy Netlify + Render

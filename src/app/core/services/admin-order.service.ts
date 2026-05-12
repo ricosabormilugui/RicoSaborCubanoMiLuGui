@@ -10,7 +10,6 @@ export interface NotificationChannelResult {
 
 export interface UpdateStatusResult {
   notifications: {
-    whatsapp: NotificationChannelResult;
     email: NotificationChannelResult;
   };
 }
@@ -82,14 +81,12 @@ export class AdminOrderService {
 
     const data = (await response.json()) as {
       notifications?: {
-        whatsapp?: NotificationChannelResult;
         email?: NotificationChannelResult;
       };
     };
 
     return {
       notifications: {
-        whatsapp: data.notifications?.whatsapp ?? { sent: false, warning: 'unknown' },
         email: data.notifications?.email ?? { sent: false, warning: 'unknown' }
       }
     };

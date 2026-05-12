@@ -7,6 +7,18 @@ export interface CartItem {
 }
 
 export type DeliveryType = 'delivery' | 'pickup';
+export type PaymentMethod = 'bizum' | 'bank_transfer' | 'cash';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+
+export interface ShippingDetails {
+  zoneId?: string;
+  zoneName?: string;
+  postalCode?: string;
+  cost: number;
+  minimumOrder?: number;
+  freeShippingFrom?: number;
+  freeShippingApplied: boolean;
+}
 
 export interface CheckoutFormData {
   fullName: string;
@@ -17,8 +29,13 @@ export interface CheckoutFormData {
   deliveryDate: string;
   deliverySlot: string;
   address?: string;
+  postalCode?: string;
   reference?: string;
   notes?: string;
+  marketingConsent: boolean;
+  legalConsent: boolean;
+  couponCode?: string;
+  paymentMethod: PaymentMethod;
 }
 
 export interface OrderPayload {
@@ -35,9 +52,35 @@ export interface OrderPayload {
     slot: string;
     type: DeliveryType;
     address?: string;
+    postalCode?: string;
     reference?: string;
   };
   notes?: string;
+  marketingConsent?: boolean;
+  legalConsent?: boolean;
+  couponCode?: string | null;
+  discountAmount?: number;
+  discountType?: 'percent' | string | null;
+  discountPercent?: number;
+  promotions?: {
+    firstOrderDiscount?: {
+      code: string;
+      percent: number;
+      status: string;
+      discountAmount?: number;
+      usedAt?: string;
+      orderId?: string;
+    };
+  };
+  payment: {
+    method: PaymentMethod;
+    status: PaymentStatus;
+    instructions: string;
+  };
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  shipping: ShippingDetails;
+  shippingCost: number;
   items: CartItem[];
   subtotal: number;
   taxAmount?: number;

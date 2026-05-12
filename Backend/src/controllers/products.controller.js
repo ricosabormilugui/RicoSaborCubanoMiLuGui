@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger.js";
 import {
   createProduct,
   deleteProduct,
@@ -6,6 +7,7 @@ import {
   listPublicProducts,
   updateProduct
 } from "../repositories/products.repository.js";
+import { normalizeCategorySlug } from "../config/product-categories.config.js";
 
 function buildPayload(body = {}, { partial = false } = {}) {
   const payload = {};
@@ -13,7 +15,7 @@ function buildPayload(body = {}, { partial = false } = {}) {
   if (!partial || body.name !== undefined) payload.name = String(body.name ?? "").trim();
   if (!partial || body.description !== undefined) payload.description = String(body.description ?? "").trim();
   if (!partial || body.price !== undefined) payload.price = Number(body.price);
-  if (!partial || body.category !== undefined) payload.category = String(body.category ?? "").trim();
+  if (!partial || body.category !== undefined) payload.category = normalizeCategorySlug(body.category);
   if (!partial || body.imageUrl !== undefined) payload.imageUrl = String(body.imageUrl ?? "").trim();
   if (!partial || body.published !== undefined) payload.published = Boolean(body.published);
   if (!partial || body.trackStock !== undefined) payload.trackStock = Boolean(body.trackStock);
@@ -58,6 +60,7 @@ export async function getProducts(_req, res) {
     const products = await listPublicProducts();
     return res.status(200).json({ products });
   } catch (error) {
+    logger.error("products.public.failed", { error: error.message ?? "Unexpected error" });
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
@@ -67,6 +70,7 @@ export async function getProductsForAdmin(_req, res) {
     const products = await listAllProducts();
     return res.status(200).json({ products });
   } catch (error) {
+    logger.error("products.admin.list.failed", { error: error.message ?? "Unexpected error" });
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }

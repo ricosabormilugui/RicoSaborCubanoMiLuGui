@@ -1,22 +1,22 @@
 import { ObjectId } from "mongodb";
-import { getDb } from "../lib/mongo.js";
+import { ensureIndexes, getCollection } from "../lib/mongo.js";
 
 function getProductsCollectionName() {
-  return process.env.MONGODB_PRODUCTS_COLLECTION ?? "products";
+  return process.env.MONGODB_PRODUCTS_COLLECTION ?? process.env.PRODUCTS_COLLECTION ?? "products";
 }
 
 let ensureProductsIndexesPromise;
 
 async function getProductsCollection() {
-  const db = await getDb();
-  const collection = db.collection(getProductsCollectionName());
+  const collectionName = getProductsCollectionName();
+  const collection = await getCollection(collectionName);
 
   if (!ensureProductsIndexesPromise) {
-    ensureProductsIndexesPromise = Promise.all([
-      collection.createIndex({ published: 1, order: 1 }, { name: "published_order" }),
-      collection.createIndex({ available: 1, order: 1 }, { name: "available_order" }),
-      collection.createIndex({ category: 1, order: 1 }, { name: "category_order" })
-    ]);
+    ensureProductsIndexesPromise = ensureIndexes(collection, [
+      { keys: { published: 1, order: 1 }, options: { name: "published_order" } },
+      { keys: { available: 1, order: 1 }, options: { name: "available_order" } },
+      { keys: { category: 1, order: 1 }, options: { name: "category_order" } }
+    ], { collectionName });
   }
 
   await ensureProductsIndexesPromise;

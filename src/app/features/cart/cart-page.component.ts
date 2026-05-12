@@ -33,7 +33,7 @@ import { CartService } from '../../core/services/cart.service';
       <a routerLink="/checkout" class="btn btn-primary" *ngIf="cart.items().length">Ir al checkout</a>
     </section>
   `,
-  styles: [`table{width:100%;border-collapse:collapse}th,td{padding:.6rem;border-bottom:1px solid #edf2f7}`]
+  styles: [`table{width:100%;border-collapse:collapse}th,td{padding:.6rem;border-bottom:1px solid var(--border-soft)}`]
 })
 export class CartPageComponent {
   constructor(public readonly cart: CartService) {}

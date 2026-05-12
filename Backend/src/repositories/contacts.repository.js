@@ -1,24 +1,24 @@
 import { ObjectId } from "mongodb";
-import { getDb } from "../lib/mongo.js";
+import { ensureIndexes, getCollection } from "../lib/mongo.js";
 
 function getContactsCollectionName() {
-  return process.env.MONGODB_CONTACTS_COLLECTION ?? "contacts";
+  return process.env.MONGODB_CONTACTS_COLLECTION ?? process.env.CONTACTS_COLLECTION ?? "contacts";
 }
 
 let ensureIndexesPromise;
 
 async function getContactsCollection() {
-  const db = await getDb();
-  const collection = db.collection(getContactsCollectionName());
+  const collectionName = getContactsCollectionName();
+  const collection = await getCollection(collectionName);
 
   if (!ensureIndexesPromise) {
-    ensureIndexesPromise = Promise.all([
-      collection.createIndex({ createdAt: -1 }, { name: "contacts_createdAt" }),
-      collection.createIndex({ status: 1, createdAt: -1 }, { name: "contacts_status_createdAt" }),
-      collection.createIndex({ phone: 1 }, { name: "contacts_phone" }),
-      collection.createIndex({ email: 1 }, { name: "contacts_email" }),
-      collection.createIndex({ requestId: 1 }, { name: "contacts_requestId_unique", unique: true, sparse: true })
-    ]);
+    ensureIndexesPromise = ensureIndexes(collection, [
+      { keys: { createdAt: -1 }, options: { name: "contacts_createdAt" } },
+      { keys: { status: 1, createdAt: -1 }, options: { name: "contacts_status_createdAt" } },
+      { keys: { phone: 1 }, options: { name: "contacts_phone" } },
+      { keys: { email: 1 }, options: { name: "contacts_email" } },
+      { keys: { requestId: 1 }, options: { name: "contacts_requestId_unique", unique: true, sparse: true } }
+    ], { collectionName });
   }
 
   await ensureIndexesPromise;

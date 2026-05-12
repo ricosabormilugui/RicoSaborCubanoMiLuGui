@@ -1,10 +1,36 @@
 import { Injectable } from '@angular/core';
-import { CheckoutFormData, OrderPayload } from '../models/order.model';
+import { CheckoutFormData, OrderPayload, PaymentMethod } from '../models/order.model';
 import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
 import { DeliveryStateService } from './delivery-state.service';
+import { MANUAL_PAYMENT_DETAILS } from '../config/payment.config';
+import { calculateShippingQuote } from '../config/shipping.config';
+
+export function getPaymentMethodLabel(method: PaymentMethod): string {
+  const labels: Record<PaymentMethod, string> = {
+    bizum: 'Bizum',
+    bank_transfer: 'Transferencia bancaria',
+    cash: 'Efectivo / Cash'
+  };
+
+  return labels[method];
+}
+
+export function getPaymentInstructions(method: PaymentMethod, orderId?: string): string {
+  const concept = orderId ? `pedido ${orderId}` : 'tu nombre y número de pedido';
+
+  if (method === 'bizum') {
+    return `Envía el total por Bizum al ${MANUAL_PAYMENT_DETAILS.bizumPhone} indicando ${concept}.`;
+  }
+
+  if (method === 'bank_transfer') {
+    return `Realiza la transferencia a ${MANUAL_PAYMENT_DETAILS.bankIban} a nombre de ${MANUAL_PAYMENT_DETAILS.bankAccountHolder}. Indica ${concept} en el concepto.`;
+  }
+
+  return `${MANUAL_PAYMENT_DETAILS.cashInstructions} Indica ${concept} al equipo.`;
+}
 
 export interface SubmitOrderResponse {
   orderId: string;
@@ -34,6 +60,8 @@ export class OrderService {
       type: data.deliveryType
     });
 
+    const shipping = this.buildShipping(data, subtotal);
+
     return {
       customer: {
         fullName: data.fullName,
@@ -48,12 +76,55 @@ export class OrderService {
         slot: data.deliverySlot,
         type: data.deliveryType,
         address: data.address,
+        postalCode: data.postalCode,
         reference: data.reference
       },
       notes: data.notes,
+      marketingConsent: data.marketingConsent,
+      legalConsent: data.legalConsent,
+      couponCode: this.normalizeCouponCode(data.couponCode),
+      promotions: {
+        firstOrderDiscount: {
+          code: this.normalizeCouponCode(data.couponCode) || '',
+          percent: 10,
+          status: this.normalizeCouponCode(data.couponCode) ? 'requested' : 'not_requested'
+        }
+      },
+      payment: {
+        method: data.paymentMethod,
+        status: 'pending',
+        instructions: ''
+      },
+      paymentMethod: data.paymentMethod,
+      paymentStatus: 'pending',
+      shipping,
+      shippingCost: shipping.cost,
       items: this.cartService.items(),
       subtotal,
-      total: subtotal
+      discountAmount: 0,
+      discountType: null,
+      discountPercent: 0,
+      total: Number((subtotal + shipping.cost).toFixed(2))
+    };
+  }
+
+
+  private normalizeCouponCode(value: string | null | undefined): string | null {
+    const code = String(value ?? '').trim().toUpperCase().replace(/\s+/g, '');
+    return code || null;
+  }
+
+  private buildShipping(data: CheckoutFormData, subtotal: number): OrderPayload['shipping'] {
+    const quote = calculateShippingQuote(data.deliveryType, data.postalCode, subtotal);
+
+    return {
+      zoneId: quote.zoneId,
+      zoneName: quote.zoneName,
+      postalCode: quote.postalCode,
+      cost: Number(quote.cost.toFixed(2)),
+      minimumOrder: quote.minimumOrder,
+      freeShippingFrom: quote.freeShippingFrom,
+      freeShippingApplied: quote.freeShippingApplied
     };
   }
 
@@ -137,7 +208,12 @@ export class OrderService {
       });
 
       if (!response.ok) {
-        return null;
+        let message = 'No se pudo enviar el pedido.';
+        try {
+          const errorData = (await response.json()) as { error?: string };
+          message = errorData.error || message;
+        } catch {}
+        throw new Error(message);
       }
 
       const data = (await response.json()) as {
@@ -145,28 +221,22 @@ export class OrderService {
         accountMode?: string;
         warnings?: string[];
         notifications?: {
-          whatsapp?: { sent?: boolean; warning?: string | null };
           email?: { sent?: boolean; warning?: string | null };
         };
+        coupon?: { valid?: boolean; discountAmount?: number; code?: string | null };
+        total?: number;
       };
 
-      const whatsappSent = data.notifications?.whatsapp?.sent;
-      const whatsappWarning = data.notifications?.whatsapp?.warning;
       const warningParts: string[] = [];
+
+      if (data.coupon?.valid && Number(data.coupon.discountAmount ?? 0) > 0) {
+        warningParts.push(`Cupón ${data.coupon.code ?? 'PRIMER10'} aplicado: -${Number(data.coupon.discountAmount ?? 0).toFixed(2)} €.`);
+      }
 
       if (Array.isArray(data.warnings) && data.warnings.length) {
         warningParts.push(...data.warnings);
       }
 
-      if (whatsappSent === false) {
-        warningParts.push(
-          whatsappWarning === 'whatsapp-not-registered'
-            ? 'Este número no tiene WhatsApp activo. Te enviaremos email.'
-            : `WhatsApp no enviado${whatsappWarning ? `: ${whatsappWarning}` : ''}`
-        );
-      } else if (whatsappSent === true) {
-        warningParts.push('Recibirás confirmación por WhatsApp.');
-      }
 
       return {
         orderId: data.orderId,
@@ -174,11 +244,13 @@ export class OrderService {
         destination: `Backend API (${data.accountMode ?? 'guest'})`,
         warning: warningParts.length ? warningParts.join(' | ') : undefined
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
       return null;
     }
   }
-
 
   private buildPhone(countryCode: string, number: string): string {
     const code = String(countryCode ?? '').replace(/\D/g, '');

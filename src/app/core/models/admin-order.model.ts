@@ -1,3 +1,6 @@
+export type AdminPaymentMethod = 'bizum' | 'bank_transfer' | 'cash';
+export type AdminPaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+
 export type AdminOrderStatus = 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
 
 export interface AdminOrder {
@@ -21,8 +24,29 @@ export interface AdminOrder {
   deliveryDate?: string;
   deliverySlot?: string;
   deliveryType?: "delivery" | "pickup";
+  shipping?: {
+    zoneId?: string;
+    zoneName?: string;
+    postalCode?: string;
+    cost?: number;
+    minimumOrder?: number;
+    freeShippingFrom?: number;
+    freeShippingApplied?: boolean;
+  };
+  shippingCost?: number;
+  payment?: {
+    method?: AdminPaymentMethod;
+    status?: AdminPaymentStatus;
+    instructions?: string;
+  };
+  paymentMethod?: AdminPaymentMethod;
+  paymentStatus?: AdminPaymentStatus;
   notes?: string;
   subtotal?: number;
+  couponCode?: string | null;
+  discountAmount?: number;
+  discountType?: string | null;
+  discountPercent?: number;
   taxAmount?: number;
   taxRate?: number;
   total?: number;
@@ -33,7 +57,7 @@ export interface AdminOrder {
     signature?: string | null;
   }>;
   notifications?: Array<{
-    type: 'whatsapp' | 'email';
+    type: 'email';
     status: 'sent' | 'failed';
     date: string;
     error?: string | null;

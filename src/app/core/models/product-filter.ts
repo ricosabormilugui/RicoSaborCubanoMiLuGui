@@ -1,3 +1,4 @@
+import { getProductCategoryLabel, normalizeCategorySlug } from '../config/product-categories.config';
 import { Product } from './product.model';
 
 export interface ProductFilters {
@@ -6,24 +7,30 @@ export interface ProductFilters {
 }
 
 function normalizeSearchValue(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 export function matchesProductSearch(product: Partial<Product>, query: string | null | undefined): boolean {
   const normalizedQuery = normalizeSearchValue(query);
   if (!normalizedQuery) return true;
 
-  return [product.name, product.description, product.category]
+  return [product.name, product.description, product.category, getProductCategoryLabel(product.category)]
     .map(normalizeSearchValue)
     .some((value) => value.includes(normalizedQuery));
 }
 
 export function filterProducts(products: Product[], filters: ProductFilters): Product[] {
-  const category = normalizeSearchValue(filters.category);
+  const category = normalizeCategorySlug(filters.category);
   const query = filters.query;
 
   return products
-    .filter((product) => (category ? normalizeSearchValue(product.category) === category : true))
+    .filter((product) => (category ? normalizeCategorySlug(product.category) === category : true))
     .filter((product) => matchesProductSearch(product, query));
 }
 
@@ -41,7 +48,7 @@ export function selectBestSellers(products: Product[], limit = 4, excludeId?: st
 }
 
 export function getProductRoute(product: Product): string[] {
-  return ['/producto', product.slug?.trim() || product.id];
+  return ['/producto', normalizeCategorySlug(product.slug) || product.id];
 }
 
 export function findProductBySlugOrId(products: Product[], value: string | null | undefined): Product | undefined {

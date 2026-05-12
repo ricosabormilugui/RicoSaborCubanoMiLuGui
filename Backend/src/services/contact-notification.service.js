@@ -1,9 +1,4 @@
 import { sendContactEmail } from './email.service.js';
-import { sendWhatsAppNotification } from './whatsapp.service.js';
-
-function buildContactWhatsApp({ name, phone, email, message }) {
-  return `🍽️ *Rico Sabor Cubano*\n\n📩 *Nueva solicitud*\n\n👤 ${name}\n📞 ${phone || '—'}\n📧 ${email || '—'}\n\n📝 ${message}`;
-}
 
 function buildRetryMeta(sent, warning, retries = 0) {
   if (sent || !warning) {
@@ -19,10 +14,9 @@ function buildRetryMeta(sent, warning, retries = 0) {
   };
 }
 
-export async function notifyContact(contact, { retries = { email: 0, whatsapp: 0 } } = {}) {
+export async function notifyContact(contact, { retries = { email: 0 } } = {}) {
   const notifications = {
-    email: { sent: false, warning: null },
-    whatsapp: { sent: false, warning: null }
+    email: { sent: false, warning: null }
   };
 
   try {
@@ -35,13 +29,6 @@ export async function notifyContact(contact, { retries = { email: 0, whatsapp: 0
     notifications.email.warning = error.message ?? 'failed';
   }
 
-  try {
-    await sendWhatsAppNotification(buildContactWhatsApp(contact));
-    notifications.whatsapp.sent = true;
-  } catch (error) {
-    notifications.whatsapp.warning = error.message ?? 'failed';
-  }
-
   return {
     notifications,
     notificationsAudit: [
@@ -51,13 +38,6 @@ export async function notifyContact(contact, { retries = { email: 0, whatsapp: 0
         error: notifications.email.warning,
         date: new Date().toISOString(),
         ...buildRetryMeta(notifications.email.sent, notifications.email.warning, retries.email ?? 0)
-      },
-      {
-        type: 'whatsapp',
-        status: notifications.whatsapp.sent ? 'sent' : 'error',
-        error: notifications.whatsapp.warning,
-        date: new Date().toISOString(),
-        ...buildRetryMeta(notifications.whatsapp.sent, notifications.whatsapp.warning, retries.whatsapp ?? 0)
       }
     ]
   };

@@ -32,6 +32,76 @@ function formatDeliveryDate(value) {
   return parsed.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function formatDateTime(value) {
+  const parsed = value ? new Date(value) : new Date();
+  if (Number.isNaN(parsed.getTime())) return String(value ?? "No definida");
+  return parsed.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+}
+
+function getPaymentMethodLabel(method) {
+  const labels = {
+    bizum: "Bizum",
+    bank_transfer: "Transferencia bancaria",
+    cash: "Efectivo / Cash"
+  };
+
+  return labels[method] ?? "Pago manual";
+}
+
+function getPaymentInstructions(order) {
+  const method = order?.payment?.method ?? order?.paymentMethod ?? "bizum";
+  const orderId = order?.orderId ? `pedido ${order.orderId}` : "número de pedido";
+
+  if (method === "bizum") {
+    return `Enviar Bizum al ${process.env.PAYMENT_BIZUM_PHONE || "PENDIENTE_CONFIGURAR_PAYMENT_BIZUM_PHONE"} indicando ${orderId}.`;
+  }
+
+  if (method === "bank_transfer") {
+    const iban = process.env.PAYMENT_BANK_IBAN || "PENDIENTE_CONFIGURAR_PAYMENT_BANK_IBAN";
+    const holder = process.env.PAYMENT_BANK_HOLDER || "PENDIENTE_CONFIGURAR_PAYMENT_BANK_HOLDER";
+    return `Transferencia a ${iban}, titular ${holder}, indicando ${orderId} en el concepto.`;
+  }
+
+  const cashInstructions = process.env.PAYMENT_CASH_INSTRUCTIONS || "PENDIENTE_CONFIGURAR_PAYMENT_CASH_INSTRUCTIONS: pagar en efectivo al recibir o recoger el pedido.";
+  return `${cashInstructions} Indica ${orderId} al equipo.`;
+}
+
+function getPaymentStatusLabel(status) {
+  return status === "paid" ? "Pagado" : "Pendiente de pago";
+}
+
+function getShippingCost(order) {
+  return Number(order?.shipping?.cost ?? order?.shippingCost ?? 0);
+}
+
+function getDiscountAmount(order) {
+  return Number(order?.discountAmount ?? order?.promotions?.firstOrderDiscount?.discountAmount ?? 0);
+}
+
+function getCouponCode(order) {
+  return String(order?.couponCode ?? order?.promotions?.firstOrderDiscount?.code ?? "").trim().toUpperCase();
+}
+
+function getDiscountLabel(order) {
+  const amount = getDiscountAmount(order);
+  if (amount <= 0) return null;
+
+  const code = getCouponCode(order) || "Cupón";
+  const percent = Number(order?.discountPercent ?? order?.promotions?.firstOrderDiscount?.percent ?? 0);
+  return `${code}${percent ? ` (${percent}%)` : ""}`;
+}
+
+function getShippingLabel(order) {
+  if ((order?.deliveryType ?? order?.delivery?.type) === "pickup") {
+    return "Recogida en local · sin coste";
+  }
+
+  const zone = order?.shipping?.zoneName ? `${order.shipping.zoneName} · ` : "";
+  const postalCode = order?.shipping?.postalCode ? `CP ${order.shipping.postalCode} · ` : "";
+  const free = order?.shipping?.freeShippingApplied ? " · envío gratis aplicado" : "";
+  return `${zone}${postalCode}${formatCurrency(getShippingCost(order))}${free}`;
+}
+
 function buildOrderItemsRows(items = []) {
   return items
     .map((item) => {
@@ -61,23 +131,34 @@ function buildCustomerOrderEmail(order) {
   const deliveryDate = formatDeliveryDate(order.deliveryDate ?? order.delivery?.date);
   const deliverySlot = escapeHtml(order.deliverySlot ?? order.delivery?.slot ?? "Sin franja");
   const notes = order.notes ? escapeHtml(order.notes) : "Sin notas";
+  const shippingLabel = escapeHtml(getShippingLabel(order));
+  const shippingCost = getShippingCost(order);
+  const discountAmount = getDiscountAmount(order);
+  const discountLabel = getDiscountLabel(order);
+  const discountLine = discountAmount > 0
+    ? `<p style="text-align:right;margin:0 0 4px;color:#1f7a3a;"><strong>Descuento ${escapeHtml(discountLabel)}:</strong> -${formatCurrency(discountAmount)}</p>`
+    : "";
+  const paymentMethod = getPaymentMethodLabel(order.payment?.method ?? order.paymentMethod);
+  const paymentStatus = getPaymentStatusLabel(order.payment?.status ?? order.paymentStatus);
+  const paymentInstructions = escapeHtml(getPaymentInstructions(order));
 
   return `
     <div style="background:#f7f3ea;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#2f2f2f;">
       <div style="max-width:650px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #f0e6d4;">
         <div style="background:#4e2f1f;color:#fff;padding:20px 24px;">
-          <h1 style="margin:0;font-size:24px;">MiLuGui</h1>
-          <p style="margin:6px 0 0;font-size:14px;opacity:.95;">Confirmación de pedido</p>
+          <h1 style="margin:0;font-size:24px;">Rico Sabor Cubano</h1>
+          <p style="margin:6px 0 0;font-size:14px;opacity:.95;">Pedido recibido · pendiente de pago</p>
         </div>
 
         <div style="padding:24px;">
-          <p style="margin:0 0 12px;font-size:16px;">¡Gracias por tu compra, <strong>${customerName}</strong>!</p>
-          <p style="margin:0 0 18px;font-size:14px;color:#555;">Hemos recibido tu pedido correctamente. Aquí tienes el resumen:</p>
+          <p style="margin:0 0 12px;font-size:16px;">¡Gracias, <strong>${customerName}</strong>!</p>
+          <p style="margin:0 0 18px;font-size:14px;color:#555;">Hemos recibido tu pedido. <strong>No queda confirmado definitivamente hasta validar el pago</strong>.</p>
 
-          <div style="background:#fdf8f0;border:1px solid #f2e4cc;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+          <div style="background:#fff8e1;border:1px solid #f2c96d;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
             <p style="margin:0 0 8px;"><strong>Número de pedido:</strong> ${escapeHtml(order.orderId ?? "N/A")}</p>
-            <p style="margin:0 0 8px;"><strong>Cliente:</strong> ${customerName}</p>
-            <p style="margin:0;"><strong>Teléfono:</strong> ${escapeHtml(order.customer?.phone ?? "N/A")}</p>
+            <p style="margin:0 0 8px;"><strong>Estado del pago:</strong> ${escapeHtml(paymentStatus)}</p>
+            <p style="margin:0 0 8px;"><strong>Método de pago:</strong> ${escapeHtml(paymentMethod)}</p>
+            <p style="margin:0;"><strong>Instrucciones:</strong> ${paymentInstructions}</p>
           </div>
 
           <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px;">
@@ -89,17 +170,19 @@ function buildCustomerOrderEmail(order) {
                 <th style="padding:10px 8px;text-align:right;color:#5f4028;">Subtotal</th>
               </tr>
             </thead>
-            <tbody>
-              ${buildOrderItemsRows(order.items)}
-            </tbody>
+            <tbody>${buildOrderItemsRows(order.items)}</tbody>
           </table>
 
           <div style="text-align:right;margin-bottom:18px;">
+            <p style="margin:0 0 6px;font-size:14px;color:#555;"><strong>Subtotal:</strong> ${formatCurrency(order.subtotal)}</p>
+            ${discountLine}
+            <p style="margin:0 0 6px;font-size:14px;color:#555;"><strong>Envío:</strong> ${formatCurrency(shippingCost)}</p>
             <p style="margin:0;font-size:14px;color:#555;"><strong>Total:</strong> <span style="font-size:18px;color:#1f1f1f;">${formatCurrency(order.total)}</span></p>
           </div>
 
           <div style="background:#fafafa;border:1px solid #ececec;border-radius:10px;padding:14px 16px;">
             <p style="margin:0 0 8px;"><strong>Entrega:</strong> ${deliveryMode}</p>
+            <p style="margin:0 0 8px;"><strong>Coste de envío:</strong> ${shippingLabel}</p>
             <p style="margin:0 0 8px;"><strong>Dirección:</strong> ${address}</p>
             <p style="margin:0 0 8px;"><strong>Referencia:</strong> ${reference}</p>
             <p style="margin:0 0 8px;"><strong>Fecha:</strong> ${deliveryDate}</p>
@@ -107,7 +190,7 @@ function buildCustomerOrderEmail(order) {
             <p style="margin:0;"><strong>Notas:</strong> ${notes}</p>
           </div>
 
-          <p style="margin:18px 0 0;font-size:13px;color:#777;">Si necesitas ajustar algo de tu pedido, respóndenos por WhatsApp o teléfono y te ayudamos.</p>
+          <p style="margin:18px 0 0;font-size:13px;color:#777;">Cuando validemos el pago te enviaremos la confirmación definitiva.</p>
         </div>
       </div>
     </div>
@@ -132,18 +215,47 @@ export async function sendOrderEmail(order) {
   const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
   const to = getRequiredEnv("NOTIFY_EMAIL_TO");
   const customerEmail = order.customer?.email?.trim();
+  const paymentMethod = getPaymentMethodLabel(order.payment?.method ?? order.paymentMethod);
+  const paymentStatus = getPaymentStatusLabel(order.payment?.status ?? order.paymentStatus);
+  const paymentInstructions = escapeHtml(getPaymentInstructions(order));
+  const address = order.delivery?.address ? escapeHtml(order.delivery.address) : "No aplica";
+  const reference = order.delivery?.reference ? escapeHtml(order.delivery.reference) : "No indicada";
+  const notes = order.notes ? escapeHtml(order.notes) : "Sin notas";
+  const shippingLabel = escapeHtml(getShippingLabel(order));
+  const shippingCost = getShippingCost(order);
+  const discountAmount = getDiscountAmount(order);
+  const discountLabel = getDiscountLabel(order);
+  const discountLine = discountAmount > 0
+    ? `<p style="text-align:right;margin:0 0 4px;color:#1f7a3a;"><strong>Descuento ${escapeHtml(discountLabel)}:</strong> -${formatCurrency(discountAmount)}</p>`
+    : "";
 
   await sendEmail(apiKey, {
     from,
     to: [to],
-    subject: `Nuevo pedido ${order.orderId} · MiLuGui`,
+    subject: `Nuevo pedido ${order.orderId} · pendiente de pago · Rico Sabor Cubano`,
     html: `
-      <h2>Nuevo pedido: ${order.orderId}</h2>
-      <p><strong>Cliente:</strong> ${order.customer?.fullName ?? "N/A"}</p>
-      <p><strong>Teléfono:</strong> ${order.customer?.phone ?? "N/A"}</p>
-      <p><strong>Email:</strong> ${customerEmail || "N/A"}</p>
-      <p><strong>Total:</strong> ${formatCurrency(order.total)}</p>
-      <p><strong>Entrega:</strong> ${formatDeliveryDate(order.deliveryDate ?? order.delivery?.date)} · ${escapeHtml(order.deliverySlot ?? order.delivery?.slot ?? "Sin franja")}</p>
+      <h2>Nuevo pedido: ${escapeHtml(order.orderId)}</h2>
+      <p><strong>Fecha/hora:</strong> ${formatDateTime(order.createdAt)}</p>
+      <p><strong>Estado:</strong> Pedido recibido · ${escapeHtml(paymentStatus)}</p>
+      <p><strong>Método de pago:</strong> ${escapeHtml(paymentMethod)}</p>
+      <p><strong>Instrucciones comunicadas:</strong> ${paymentInstructions}</p>
+      <hr/>
+      <p><strong>Cliente:</strong> ${escapeHtml(order.customer?.fullName ?? "N/A")}</p>
+      <p><strong>Teléfono:</strong> ${escapeHtml(order.customer?.phone ?? "N/A")}</p>
+      <p><strong>Email:</strong> ${escapeHtml(customerEmail || "N/A")}</p>
+      <p><strong>Entrega:</strong> ${formatDeliveryDate(order.deliveryDate ?? order.delivery?.date)} · ${escapeHtml(order.deliverySlot ?? order.delivery?.slot ?? "Sin franja")} · ${escapeHtml(getDeliveryModeLabel(order.deliveryType ?? order.delivery?.type))}</p>
+      <p><strong>Envío:</strong> ${shippingLabel}</p>
+      <p><strong>Dirección:</strong> ${address}</p>
+      <p><strong>Referencia:</strong> ${reference}</p>
+      <p><strong>Notas:</strong> ${notes}</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+        <thead><tr><th align="left">Producto</th><th>Cant.</th><th align="right">Precio</th><th align="right">Subtotal</th></tr></thead>
+        <tbody>${buildOrderItemsRows(order.items)}</tbody>
+      </table>
+      <p style="text-align:right;margin:16px 0 4px;"><strong>Subtotal:</strong> ${formatCurrency(order.subtotal)}</p>
+      ${discountLine}
+      <p style="text-align:right;margin:0 0 4px;"><strong>Envío:</strong> ${formatCurrency(shippingCost)}</p>
+      <p style="text-align:right;font-size:18px;margin:0;"><strong>Total:</strong> ${formatCurrency(order.total)}</p>
     `
   });
 
@@ -154,7 +266,7 @@ export async function sendOrderEmail(order) {
   await sendEmail(apiKey, {
     from,
     to: [customerEmail],
-    subject: `Tu pedido ${order.orderId} está confirmado · MiLuGui`,
+    subject: `Pedido recibido ${order.orderId} · pendiente de pago · Rico Sabor Cubano`,
     html: buildCustomerOrderEmail(order)
   });
 }

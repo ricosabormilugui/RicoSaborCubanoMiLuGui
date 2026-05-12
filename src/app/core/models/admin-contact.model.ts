@@ -7,7 +7,7 @@ export interface AdminContactMessage {
 }
 
 export interface AdminContactNotification {
-  type: 'email' | 'whatsapp';
+  type: 'email';
   status: 'sent' | 'error';
   error?: string | null;
   date: string;

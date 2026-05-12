@@ -6,7 +6,12 @@ import {
   updateContactLastNotifications
 } from '../repositories/contacts.repository.js';
 import { notifyContact } from '../services/contact-notification.service.js';
+import { upsertCustomerFromContact } from '../repositories/customers.repository.js';
 import { logger } from '../lib/logger.js';
+
+export async function getContactEndpointStatus(_req, res) {
+  return res.status(200).json({ ok: true, endpoint: "contact", methods: ["POST"] });
+}
 
 function normalizeText(value, fallback = 'No indicado') {
   const text = String(value ?? '').trim();
@@ -27,10 +32,6 @@ function normalizeNotificationShape(lastNotifications) {
     email: {
       sent: Boolean(lastNotifications?.email?.sent),
       warning: lastNotifications?.email?.warning ?? null
-    },
-    whatsapp: {
-      sent: Boolean(lastNotifications?.whatsapp?.sent),
-      warning: lastNotifications?.whatsapp?.warning ?? null
     }
   };
 }
@@ -105,12 +106,14 @@ export async function sendContact(req, res) {
       throw error;
     }
 
+    await upsertCustomerFromContact(contact);
+
     const { notifications, notificationsAudit } = await notifyContact(normalized);
 
     await appendContactNotifications(String(contact._id), notificationsAudit);
     await updateContactLastNotifications(String(contact._id), notifications);
 
-    const anySent = notifications.email.sent || notifications.whatsapp.sent;
+    const anySent = notifications.email.sent;
 
     logger.info('contact.notify', {
       contactId: String(contact._id),

@@ -1,20 +1,22 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ContactFormPayload, ContactService } from '../../core/services/contact.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { environment } from '../../../environments/environment';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
     <section class="contact-shell">
       <article class="card contact-card">
         <header class="head">
           <p class="eyebrow">Soporte inmediato</p>
           <h1>Solicitar información</h1>
-          <p class="sub">Déjanos tus datos y te responderemos por WhatsApp o email.</p>
+          <p class="sub">Déjanos tus datos y te responderemos por email.</p>
         </header>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="contact-form">
@@ -22,6 +24,12 @@ import { environment } from '../../../environments/environment';
           <input class="input" formControlName="phone" placeholder="Teléfono" />
           <input class="input" formControlName="email" placeholder="Email" />
           <textarea class="input" formControlName="message" placeholder="¿Cómo te ayudamos?"></textarea>
+
+          <label class="legal-check">
+            <input type="checkbox" formControlName="legalConsent" />
+            <span>He leído y acepto la <a routerLink="/legal/privacidad">política de privacidad</a> para que gestionéis mi solicitud. También puedes contactarnos manualmente por WhatsApp si lo prefieres.</span>
+          </label>
+          <small class="field-error" *ngIf="form.controls.legalConsent.invalid && form.controls.legalConsent.touched">Debes aceptar la política de privacidad.</small>
 
           <button class="btn btn-primary" type="submit" [disabled]="form.invalid || sending()">
             <span *ngIf="!sending()">Enviar solicitud</span>
@@ -40,6 +48,7 @@ import { environment } from '../../../environments/environment';
         </div>
 
         <p class="meta" *ngIf="lastContactId()">ID de solicitud: {{ lastContactId() }}</p>
+        <a class="btn btn-secondary" *ngIf="whatsappContactUrl()" [href]="whatsappContactUrl()" target="_blank" rel="noopener noreferrer">Contactar por WhatsApp</a>
         <button class="btn btn-secondary" *ngIf="canRetry()" (click)="retryLastSubmission()" [disabled]="sending()">Reintentar</button>
       </article>
     </section>
@@ -55,10 +64,14 @@ import { environment } from '../../../environments/environment';
     `.input{border:1px solid var(--border-soft);border-radius:12px;padding:12px;width:100%;transition:all .2s;background:var(--surface-1);color:var(--text-main)}`,
     `.input:focus{border-color:var(--accent-red);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent-red) 30%, transparent);outline:none}`,
     `.input::placeholder{color:var(--text-soft)}`,
+    `.legal-check{display:flex;align-items:flex-start;gap:.55rem;color:var(--text-soft);font-weight:800}`,
+    `.legal-check input{margin-top:.2rem;width:18px;height:18px}`,
+    `.legal-check a{color:var(--accent-green);font-weight:900}`,
+    `.field-error{color:var(--error-text);font-weight:800}`,
     `textarea.input{min-height:120px;resize:vertical}`,
     `.app-alert{display:grid;gap:.22rem;white-space:pre-line}`,
     `.meta{color:var(--text-soft);font-size:.88rem;margin-top:.35rem}`,
-    `.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.95);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .6s linear infinite}`,
+    `.spinner{width:18px;height:18px;border:2px solid var(--on-accent);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .6s linear infinite}`,
     `@keyframes spin{to{transform:rotate(360deg)}}`
   ]
 })
@@ -73,17 +86,22 @@ export class ContactPageComponent {
   readonly error = signal('');
   readonly canRetry = signal(false);
   readonly lastContactId = signal('');
+  readonly whatsappContactUrl = signal<string | null>(buildWhatsAppContactUrl());
   private lastPayload: Omit<ContactFormPayload, 'requestId'> | null = null;
 
   readonly form = this.fb.nonNullable.group({
     name: ['', Validators.required],
     phone: ['', Validators.required],
     email: ['', [Validators.email]],
-    message: ['', Validators.required]
+    message: ['', Validators.required],
+    legalConsent: [false, [Validators.requiredTrue]]
   });
 
   async submit(): Promise<void> {
-    this.lastPayload = this.form.getRawValue();
+    this.form.markAllAsTouched();
+    if (this.form.invalid) return;
+    const { legalConsent: _legalConsent, ...payload } = this.form.getRawValue();
+    this.lastPayload = payload;
     await this.submitInternal(false);
   }
 
@@ -108,7 +126,7 @@ export class ContactPageComponent {
       const result = await this.contactService.submit(payload);
       this.lastContactId.set(result.contactId ?? '');
 
-      const anySent = Boolean(result.notifications.email.sent) || Boolean(result.notifications.whatsapp.sent);
+      const anySent = Boolean(result.notifications.email.sent);
       this.canRetry.set(!anySent);
 
       if (anySent || result.duplicated) {
@@ -117,7 +135,7 @@ export class ContactPageComponent {
       } else {
         const message = this.isProduction
           ? 'Inténtalo de nuevo en unos segundos.'
-          : `Email: ${result.notifications.email.warning ?? 'sin detalle'} · WhatsApp: ${result.notifications.whatsapp.warning ?? 'sin detalle'}`;
+          : `Email: ${result.notifications.email.warning ?? 'sin detalle'}`;
         this.error.set(message);
         this.notifications.warning('Solicitud con incidencias', message);
       }

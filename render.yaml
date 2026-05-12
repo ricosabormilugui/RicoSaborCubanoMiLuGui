@@ -21,9 +21,15 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: MONGODB_DB_NAME
-        value: miLuGui
+        value: ricoSaborCubano
       - key: MONGODB_ORDERS_COLLECTION
         value: orders
+      - key: MONGODB_PRODUCTS_COLLECTION
+        value: products
+      - key: MONGODB_CONTACTS_COLLECTION
+        value: contacts
+      - key: MONGODB_CUSTOMERS_COLLECTION
+        value: customers
       - key: MONGODB_USERS_COLLECTION
         value: users
       - key: RESEND_API_KEY
@@ -31,6 +37,4 @@ services:
       - key: NOTIFY_EMAIL_FROM
         sync: false
       - key: NOTIFY_EMAIL_TO
-        sync: false
-      - key: WHATSAPP_WEBHOOK_TOKEN
         sync: false

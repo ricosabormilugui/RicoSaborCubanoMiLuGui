@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger.js";
 import {
   addContactReply,
   appendContactNotifications,
@@ -6,7 +7,6 @@ import {
   markContactAsRead
 } from "../repositories/contacts.repository.js";
 import { sendDirectEmail } from "../services/email.service.js";
-import { sendWhatsAppToPhone } from "../services/whatsapp.service.js";
 
 function serializeContact(contact) {
   if (!contact) return null;
@@ -16,10 +16,6 @@ function serializeContact(contact) {
     id: String(contact._id),
     _id: undefined
   };
-}
-
-function buildReplyWhatsAppMessage(message) {
-  return `🍽️ *Rico Sabor Cubano*\n\nHola 👋\n\n${message}\n\nGracias por contactarnos 🙌`;
 }
 
 function buildNotification(type, sent, warning) {
@@ -45,6 +41,7 @@ export async function listContactsForAdmin(req, res) {
 
     return res.status(200).json({ contacts: contacts.map(serializeContact) });
   } catch (error) {
+    logger.error("contacts.admin.list.failed", { error: error.message ?? "Unexpected error" });
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
@@ -71,7 +68,7 @@ export async function getContactForAdmin(req, res) {
 export async function replyContactForAdmin(req, res) {
   try {
     const { id } = req.params;
-    const { message, sendEmail, sendWhatsApp } = req.body ?? {};
+    const { message, sendEmail } = req.body ?? {};
     const replyText = String(message ?? "").trim();
 
     if (!replyText) {
@@ -84,8 +81,7 @@ export async function replyContactForAdmin(req, res) {
     }
 
     const notifications = {
-      email: { sent: false, warning: null },
-      whatsapp: { sent: false, warning: null }
+      email: { sent: false, warning: null }
     };
 
     if (sendEmail) {
@@ -108,22 +104,6 @@ export async function replyContactForAdmin(req, res) {
       notifications.email.warning = "disabled";
     }
 
-    if (sendWhatsApp) {
-      const phone = String(existing.phone ?? "").trim();
-      if (!phone) {
-        notifications.whatsapp.warning = "cliente sin teléfono";
-      } else {
-        try {
-          await sendWhatsAppToPhone(phone, buildReplyWhatsAppMessage(replyText));
-          notifications.whatsapp.sent = true;
-        } catch (error) {
-          notifications.whatsapp.warning = error.message ?? "failed";
-        }
-      }
-    } else {
-      notifications.whatsapp.warning = "disabled";
-    }
-
     const updated = await addContactReply(id, {
       from: "admin",
       text: replyText,
@@ -131,8 +111,7 @@ export async function replyContactForAdmin(req, res) {
     });
 
     await appendContactNotifications(id, [
-      buildNotification("email", notifications.email.sent, notifications.email.warning),
-      buildNotification("whatsapp", notifications.whatsapp.sent, notifications.whatsapp.warning)
+      buildNotification("email", notifications.email.sent, notifications.email.warning)
     ]);
 
     const refreshed = await findContactById(id);

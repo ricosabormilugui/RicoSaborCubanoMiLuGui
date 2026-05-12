@@ -3,6 +3,7 @@ import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord } from '../../core/models/product.model';
+import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
 import {
@@ -36,6 +37,7 @@ import {
           <h1>Admin · Productos</h1>
           <div class="actions">
             <button class="btn" (click)="loadProducts()">Actualizar</button>
+            <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
             <button class="btn" routerLink="/admin/pedidos">Ir a pedidos</button>
             <button class="btn" routerLink="/admin/cocina">Ir a cocina</button>
             <button class="btn" routerLink="/admin/contactos">Contactos</button>
@@ -54,7 +56,11 @@ import {
             </label>
             <label>
               <span>Categoría</span>
-              <input [(ngModel)]="form.category" name="category" placeholder="platos / bebidas / combos" required />
+              <input [(ngModel)]="form.category" name="category" list="product-category-options" placeholder="platos / tartas / dulces-gourmet" required />
+              <datalist id="product-category-options">
+                <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
+              </datalist>
+              <small>Usa slugs: tartas, dulces-gourmet, platos, bebidas, combos o extras.</small>
             </label>
             <label>
               <span>Precio (€)</span>
@@ -72,7 +78,7 @@ import {
 
           <div class="preview" *ngIf="form.imageUrl">
             <p>Vista previa:</p>
-            <img [src]="form.imageUrl" alt="Vista previa producto" class="product-preview" />
+            <img [src]="form.imageUrl" [alt]="form.name ? 'Vista previa de ' + form.name : 'Vista previa del producto'" class="product-preview" width="180" height="120" decoding="async" />
           </div>
 
           <h3>Inventario</h3>
@@ -136,7 +142,10 @@ import {
           </label>
           <label>
             <span>Filtrar por categoría</span>
-            <input [(ngModel)]="categoryFilter" placeholder="Todas" />
+            <select [(ngModel)]="categoryFilter">
+              <option value="">Todas</option>
+              <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
+            </select>
           </label>
         </div>
 
@@ -156,14 +165,14 @@ import {
             <tbody>
               <tr *ngFor="let product of filteredProducts()">
                 <td>
-                  <img *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" class="thumb" />
+                  <img *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" class="thumb" width="56" height="56" loading="lazy" decoding="async" />
                   <span *ngIf="!product.imageUrl">—</span>
                 </td>
                 <td>
                   <strong>{{ product.name }}</strong>
                   <small class="meta">Orden: {{ product.order ?? 0 }}</small>
                 </td>
-                <td>{{ product.category }}</td>
+                <td>{{ categoryLabel(product.category) }}</td>
                 <td>{{ product.price | currency:'EUR' }}</td>
                 <td>
                   <ng-container *ngIf="product.trackStock; else noStockTracking">
@@ -215,8 +224,8 @@ import {
     `.thumb{width:56px;height:56px;object-fit:cover;border-radius:8px}`,
     `.meta{display:block;color:var(--text-soft);font-size:.78rem;margin-top:.2rem}`,
     `.status{display:inline-block;padding:.18rem .48rem;border-radius:999px;font-weight:700}`,
-    `.status.ok{background:color-mix(in srgb, var(--accent-green) 20%, var(--surface-2));color:#c8f9e2}`,
-    `.status.warn{background:color-mix(in srgb, #facc15 20%, var(--surface-2));color:#ffe9a8}`,
+    `.status.ok{background:color-mix(in srgb, var(--accent-green) 20%, var(--surface-2));color:var(--ok-text)}`,
+    `.status.warn{background:color-mix(in srgb, var(--warning-text) 20%, var(--surface-2));color:var(--warning-text)}`,
     `.status.off{background:var(--surface-2);color:var(--text-soft)}`,
     `.err{color:var(--error-text)}`,
     `@media (max-width:900px){.grid.two{grid-template-columns:1fr}}`
@@ -232,13 +241,14 @@ export class AdminProductsPageComponent {
   readonly error = signal('');
   readonly editId = signal<string>('');
   readonly products = signal<ProductApiRecord[]>([]);
+  readonly categoryOptions = computed(() => mergeCategoryOptions(this.products().map((product) => product.category)));
 
   readonly filteredProducts = computed(() => {
     const query = this.search.trim().toLowerCase();
-    const category = this.categoryFilter.trim().toLowerCase();
+    const category = normalizeCategorySlug(this.categoryFilter);
 
     return this.products()
-      .filter((item) => (category ? String(item.category ?? '').toLowerCase().includes(category) : true))
+      .filter((item) => (category ? normalizeCategorySlug(item.category) === category : true))
       .filter((item) => {
         const text = `${item.name ?? ''} ${item.category ?? ''}`.toLowerCase();
         return query ? text.includes(query) : true;
@@ -249,7 +259,7 @@ export class AdminProductsPageComponent {
     name: '',
     description: '',
     price: 0,
-    category: 'platos',
+    category: DEFAULT_PRODUCT_CATEGORY,
     imageUrl: '',
     available: true,
     published: true,
@@ -299,6 +309,33 @@ export class AdminProductsPageComponent {
     }
   }
 
+  categoryLabel(value: string | null | undefined): string {
+    return getProductCategoryLabel(value);
+  }
+
+  private buildProductPayload(product: ProductApiRecord): AdminProductPayload {
+    return {
+      name: product.name,
+      description: product.description ?? '',
+      price: Number(product.price ?? 0),
+      category: product.category ?? DEFAULT_PRODUCT_CATEGORY,
+      imageUrl: product.imageUrl ?? '',
+      available: product.available ?? true,
+      published: product.published ?? true,
+      trackStock: product.trackStock ?? false,
+      stock: Number(product.stock ?? 0),
+      lowStockAlert: Number(product.lowStockAlert ?? 5),
+      order: Number(product.order ?? 0)
+    };
+  }
+
+  private normalizedFormPayload(): AdminProductPayload {
+    return {
+      ...this.form,
+      category: normalizeCategorySlug(this.form.category) || DEFAULT_PRODUCT_CATEGORY
+    };
+  }
+
   isLowStock(product: ProductApiRecord): boolean {
     return Boolean(product.trackStock) && Number(product.stock ?? 0) <= Number(product.lowStockAlert ?? 5);
   }
@@ -322,7 +359,7 @@ export class AdminProductsPageComponent {
       name: product.name,
       description: product.description ?? '',
       price: Number(product.price ?? 0),
-      category: product.category ?? 'platos',
+      category: product.category ?? DEFAULT_PRODUCT_CATEGORY,
       imageUrl: product.imageUrl ?? '',
       available: product.available ?? true,
       published: product.published ?? true,
@@ -339,7 +376,7 @@ export class AdminProductsPageComponent {
       name: '',
       description: '',
       price: 0,
-      category: 'platos',
+      category: DEFAULT_PRODUCT_CATEGORY,
       imageUrl: '',
       available: true,
       published: true,
@@ -353,9 +390,9 @@ export class AdminProductsPageComponent {
   async saveProduct(): Promise<void> {
     try {
       if (this.editId()) {
-        await this.adminProducts.updateProduct(this.editId(), this.form);
+        await this.adminProducts.updateProduct(this.editId(), this.normalizedFormPayload());
       } else {
-        await this.adminProducts.createProduct(this.form);
+        await this.adminProducts.createProduct(this.normalizedFormPayload());
       }
 
       this.resetForm();
@@ -368,17 +405,8 @@ export class AdminProductsPageComponent {
   async togglePublished(product: ProductApiRecord): Promise<void> {
     try {
       await this.adminProducts.updateProduct(product._id, {
-        name: product.name,
-        description: product.description ?? '',
-        price: Number(product.price ?? 0),
-        category: product.category ?? 'platos',
-        imageUrl: product.imageUrl ?? '',
-        available: product.available ?? true,
-        published: !(product.published ?? true),
-        trackStock: product.trackStock ?? false,
-        stock: Number(product.stock ?? 0),
-        lowStockAlert: Number(product.lowStockAlert ?? 5),
-        order: Number(product.order ?? 0)
+        ...this.buildProductPayload(product),
+        published: !(product.published ?? true)
       });
       await this.loadProducts();
     } catch (error) {
@@ -389,17 +417,8 @@ export class AdminProductsPageComponent {
   async toggleAvailability(product: ProductApiRecord): Promise<void> {
     try {
       await this.adminProducts.updateProduct(product._id, {
-        name: product.name,
-        description: product.description ?? '',
-        price: Number(product.price ?? 0),
-        category: product.category ?? 'platos',
-        imageUrl: product.imageUrl ?? '',
-        available: !(product.available ?? true),
-        published: product.published ?? true,
-        trackStock: product.trackStock ?? false,
-        stock: Number(product.stock ?? 0),
-        lowStockAlert: Number(product.lowStockAlert ?? 5),
-        order: Number(product.order ?? 0)
+        ...this.buildProductPayload(product),
+        available: !(product.available ?? true)
       });
       await this.loadProducts();
     } catch (error) {
