@@ -16,7 +16,7 @@ import { SeoService } from '../../core/services/seo.service';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <section class="detail-page" [attr.aria-busy]="isLoadingDetail()">
-      <a class="back-link" routerLink="/">← Volver al catálogo</a>
+      <a class="back-link" routerLink="/productos">← Volver a productos</a>
 
       <article class="detail-card card detail-skeleton" *ngIf="isLoadingDetail(); else productState" aria-label="Cargando producto">
         <div class="image-panel skeleton-block"></div>
@@ -90,7 +90,7 @@ import { SeoService } from '../../core/services/seo.service';
         <div class="not-found card">
           <h1>Producto no encontrado</h1>
           <p>No encontramos el producto solicitado. Puede que ya no esté disponible o que el enlace no sea correcto.</p>
-          <a class="btn btn-primary" routerLink="/">Volver al catálogo</a>
+          <a class="btn btn-primary" routerLink="/productos">Volver a productos</a>
         </div>
       </ng-template>
     </section>
@@ -116,16 +116,16 @@ import { SeoService } from '../../core/services/seo.service';
     `.related-head{display:flex;align-items:flex-end;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.85rem;min-width:0}`,
     `.related h2{margin:0;color:var(--accent-red);font-size:clamp(1.45rem,4vw,2rem);line-height:1.1}`,
     `.related-head span{color:var(--text-soft);font-size:.95rem}`,
-    `.mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.75rem;min-width:0}`,
-    `.mini-product{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.72rem;align-items:center;min-width:0;background:color-mix(in srgb,var(--surface-0) 86%,var(--surface-1) 14%);border:1px solid color-mix(in srgb,var(--border-soft) 76%,transparent);border-radius:15px;padding:.68rem;box-shadow:0 7px 16px var(--shadow-soft);transition:transform .18s ease,border-color .18s ease}`,
+    `.mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.75rem;width:100%;max-width:100%;min-width:0;overflow:hidden}`,
+    `.mini-product{display:grid;grid-template-columns:76px minmax(0,1fr);gap:.72rem;align-items:center;width:100%;max-width:100%;min-width:0;overflow:hidden;background:color-mix(in srgb,var(--surface-0) 86%,var(--surface-1) 14%);border:1px solid color-mix(in srgb,var(--border-soft) 76%,transparent);border-radius:15px;padding:.68rem;box-shadow:0 7px 16px var(--shadow-soft);transition:transform .18s ease,border-color .18s ease}`,
     `.mini-product:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent-green) 32%,var(--border-soft))}`,
     `.mini-image{display:block;width:76px;height:76px;border-radius:11px;overflow:hidden;background:var(--surface-1)}`,
     `.mini-product img{width:100%;height:100%;object-fit:cover;display:block}`,
-    `.mini-content{min-width:0}`,
-    `.mini-name{display:block;margin:0 0 .2rem;font-size:.95rem;font-weight:800;color:var(--text-main);line-height:1.2;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+    `.mini-content{display:grid;gap:.22rem;align-content:center;min-width:0;max-width:100%}`,
+    `.mini-name{display:-webkit-box;max-width:100%;margin:0 0 .08rem;font-size:.95rem;font-weight:800;color:var(--text-main);line-height:1.2;text-decoration:none;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}`,
     `.mini-name:hover,.mini-name:focus-visible{color:var(--accent-green);outline:none}`,
-    `.mini-product strong{display:block;color:var(--accent-green);margin-bottom:.35rem}`,
-    `.mini-product .btn{min-height:38px;padding:.4rem .58rem;font-size:.84rem}`,
+    `.mini-product strong{display:block;color:var(--accent-green);line-height:1.1}`,
+    `.mini-product .btn{justify-self:start;min-height:34px;padding:.4rem .58rem;font-size:.84rem;white-space:normal;line-height:1.1}`,
     `.not-found{width:min(100%,720px);margin:clamp(1rem,4vw,2rem) auto;text-align:center;overflow:hidden}`,
     `.not-found h1{font-size:clamp(1.8rem,4vw,2.6rem)}`,
     `.not-found p{color:var(--text-soft);line-height:1.55;overflow-wrap:anywhere}`,
@@ -141,7 +141,7 @@ import { SeoService } from '../../core/services/seo.service';
     `.skeleton-cta{height:44px}`,
     `@keyframes shimmer{0%{background-position:220% 0}100%{background-position:-220% 0}}`,
     `@media(max-width:920px){.detail-card{grid-template-columns:1fr}.info-panel{align-content:start}.image-panel{max-height:480px}.purchase-row{max-width:100%}}`,
-    `@media(max-width:640px){.detail-page{gap:.8rem;padding-top:.35rem;overflow-x:hidden}.detail-card{border-radius:14px;padding:.75rem;gap:.85rem}.image-panel{aspect-ratio:1/0.78;max-height:none}.purchase-row{grid-template-columns:1fr}.quantity-field input,.add-button{min-height:46px}.mini-grid{display:flex;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;padding:0 .05rem .45rem}.mini-product{flex:0 0 min(84vw,260px);scroll-snap-align:start}.related-head{align-items:flex-start}.related-head span{font-size:.9rem}}`,
+    `@media(max-width:640px){.detail-page{gap:.8rem;padding-top:.35rem;overflow-x:hidden}.detail-card{border-radius:14px;padding:.75rem;gap:.85rem}.image-panel{aspect-ratio:1/0.78;max-height:none}.purchase-row{grid-template-columns:1fr}.quantity-field input,.add-button{min-height:46px}.mini-grid{display:flex;gap:.72rem;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:0 .05rem .5rem}.mini-product{flex:0 0 min(82vw,270px);width:min(82vw,270px);max-width:270px;grid-template-columns:70px minmax(0,1fr);scroll-snap-align:start;scroll-snap-stop:always}.mini-image{width:70px;height:70px}.mini-product .btn{width:max-content;max-width:100%}.related-head{align-items:flex-start}.related-head span{font-size:.9rem}}`,
     `@media(max-width:380px){.mini-product{grid-template-columns:64px minmax(0,1fr)}.mini-image{width:64px;height:64px}.mini-product .btn{width:100%}}`,
     `@media(prefers-reduced-motion:reduce){.image-panel img,.mini-product,.skeleton-block,.skeleton-line,.skeleton-input,.skeleton-cta{transition:none;animation:none}.detail-card:hover .image-panel img,.mini-product:hover{transform:none}}`
   ]
@@ -188,7 +188,7 @@ export class ProductDetailPageComponent {
         title: 'Producto no encontrado',
         description: 'No encontramos el producto solicitado en el catálogo de Rico Sabor Cubano.',
         path: '/producto/no-encontrado',
-        canonicalPath: '/',
+        canonicalPath: '/productos',
         robots: 'noindex,follow'
       });
       this.seo.removeJsonLd('product');
@@ -214,7 +214,8 @@ export class ProductDetailPageComponent {
 
     this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([
       { name: 'Inicio', path: '/' },
-      { name: categoryLabel, path: `/categoria/${encodeURIComponent(normalizeCategorySlug(product.category))}` },
+      { name: 'Productos', path: '/productos' },
+      { name: categoryLabel, path: `/productos?category=${encodeURIComponent(normalizeCategorySlug(product.category))}` },
       { name: product.name, path: route }
     ]));
 

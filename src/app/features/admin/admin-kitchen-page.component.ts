@@ -19,7 +19,7 @@ type KitchenLane = 'nuevos' | 'preparando' | 'listos';
         <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
       </div>
       <button class="btn btn-primary" (click)="loginAndStart()" [disabled]="loading()">
-        {{ loading() ? 'Entrando...' : 'Entrar a cocina' }}
+        {{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión en cocina' }}
       </button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>

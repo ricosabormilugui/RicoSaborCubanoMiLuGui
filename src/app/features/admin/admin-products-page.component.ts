@@ -27,7 +27,7 @@ import {
           <input [(ngModel)]="password" type="password" placeholder="********" />
         </label>
       </div>
-      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Entrando...' : 'Entrar' }}</button>
+      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>
 

@@ -68,7 +68,7 @@ import { SeoService } from './core/services/seo.service';
 
                 <div class="dropdown" *ngIf="userMenuOpen()">
                   <ng-container *ngIf="!customerAuth.isAuthenticated(); else loggedMenu">
-                    <button type="button" (click)="goLogin()">Entrar</button>
+                    <button type="button" (click)="goLogin()">Iniciar sesión</button>
                     <button type="button" (click)="goRegister()">Registro</button>
                   </ng-container>
 
@@ -90,14 +90,24 @@ import { SeoService } from './core/services/seo.service';
       <aside class="side-menu" [class.open]="menuOpen()">
         <div class="menu-header">👤 {{ customerAuth.profile()?.email ?? 'Invitado' }}</div>
 
-        <a routerLink="/" (click)="closeMenu()">Catálogo</a>
+        <a routerLink="/" (click)="closeMenu()">Inicio</a>
+        <a routerLink="/productos" (click)="closeMenu()">Productos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
         <a routerLink="/mis-pedidos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
         <button type="button" class="menu-action" (click)="openCalendar()">Elegir fecha</button>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
+        <button
+          type="button"
+          class="menu-action menu-theme-action"
+          (click)="toggleTheme()"
+          [attr.aria-label]="theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
+          <span>{{ theme() === 'dark' ? '☀️' : '🌙' }}</span>
+          <span>{{ theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
+
         <ng-container *ngIf="!customerAuth.isAuthenticated(); else accountLinks">
-          <a routerLink="/login" (click)="closeMenu()">Entrar</a>
+          <a routerLink="/login" (click)="closeMenu()">Iniciar sesión</a>
           <a routerLink="/registro" (click)="closeMenu()">Registro</a>
         </ng-container>
         <ng-template #accountLinks>
@@ -122,7 +132,7 @@ import { SeoService } from './core/services/seo.service';
             <button type="button" (click)="toggleSearch()">✕</button>
           </div>
           <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keydown.enter)="openCatalogFromSearch()" placeholder="Ej. croquetas, combo..." aria-label="Buscar productos" />
-          <button class="search-submit" type="button" (click)="openCatalogFromSearch()">Buscar en catálogo</button>
+          <button class="search-submit" type="button" (click)="openCatalogFromSearch()">Buscar productos</button>
           <div class="result" *ngFor="let item of searchResults()" (click)="openCatalogFromSearch(item)">
             <strong>{{ item.name }}</strong>
             <span>{{ categoryLabel(item.category) }}</span>
@@ -190,12 +200,12 @@ import { SeoService } from './core/services/seo.service';
   styles: [
     `.top-banner{background:var(--accent-red);text-align:center;padding:6px;font-size:14px;color:var(--on-accent);font-weight:700}`,
     `.app-shell{width:100%;min-height:100vh;display:flex;flex-direction:column}`,
-    `.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;width:100%;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
-    `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:10px}`,
-    `.nav-left,.nav-right{display:flex;align-items:center;gap:6px}`,
+    `.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;width:100%;max-width:100%;min-width:0;overflow-x:clip;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
+    `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,2vw,10px);min-width:0;max-width:100%}`,
+    `.nav-left,.nav-right{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto}`,
     `.nav-right{justify-content:flex-end}`,
-    `.nav-center{text-align:center;flex:1;text-decoration:none;color:var(--text-main)}`,
-    `.logo{font-size:18px;font-weight:700}`,
+    `.nav-center{text-align:center;flex:1 1 auto;min-width:0;text-decoration:none;color:var(--text-main);overflow:hidden}`,
+    `.logo{font-size:clamp(15px,4.4vw,18px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
     `.icon-btn{background:transparent;border:none;color:var(--text-main);font-size:16px;cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
     `.cart-box{position:relative;padding:6px 8px;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
@@ -208,11 +218,12 @@ import { SeoService } from './core/services/seo.service';
     `.dropdown{position:absolute;right:0;top:38px;display:grid;gap:4px;background:var(--surface-0);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);border-radius:10px;padding:8px;min-width:150px;z-index:60;animation:fadeIn .2s ease}`,
     `.dropdown button{background:color-mix(in srgb, var(--surface-2) 40%, transparent);border:0;color:var(--text-main);padding:8px;border-radius:8px;text-align:left;cursor:pointer}`,
     `.dropdown button:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
-    `.side-menu{position:fixed;left:0;top:0;width:280px;height:100%;background:var(--surface-0);transition:.3s;z-index:100;padding:20px;display:grid;align-content:start;gap:10px;transform:translateX(-100%)}`,
+    `.side-menu{position:fixed;left:0;top:0;width:min(280px,calc(100vw - 24px));max-width:100%;height:100%;background:var(--surface-0);transition:.3s;z-index:100;padding:20px;display:grid;align-content:start;gap:10px;transform:translateX(-100%);overflow-y:auto;overflow-x:hidden}`,
     `.side-menu.open{transform:translateX(0)}`,
     `.menu-header{color:var(--text-main);background:color-mix(in srgb, var(--surface-2) 55%, transparent);padding:10px 12px;border-radius:10px}`,
-    `.side-menu a,.menu-action{color:var(--text-main);text-decoration:none;background:color-mix(in srgb, var(--surface-2) 40%, transparent);padding:10px 12px;border-radius:10px;border:0;text-align:left;cursor:pointer}`,
+    `.side-menu a,.menu-action{color:var(--text-main);text-decoration:none;background:color-mix(in srgb, var(--surface-2) 40%, transparent);padding:10px 12px;border-radius:10px;border:0;text-align:left;cursor:pointer;min-width:0;max-width:100%;overflow-wrap:anywhere}`,
     `.side-menu a:hover,.menu-action:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
+    `.menu-theme-action{display:flex;align-items:center;justify-content:space-between;gap:.75rem}`,
     `.menu-divider{height:1px;background:color-mix(in srgb, var(--border-soft) 85%, transparent);margin:4px 0}`,
     `.overlay{position:fixed;inset:0;background:var(--overlay-bg);z-index:90}`,
     `.search-modal{position:fixed;inset:0;z-index:95;display:grid;place-items:flex-start center;padding-top:80px}`,
@@ -365,7 +376,7 @@ export class AppComponent {
     const query = product?.name ?? this.searchQuery().trim();
     this.searchOpen.set(false);
     this.searchQuery.set('');
-    void this.router.navigate(['/'], { queryParams: query ? { q: query } : {} });
+    void this.router.navigate(['/productos'], { queryParams: query ? { q: query } : {} });
   }
 
   openCart(): void {

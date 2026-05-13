@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 import { CatalogPageComponent } from './features/catalog/catalog-page.component';
+import { HomePageComponent } from './features/home/home-page.component';
 import { adminGuard } from './core/guards/admin.guard';
 
 export const appRoutes: Routes = [
-  { path: '', component: CatalogPageComponent },
+  { path: '', component: HomePageComponent },
+  { path: 'productos', component: CatalogPageComponent },
   { path: 'categoria/:category', component: CatalogPageComponent },
   {
     path: 'producto/:slug',
@@ -79,5 +81,5 @@ export const appRoutes: Routes = [
     path: 'mis-pedidos',
     loadComponent: () => import('./features/account/my-orders-page.component').then((m) => m.MyOrdersPageComponent)
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: 'productos' }
 ];

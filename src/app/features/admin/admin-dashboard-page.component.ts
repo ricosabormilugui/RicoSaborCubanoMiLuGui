@@ -21,7 +21,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
         <input [(ngModel)]="email" placeholder="Email admin" />
         <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
       </div>
-      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Entrando...' : 'Entrar' }}</button>
+      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
     </section>
 

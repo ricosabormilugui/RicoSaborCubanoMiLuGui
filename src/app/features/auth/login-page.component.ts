@@ -20,7 +20,7 @@ import { NotificationService } from '../../core/services/notification.service';
           </button>
         </div>
       </div>
-      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Entrando...' : 'Entrar' }}</button>
+      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
       <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a>.</p>
