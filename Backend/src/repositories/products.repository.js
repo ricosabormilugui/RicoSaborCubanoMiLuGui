@@ -64,6 +64,10 @@ export async function createProduct(payload) {
     price: payload.price,
     category: payload.category,
     imageUrl: payload.imageUrl ?? "",
+    images: payload.images ?? [],
+    ingredients: payload.ingredients ?? [],
+    reviews: payload.reviews ?? [],
+    customizationOptions: payload.customizationOptions ?? {},
     published: payload.published ?? true,
     trackStock,
     stock,
@@ -88,6 +92,10 @@ export async function updateProduct(id, payload) {
     ...(payload.price !== undefined ? { price: payload.price } : {}),
     ...(payload.category !== undefined ? { category: payload.category } : {}),
     ...(payload.imageUrl !== undefined ? { imageUrl: payload.imageUrl } : {}),
+    ...(payload.images !== undefined ? { images: payload.images } : {}),
+    ...(payload.ingredients !== undefined ? { ingredients: payload.ingredients } : {}),
+    ...(payload.reviews !== undefined ? { reviews: payload.reviews } : {}),
+    ...(payload.customizationOptions !== undefined ? { customizationOptions: payload.customizationOptions } : {}),
     ...(payload.published !== undefined ? { published: payload.published } : {}),
     ...(payload.trackStock !== undefined ? { trackStock: payload.trackStock } : {}),
     ...(payload.stock !== undefined ? { stock: normalizeStockNumber(payload.stock, 0) } : {}),
@@ -118,7 +126,7 @@ export async function applyOrderStockAdjustments(items = []) {
   const collection = await getProductsCollection();
 
   for (const item of items) {
-    const productId = String(item?.productId ?? "").trim();
+    const productId = String(item?.baseProductId ?? item?.productId ?? "").split("::")[0].trim();
     const quantity = normalizeStockNumber(item?.quantity, 0);
     if (!ObjectId.isValid(productId) || quantity <= 0) continue;
 

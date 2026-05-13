@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
-import { ProductApiRecord } from '../models/product.model';
+import { ProductApiRecord, ProductCustomizationOptions, ProductReview } from '../models/product.model';
 import { AdminAuthService } from './admin-auth.service';
 
 export interface AdminProductPayload {
@@ -9,6 +9,10 @@ export interface AdminProductPayload {
   price: number;
   category: string;
   imageUrl: string;
+  images?: string[];
+  ingredients?: string[];
+  reviews?: ProductReview[];
+  customizationOptions?: ProductCustomizationOptions;
   available: boolean;
   published: boolean;
   trackStock: boolean;

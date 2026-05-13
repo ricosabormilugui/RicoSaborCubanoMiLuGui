@@ -9,6 +9,45 @@ import {
 } from "../repositories/products.repository.js";
 import { normalizeCategorySlug } from "../config/product-categories.config.js";
 
+
+function normalizeImages(value, imageUrl = "") {
+  const values = Array.isArray(value) ? value : [];
+  return Array.from(new Set([imageUrl, ...values].map((item) => String(item ?? "").trim()).filter(Boolean)));
+}
+
+function normalizeIngredients(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? "").trim()).filter(Boolean);
+  return String(value ?? "").split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeReviews(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => ({
+    author: String(item?.author ?? "").trim(),
+    rating: Math.max(1, Math.min(5, Number(item?.rating ?? 5))),
+    comment: String(item?.comment ?? "").trim(),
+    ...(item?.date ? { date: String(item.date) } : {})
+  })).filter((item) => item.author && item.comment);
+}
+
+function normalizeCustomizationOptions(value = {}) {
+  const normalizeList = (items) => Array.isArray(items)
+    ? items.map((item) => {
+      if (typeof item === "string") return { name: item.trim() };
+      const price = Number(item?.price ?? 0);
+      return { name: String(item?.name ?? "").trim(), ...(Number.isFinite(price) && price > 0 ? { price } : {}) };
+    }).filter((item) => item.name)
+    : [];
+
+  return {
+    themes: normalizeList(value.themes),
+    colors: normalizeList(value.colors),
+    sizes: normalizeList(value.sizes),
+    fillings: normalizeList(value.fillings),
+    toppings: normalizeList(value.toppings)
+  };
+}
+
 function buildPayload(body = {}, { partial = false } = {}) {
   const payload = {};
 
@@ -17,6 +56,10 @@ function buildPayload(body = {}, { partial = false } = {}) {
   if (!partial || body.price !== undefined) payload.price = Number(body.price);
   if (!partial || body.category !== undefined) payload.category = normalizeCategorySlug(body.category);
   if (!partial || body.imageUrl !== undefined) payload.imageUrl = String(body.imageUrl ?? "").trim();
+  if (!partial || body.images !== undefined) payload.images = normalizeImages(body.images, payload.imageUrl);
+  if (!partial || body.ingredients !== undefined) payload.ingredients = normalizeIngredients(body.ingredients);
+  if (!partial || body.reviews !== undefined) payload.reviews = normalizeReviews(body.reviews);
+  if (!partial || body.customizationOptions !== undefined) payload.customizationOptions = normalizeCustomizationOptions(body.customizationOptions);
   if (!partial || body.published !== undefined) payload.published = Boolean(body.published);
   if (!partial || body.trackStock !== undefined) payload.trackStock = Boolean(body.trackStock);
   if (!partial || body.stock !== undefined) payload.stock = Number(body.stock ?? 0);

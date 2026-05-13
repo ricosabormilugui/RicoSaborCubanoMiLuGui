@@ -71,8 +71,13 @@ import {
               <input [(ngModel)]="form.order" name="order" type="number" placeholder="0" />
             </label>
             <label class="full">
-              <span>Imagen del producto (URL)</span>
+              <span>Imagen principal del producto (URL)</span>
               <input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://..." />
+            </label>
+            <label class="full">
+              <span>Galería de imágenes</span>
+              <textarea [(ngModel)]="imagesText" name="imagesText" placeholder="Una URL por línea para mostrar miniaturas en el detalle"></textarea>
+              <small>Compatible con productos antiguos: si solo existe imagen principal, se seguirá usando.</small>
             </label>
           </div>
 
@@ -123,8 +128,27 @@ import {
           <h3>Descripción</h3>
           <label class="full">
             <span>Descripción del producto</span>
-            <textarea [(ngModel)]="form.description" name="description" placeholder="Describe ingredientes, porción y observaciones"></textarea>
+            <textarea [(ngModel)]="form.description" name="description" placeholder="Describe el producto, tamaño, sabor y uso recomendado"></textarea>
           </label>
+          <label class="full">
+            <span>Ingredientes</span>
+            <textarea [(ngModel)]="ingredientsText" name="ingredientsText" placeholder="Un ingrediente por línea"></textarea>
+          </label>
+
+          <h3>Opiniones</h3>
+          <label class="full">
+            <span>Reseñas</span>
+            <textarea [(ngModel)]="reviewsText" name="reviewsText" placeholder="Autor | valoración 1-5 | comentario | fecha opcional"></textarea>
+          </label>
+
+          <h3>Personalización para tartas</h3>
+          <div class="grid two">
+            <label><span>Temáticas</span><textarea [(ngModel)]="customizationThemesText" name="customizationThemesText" placeholder="Cumpleaños | 0"></textarea></label>
+            <label><span>Colores</span><textarea [(ngModel)]="customizationColorsText" name="customizationColorsText" placeholder="Rosa | 0"></textarea></label>
+            <label><span>Tamaños / porciones</span><textarea [(ngModel)]="customizationSizesText" name="customizationSizesText" placeholder="10 porciones | 8"></textarea></label>
+            <label><span>Rellenos</span><textarea [(ngModel)]="customizationFillingsText" name="customizationFillingsText" placeholder="Dulce de leche | 3"></textarea></label>
+            <label class="full"><span>Coberturas</span><textarea [(ngModel)]="customizationToppingsText" name="customizationToppingsText" placeholder="Fruta fresca | 4"></textarea></label>
+          </div>
 
           <div class="actions form-actions">
             <button class="btn btn-primary" type="submit">{{ editId() ? 'Guardar cambios' : '+ Nuevo producto' }}</button>
@@ -236,6 +260,14 @@ export class AdminProductsPageComponent {
   password = '';
   search = '';
   categoryFilter = '';
+  imagesText = '';
+  ingredientsText = '';
+  reviewsText = '';
+  customizationThemesText = '';
+  customizationColorsText = '';
+  customizationSizesText = '';
+  customizationFillingsText = '';
+  customizationToppingsText = '';
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -320,6 +352,10 @@ export class AdminProductsPageComponent {
       price: Number(product.price ?? 0),
       category: product.category ?? DEFAULT_PRODUCT_CATEGORY,
       imageUrl: product.imageUrl ?? '',
+      images: product.images ?? [],
+      ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+      reviews: product.reviews ?? [],
+      customizationOptions: product.customizationOptions ?? {},
       available: product.available ?? true,
       published: product.published ?? true,
       trackStock: product.trackStock ?? false,
@@ -332,7 +368,17 @@ export class AdminProductsPageComponent {
   private normalizedFormPayload(): AdminProductPayload {
     return {
       ...this.form,
-      category: normalizeCategorySlug(this.form.category) || DEFAULT_PRODUCT_CATEGORY
+      category: normalizeCategorySlug(this.form.category) || DEFAULT_PRODUCT_CATEGORY,
+      images: this.parseLines(this.imagesText || this.form.imageUrl),
+      ingredients: this.parseLines(this.ingredientsText),
+      reviews: this.parseReviews(this.reviewsText),
+      customizationOptions: {
+        themes: this.parseOptions(this.customizationThemesText),
+        colors: this.parseOptions(this.customizationColorsText),
+        sizes: this.parseOptions(this.customizationSizesText),
+        fillings: this.parseOptions(this.customizationFillingsText),
+        toppings: this.parseOptions(this.customizationToppingsText)
+      }
     };
   }
 
@@ -361,6 +407,10 @@ export class AdminProductsPageComponent {
       price: Number(product.price ?? 0),
       category: product.category ?? DEFAULT_PRODUCT_CATEGORY,
       imageUrl: product.imageUrl ?? '',
+      images: product.images ?? [],
+      ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+      reviews: product.reviews ?? [],
+      customizationOptions: product.customizationOptions ?? {},
       available: product.available ?? true,
       published: product.published ?? true,
       trackStock: product.trackStock ?? false,
@@ -368,6 +418,14 @@ export class AdminProductsPageComponent {
       lowStockAlert: Number(product.lowStockAlert ?? 5),
       order: Number(product.order ?? 0)
     };
+    this.imagesText = this.stringifyLines(product.images ?? [product.imageUrl].filter(Boolean));
+    this.ingredientsText = this.stringifyLines(Array.isArray(product.ingredients) ? product.ingredients : []);
+    this.reviewsText = (product.reviews ?? []).map((review) => `${review.author} | ${review.rating} | ${review.comment}${review.date ? ` | ${review.date}` : ''}`).join('\n');
+    this.customizationThemesText = this.stringifyOptions(product.customizationOptions?.themes);
+    this.customizationColorsText = this.stringifyOptions(product.customizationOptions?.colors);
+    this.customizationSizesText = this.stringifyOptions(product.customizationOptions?.sizes);
+    this.customizationFillingsText = this.stringifyOptions(product.customizationOptions?.fillings);
+    this.customizationToppingsText = this.stringifyOptions(product.customizationOptions?.toppings);
   }
 
   resetForm(): void {
@@ -385,6 +443,42 @@ export class AdminProductsPageComponent {
       lowStockAlert: 5,
       order: 0
     };
+    this.imagesText = '';
+    this.ingredientsText = '';
+    this.reviewsText = '';
+    this.customizationThemesText = '';
+    this.customizationColorsText = '';
+    this.customizationSizesText = '';
+    this.customizationFillingsText = '';
+    this.customizationToppingsText = '';
+  }
+
+  private parseLines(value: string): string[] {
+    return String(value ?? '').split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  private stringifyLines(values: unknown[] = []): string {
+    return values.map((item) => String(item ?? '').trim()).filter(Boolean).join('\n');
+  }
+
+  private parseOptions(value: string): Array<{ name: string; price?: number }> {
+    return String(value ?? '').split('\n').map((line) => {
+      const [name, priceValue] = line.split('|').map((part) => part.trim());
+      const price = Number(priceValue ?? 0);
+      return name ? { name, ...(Number.isFinite(price) && price > 0 ? { price } : {}) } : null;
+    }).filter((item): item is { name: string; price?: number } => Boolean(item));
+  }
+
+  private stringifyOptions(values: Array<{ name?: string; price?: number }> = []): string {
+    return values.map((item) => `${item.name ?? ''}${item.price ? ` | ${item.price}` : ''}`.trim()).filter(Boolean).join('\n');
+  }
+
+  private parseReviews(value: string): Array<{ author: string; rating: number; comment: string; date?: string }> {
+    return String(value ?? '').split('\n').map((line) => {
+      const [author, ratingValue, comment, date] = line.split('|').map((part) => part.trim());
+      const rating = Math.max(1, Math.min(5, Number(ratingValue ?? 5)));
+      return author && comment ? { author, rating, comment, ...(date ? { date } : {}) } : null;
+    }).filter((item): item is { author: string; rating: number; comment: string; date?: string } => Boolean(item));
   }
 
   async saveProduct(): Promise<void> {

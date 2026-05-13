@@ -1,8 +1,54 @@
 import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
-import { Product, ProductApiRecord } from '../models/product.model';
+import { Product, ProductApiRecord, ProductCustomizationOptions, ProductReview } from '../models/product.model';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
+
+function normalizeImages(item: Partial<ProductApiRecord> | Partial<Product>): string[] {
+  const values = Array.isArray(item.images) ? item.images : [];
+  const imageUrl = String(item.imageUrl ?? '').trim();
+  return Array.from(new Set([imageUrl, ...values.map((value) => String(value ?? '').trim())].filter(Boolean)));
+}
+
+function normalizeIngredients(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+  return String(value ?? '').split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeReviews(value: unknown): ProductReview[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((review) => {
+      const source = review as Partial<ProductReview>;
+      return {
+        author: String(source.author ?? '').trim(),
+        rating: Math.max(1, Math.min(5, Number(source.rating ?? 5))),
+        comment: String(source.comment ?? '').trim(),
+        date: source.date ? String(source.date) : undefined
+      };
+    })
+    .filter((review) => review.author && review.comment);
+}
+
+function normalizeCustomizationOptions(value: unknown): ProductCustomizationOptions {
+  const source = (value && typeof value === 'object' ? value : {}) as ProductCustomizationOptions;
+  const normalizeList = (items: unknown) => Array.isArray(items)
+    ? items.map((item) => {
+      if (typeof item === 'string') return { name: item.trim() };
+      const option = item as { name?: unknown; price?: unknown };
+      const price = Number(option.price ?? 0);
+      return { name: String(option.name ?? '').trim(), ...(Number.isFinite(price) && price > 0 ? { price } : {}) };
+    }).filter((item) => item.name)
+    : [];
+
+  return {
+    themes: normalizeList(source.themes),
+    colors: normalizeList(source.colors),
+    sizes: normalizeList(source.sizes),
+    fillings: normalizeList(source.fillings),
+    toppings: normalizeList(source.toppings)
+  };
+}
 
 function toProduct(item: ProductApiRecord): Product {
   return {
@@ -12,6 +58,10 @@ function toProduct(item: ProductApiRecord): Product {
     price: Number(item.price ?? 0),
     category: item.category ?? 'extras',
     imageUrl: item.imageUrl ?? '',
+    images: normalizeImages(item),
+    ingredients: normalizeIngredients(item.ingredients),
+    reviews: normalizeReviews(item.reviews),
+    customizationOptions: normalizeCustomizationOptions(item.customizationOptions),
     slug: item.slug ?? '',
     available: item.available ?? true,
     published: item.published ?? true,
@@ -36,6 +86,10 @@ function toCachedProduct(item: Partial<Product>): Product | null {
     price: Number(item.price ?? 0),
     category: item.category ?? 'extras',
     imageUrl: item.imageUrl ?? '',
+    images: normalizeImages(item),
+    ingredients: normalizeIngredients(item.ingredients),
+    reviews: normalizeReviews(item.reviews),
+    customizationOptions: normalizeCustomizationOptions(item.customizationOptions),
     slug: item.slug ?? '',
     available: item.available ?? true,
     published: item.published ?? true,
@@ -77,6 +131,16 @@ const fallbackProducts: Product[] = [
     price: 4.9,
     category: 'tartas',
     imageUrl: 'https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?w=900',
+    images: ['https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?w=900'],
+    ingredients: ['Bizcocho', 'Tres leches', 'Merengue'],
+    reviews: [{ author: 'Cliente Rico Sabor', rating: 5, comment: 'Muy jugosa y perfecta para compartir.' }],
+    customizationOptions: {
+      themes: [{ name: 'Cumpleaños' }, { name: 'Celebración familiar' }],
+      colors: [{ name: 'Blanco' }, { name: 'Rojo' }],
+      sizes: [{ name: '6 porciones' }, { name: '10 porciones', price: 8 }],
+      fillings: [{ name: 'Tres leches' }, { name: 'Dulce de leche', price: 3 }],
+      toppings: [{ name: 'Merengue' }, { name: 'Fruta', price: 4 }]
+    },
     slug: 'tarta-tres-leches',
     available: true,
     published: true,

@@ -1,9 +1,17 @@
+export interface CartCustomizationSelection {
+  label: string;
+  value: string;
+  price?: number;
+}
+
 export interface CartItem {
   productId: string;
   name: string;
   description?: string;
   unitPrice: number;
   quantity: number;
+  baseProductId?: string;
+  customization?: CartCustomizationSelection[];
 }
 
 export type DeliveryType = 'delivery' | 'pickup';

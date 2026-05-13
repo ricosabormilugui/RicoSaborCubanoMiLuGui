@@ -1,9 +1,9 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { CartItem } from '../models/order.model';
+import { CartCustomizationSelection, CartItem } from '../models/order.model';
 import { Product } from '../models/product.model';
 
 const CART_STORAGE_KEY = 'ricosabor-cart';
-const CART_SCHEMA_VERSION = 1;
+const CART_SCHEMA_VERSION = 2;
 const MAX_RESTORED_QUANTITY = 99;
 
 interface StoredCartState {
@@ -20,21 +20,24 @@ export class CartService {
   readonly subtotal = computed(() => this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0));
   readonly totalItems = computed(() => this.items().reduce((sum, item) => sum + item.quantity, 0));
 
-  add(product: Product): void {
-    const existing = this.state().find((item) => item.productId === product.id);
+  add(product: Product, customization: CartCustomizationSelection[] = [], unitPrice = product.price): void {
+    const productId = buildCartProductId(product.id, customization);
+    const existing = this.state().find((item) => item.productId === productId);
     if (existing) {
-      this.updateQuantity(product.id, existing.quantity + 1);
+      this.updateQuantity(productId, existing.quantity + 1);
       return;
     }
 
     this.setItems([
       ...this.state(),
       {
-        productId: product.id,
+        productId,
+        baseProductId: product.id,
         name: product.name,
         description: product.description,
-        unitPrice: product.price,
-        quantity: 1
+        unitPrice,
+        quantity: 1,
+        customization: customization.length ? customization : undefined
       }
     ]);
   }
@@ -129,7 +132,9 @@ export class CartService {
       name,
       description: raw.description ? String(raw.description) : '',
       unitPrice,
-      quantity: Math.min(MAX_RESTORED_QUANTITY, quantity)
+      quantity: Math.min(MAX_RESTORED_QUANTITY, quantity),
+      baseProductId: raw.baseProductId ? String(raw.baseProductId) : undefined,
+      customization: normalizeCustomization(raw.customization)
     };
   }
 
@@ -151,4 +156,27 @@ export class CartService {
       items
     } satisfies StoredCartState);
   }
+}
+
+
+function normalizeCustomization(value: unknown): CartCustomizationSelection[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .map((item) => {
+      const source = item as Partial<CartCustomizationSelection>;
+      const label = String(source.label ?? '').trim();
+      const optionValue = String(source.value ?? '').trim();
+      const price = Number(source.price ?? 0);
+      return label && optionValue ? { label, value: optionValue, ...(Number.isFinite(price) && price > 0 ? { price } : {}) } : null;
+    })
+    .filter((item): item is CartCustomizationSelection => Boolean(item));
+  return items.length ? items : undefined;
+}
+
+function buildCartProductId(productId: string, customization: CartCustomizationSelection[]): string {
+  if (!customization.length) return productId;
+  const suffix = customization
+    .map((item) => `${item.label}:${item.value}:${item.price ?? 0}`)
+    .join('|');
+  return `${productId}::${globalThis.btoa(unescape(encodeURIComponent(suffix))).replace(/=+$/g, '')}`;
 }

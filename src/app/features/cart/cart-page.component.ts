@@ -23,6 +23,9 @@ import { CartService } from '../../core/services/cart.service';
           <div class="item-main">
             <span class="mobile-label">Producto</span>
             <strong class="item-name">{{ item.name }}</strong>
+            <ul class="custom-summary" *ngIf="item.customization?.length">
+              <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.price"> (+{{ option.price | currency:'EUR' }})</span></li>
+            </ul>
           </div>
 
           <div class="quantity-cell">
@@ -65,6 +68,7 @@ import { CartService } from '../../core/services/cart.service';
     `.item-main,.quantity-cell,.price-cell{display:grid;gap:.28rem}`,
     `.mobile-label{color:var(--text-soft);font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.03em}`,
     `.item-name{display:-webkit-box;max-width:100%;color:var(--text-main);line-height:1.25;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}`,
+    `.custom-summary{margin:.25rem 0 0;padding-left:1rem;color:var(--text-soft);font-size:.85rem;line-height:1.35;overflow-wrap:anywhere}`,
     `.quantity-controls{display:inline-grid;grid-template-columns:38px minmax(2.25rem,auto) 38px;align-items:center;justify-self:start;min-width:0;border:1px solid var(--border-soft);border-radius:12px;overflow:hidden;background:var(--surface-1)}`,
     `.qty-btn{width:38px;height:38px;border:0;background:transparent;color:var(--text-main);font-size:1.05rem;font-weight:900;cursor:pointer}`,
     `.qty-btn:hover,.qty-btn:focus-visible{background:var(--hover-surface);outline:2px solid color-mix(in srgb,var(--accent-green) 40%,transparent);outline-offset:-2px}`,
