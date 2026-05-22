@@ -1,0 +1,71 @@
+
+    <section class="home-page">
+      <section class="hero-section hero-cakes" aria-labelledby="home-hero-title">
+        <div class="hero-copy">
+          <span class="eyebrow">Tartas bajo encargo</span>
+          <h1 id="home-hero-title">Tartas personalizadas para cumpleaños, eventos y celebraciones</h1>
+          <p>
+            Diseñamos tartas por encargo con sabores caseros, acabados cuidados y coordinación directa
+            para que tu celebración tenga un toque especial de Rico Sabor Cubano.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" routerLink="/productos" [queryParams]="{ category: 'tartas' }">Ver tartas</a>
+            <a class="btn btn-secondary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">Pedir por WhatsApp</a>
+          </div>
+        </div>
+
+        <div class="hero-card card" aria-label="Pedido personalizado">
+          <span class="card-kicker">Encargos especiales</span>
+          <strong>Tartas con nombre, temática y tamaño a medida</strong>
+          <p>Cuéntanos fecha, personas, sabor favorito y estilo. Te confirmamos disponibilidad antes de preparar el pedido.</p>
+        </div>
+      </section>
+
+      <section class="feature-section cuban-food" aria-labelledby="cuban-food-title">
+        <div>
+          <span class="eyebrow">Comida cubana</span>
+          <h2 id="cuban-food-title">Comida cubana casera y tradicional</h2>
+          <p>
+            Platos con sabor familiar: combos, arroz moro, ropa vieja, dulces y opciones pensadas para comer bien en casa,
+            celebraciones o pedidos de grupo.
+          </p>
+        </div>
+        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'cubano' }">Ver comida cubana</a>
+      </section>
+
+      <section class="feature-section spanish-food" aria-labelledby="spanish-food-title">
+        <div>
+          <span class="eyebrow">Comida española</span>
+          <h2 id="spanish-food-title">Platos españoles y opciones para pedidos</h2>
+          <p>
+            Propuestas caseras de inspiración española para reuniones, comidas familiares y encargos especiales con atención directa.
+          </p>
+        </div>
+        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'española' }">Ver comida española</a>
+      </section>
+
+      <section class="best-sellers" *ngIf="bestSellers().length" aria-labelledby="best-sellers-title">
+        <div class="best-sellers-head">
+          <div>
+            <span class="eyebrow">Favoritos</span>
+            <h2 id="best-sellers-title">Más vendidos</h2>
+          </div>
+          <a routerLink="/productos">Ver todos los productos</a>
+        </div>
+
+        <div class="mini-grid">
+          <article class="mini-product" *ngFor="let product of bestSellers()">
+            <a class="mini-image" [routerLink]="productRoute(product)" [attr.aria-label]="'Ver detalle de ' + product.name">
+              <img [src]="product.imageUrl || fallbackImage" [alt]="productImageAlt(product)" width="160" height="160" loading="lazy" decoding="async" />
+            </a>
+            <div class="mini-content">
+              <span class="mini-tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
+              <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
+              <strong>{{ product.price | currency:'EUR' }}</strong>
+              <button class="btn btn-secondary" type="button" (click)="addToCart(product)">Añadir</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+  
