@@ -82,7 +82,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             </select>
           </label>
           <label>
-            Cupón PRIMER10
+            Cupón
             <select [(ngModel)]="couponFilter" name="couponFilter" (change)="applyFilters()">
               <option value="">Todos</option>
               <option value="used">Usado</option>

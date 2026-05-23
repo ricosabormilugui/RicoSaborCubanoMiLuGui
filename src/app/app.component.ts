@@ -180,7 +180,7 @@ import { SeoService } from './core/services/seo.service';
               <span>Acepto recibir promociones y comunicaciones comerciales. He leído la <a routerLink="/legal/privacidad">política de privacidad</a> y podré solicitar la baja en cualquier momento.</span>
             </label>
             <button class="btn btn-primary" type="submit" [disabled]="newsletterLoading()">
-              {{ newsletterLoading() ? 'Guardando...' : 'Activar cupón PRIMER10' }}
+              {{ newsletterLoading() ? 'Guardando...' : 'Activar cupón' }}
             </button>
             <p class="ok" *ngIf="newsletterNotice()">{{ newsletterNotice() }}</p>
             <p class="err" *ngIf="newsletterError()">{{ newsletterError() }}</p>
@@ -327,8 +327,8 @@ export class AppComponent {
     try {
       const result = await this.newsletterService.subscribe(email, true);
       const message = result.duplicated
-        ? 'Este email ya estaba suscrito. Mantienes tu cupón PRIMER10 si aplica.'
-        : 'Suscripción guardada. Cupón PRIMER10 registrado para validación manual.';
+        ? 'Este email ya estaba suscrito. Mantienes tu cupón si aplica.'
+        : 'Suscripción guardada. Cupón registrado para validación manual.';
       this.newsletterNotice.set(message);
       this.notifications.success('Newsletter', message);
       this.newsletterEmail.set('');

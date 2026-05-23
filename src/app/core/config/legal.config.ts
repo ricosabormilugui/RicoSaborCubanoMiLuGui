@@ -115,7 +115,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
       },
       {
         title: 'Precios y disponibilidad',
-        paragraphs: ['Los importes se muestran en euros. Si detectamos un error de precio o disponibilidad, contactaremos antes de continuar.', 'Las promociones como PRIMER10 requieren validación manual y pueden estar sujetas a condiciones operativas.']
+        paragraphs: ['Los importes se muestran en euros. Si detectamos un error de precio o disponibilidad, contactaremos antes de continuar.', 'Las promociones como CUPONES requieren validación manual y pueden estar sujetas a condiciones operativas.']
       }
     ]
   },

@@ -148,7 +148,7 @@ import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../.
 
               <label class="consent-check">
                 <input type="checkbox" formControlName="marketingConsent" />
-                <span>Acepto recibir promociones y activar el cupón inicial PRIMER10 para validación manual según la <a routerLink="/legal/privacidad">política de privacidad</a>.</span>
+                <span>Acepto recibir promociones y activar el cupón inicial para validación manual según la <a routerLink="/legal/privacidad">política de privacidad</a>.</span>
               </label>
 
               <label class="consent-check">
@@ -207,11 +207,11 @@ import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../.
               <label>
                 Cupón descuento
                 <div class="coupon-row">
-                  <input [value]="form.controls.couponCode.value" placeholder="PRIMER10" (input)="setCouponCode($event)" />
+                  <input [value]="form.controls.couponCode.value" placeholder="Cupon" (input)="setCouponCode($event)" />
                   <button class="btn btn-secondary" type="button" (click)="applyCouponPreview()">Aplicar</button>
                 </div>
               </label>
-              <small class="coupon-ok" *ngIf="couponPreviewValid()">PRIMER10 preaplicado. El backend validará que sea tu primer pedido.</small>
+              <small class="coupon-ok" *ngIf="couponPreviewValid()">Cupón preaplicado. El backend validará que sea tu primer pedido.</small>
               <small class="field-error" *ngIf="couponPreviewMessage()">{{ couponPreviewMessage() }}</small>
             </div>
             <div class="summary-line">
@@ -219,7 +219,7 @@ import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../.
               <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
             </div>
             <div class="summary-line discount" *ngIf="couponDiscountPreview() > 0">
-              <span>Descuento PRIMER10</span>
+              <span>Descuento Cupon</span>
               <strong>-{{ couponDiscountPreview() | currency:'EUR' }}</strong>
             </div>
             <div class="summary-line">
