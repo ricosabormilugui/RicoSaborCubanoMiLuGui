@@ -5,10 +5,11 @@ import { CartService } from '../../core/services/cart.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { Product } from '../../core/models/product.model';
+import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
+import { Router } from '@angular/router';
 
 @Component({
   standalone: true,
@@ -21,6 +22,7 @@ export class HomePageComponent {
   private readonly cart = inject(CartService);
   private readonly notifications = inject(NotificationService);
   private readonly seo = inject(SeoService);
+  private readonly router = inject(Router);
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=700';
@@ -45,8 +47,16 @@ export class HomePageComponent {
   }
 
   addToCart(product: Product): void {
+    if (this.isCustomizable(product)) {
+      void this.router.navigate(this.productRoute(product));
+      return;
+    }
     this.cart.add(product);
     this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+  }
+
+  isCustomizable(product: Product): boolean {
+    return isProductCustomizable(product);
   }
 
   private updateSeo(): void {

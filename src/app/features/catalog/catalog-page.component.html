@@ -93,7 +93,7 @@
             <a class="product-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
             <strong>{{ product.price | currency:'EUR' }}</strong>
             <div class="actions">
-              <button class="btn btn-primary" type="button" (click)="addToCart(product)">+ Añadir</button>
+              <button class="btn btn-primary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : '+ Añadir' }}</button>
               <a class="btn btn-secondary details-link" [routerLink]="productRoute(product)">Ver producto</a>
             </div>
           </div>
@@ -114,7 +114,7 @@
           <div>
             <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
             <strong>{{ product.price | currency:'EUR' }}</strong>
-            <button class="btn btn-secondary" type="button" (click)="addToCart(product)">Añadir</button>
+            <button class="btn btn-secondary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : 'Añadir' }}</button>
           </div>
         </article>
       </div>

@@ -67,3 +67,21 @@ export interface ProductApiRecord {
   salesCount?: number;
   soldCount?: number;
 }
+
+export function isProductCustomizable(product: Product | null | undefined): boolean {
+  if (!product) return false;
+  const customizationOptions = product.customizationOptions;
+  const hasCustomizationGroups = Boolean(
+    customizationOptions && (
+      (customizationOptions.themes?.length ?? 0) > 0
+      || (customizationOptions.colors?.length ?? 0) > 0
+      || (customizationOptions.sizes?.length ?? 0) > 0
+      || (customizationOptions.fillings?.length ?? 0) > 0
+      || (customizationOptions.toppings?.length ?? 0) > 0
+    )
+  );
+  if (hasCustomizationGroups) return true;
+
+  const category = String(product.category ?? '').toLowerCase();
+  return category.includes('tarta') || category.includes('personaliz');
+}

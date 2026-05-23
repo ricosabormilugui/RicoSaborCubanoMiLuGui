@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { Product } from '../../core/models/product.model';
+import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
@@ -149,8 +149,16 @@ export class CatalogPageComponent {
   }
 
   addToCart(product: Product): void {
+    if (this.isCustomizable(product)) {
+      void this.router.navigate(this.productRoute(product));
+      return;
+    }
     this.cart.add(product);
     this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+  }
+
+  isCustomizable(product: Product): boolean {
+    return isProductCustomizable(product);
   }
 
   private updateSearchParam(_value: string): void {

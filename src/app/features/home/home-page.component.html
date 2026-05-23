@@ -62,7 +62,7 @@
               <span class="mini-tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
               <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
               <strong>{{ product.price | currency:'EUR' }}</strong>
-              <button class="btn btn-secondary" type="button" (click)="addToCart(product)">Añadir</button>
+              <button class="btn btn-secondary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : 'Añadir' }}</button>
             </div>
           </article>
         </div>

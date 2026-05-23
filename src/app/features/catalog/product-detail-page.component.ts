@@ -6,11 +6,12 @@ import { CartService } from '../../core/services/cart.service';
 import { CartCustomizationSelection } from '../../core/models/order.model';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { Product, ProductCustomizationOption } from '../../core/models/product.model';
+import { isProductCustomizable, Product, ProductCustomizationOption } from '../../core/models/product.model';
 import { findProductBySlugOrId, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { SeoService } from '../../core/services/seo.service';
+import { Router } from '@angular/router';
 
 @Component({
   standalone: true,
@@ -30,7 +31,7 @@ export class ProductDetailPageComponent {
   readonly isLoadingDetail = computed(() => this.catalog.loading() && !this.product());
   readonly relatedProducts = computed(() => selectBestSellers(this.catalog.products(), 4, this.product()?.id));
 
-  constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService) {
+  constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router) {
     void this.catalog.loadProducts();
     this.route.paramMap.subscribe((params) => { this.productParam.set(params.get('slug') ?? ''); this.quantity.set(1); this.selectedImage.set(''); this.selectedCustomization.set({}); this.customizationError.set(''); });
     effect(() => this.updateSeo());
@@ -46,7 +47,7 @@ export class ProductDetailPageComponent {
   productReviews(product: Product) { return Array.isArray(product.reviews) ? product.reviews : []; }
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
   stars(rating: number): string { const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0)))); return '★★★★★'.slice(0, value) + '☆☆☆☆☆'.slice(value); }
-  isCustomCake(product: Product): boolean { const category = normalizeCategorySlug(product.category); return category.includes('tarta') || category.includes('personaliz'); }
+  isCustomCake(product: Product): boolean { return isProductCustomizable(product); }
   customizationGroups(product: Product): Array<{ key: string; label: string; options: ProductCustomizationOption[] }> { const options = product.customizationOptions ?? {}; return [{ key: 'themes', label: 'Temática', options: options.themes ?? [] }, { key: 'colors', label: 'Color', options: options.colors ?? [] }, { key: 'sizes', label: 'Tamaño / porciones', options: options.sizes ?? [] }, { key: 'fillings', label: 'Relleno', options: options.fillings ?? [] }, { key: 'toppings', label: 'Cobertura', options: options.toppings ?? [] }].filter((group) => group.options.length); }
   selectCustomization(key: string, option: ProductCustomizationOption): void { this.selectedCustomization.set({ ...this.selectedCustomization(), [key]: option }); this.customizationError.set(''); }
   customizationExtraTotal(): number { return Object.values(this.selectedCustomization()).reduce((sum, option) => sum + Number(option.price ?? 0), 0); }
@@ -55,13 +56,29 @@ export class ProductDetailPageComponent {
 
   addToCart(product: Product, amount = this.quantity()): void {
     const groups = this.customizationGroups(product);
-    if (this.isCustomCake(product) && groups.some((group) => !this.selectedCustomization()[group.key])) { this.customizationError.set('Selecciona todas las opciones de personalización antes de añadir la tarta.'); return; }
+    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona temática, color, tamaño/porciones, relleno y cobertura antes de añadir la tarta.'); return; }
     const quantity = Math.max(1, Math.floor(amount));
     const customization = this.selectedCustomizationItems(product);
     const unitPrice = this.customizedTotal(product);
     for (let index = 0; index < quantity; index += 1) this.cart.add(product, customization, unitPrice);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
     this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
+  }
+
+  addRelated(item: Product): void {
+    if (this.isCustomCake(item)) {
+      void this.router.navigate(this.productRoute(item));
+      return;
+    }
+    this.addToCart(item, 1);
+  }
+
+  private hasRequiredCustomization(groups: Array<{ key: string }>): boolean {
+    const requiredKeys = ['themes', 'colors', 'sizes', 'fillings', 'toppings'];
+    const groupKeys = new Set(groups.map((group) => group.key));
+    return requiredKeys
+      .filter((key) => groupKeys.has(key))
+      .every((key) => Boolean(this.selectedCustomization()[key]));
   }
 
   private updateSeo(): void {

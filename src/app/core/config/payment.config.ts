@@ -2,5 +2,5 @@ export const MANUAL_PAYMENT_DETAILS = {
   bizumPhone: '+34644339404',
   bankAccountHolder: 'AMED PUENTES PADRÓN',
   bankIban: 'ES7515632626343269629293',
-  cashInstructions: 'PENDIENTE_CONFIGURAR_INSTRUCCIONES_EFECTIVO: pagar en efectivo al recibir o recoger el pedido.'
+  cashInstructions: 'Pagar en efectivo al recibir o recoger el pedido.'
 } as const;
