@@ -14,7 +14,7 @@ import {
 } from "../repositories/orders.repository.js";
 import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
 import { findCustomerForCoupon, markFirstOrderCouponUsed, upsertCustomerFromOrder } from "../repositories/customers.repository.js";
-import { calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
+import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
@@ -289,8 +289,8 @@ export async function createOrder(req, res) {
     if (!normalizedShipping.quote.available) {
       return res.status(400).json({ error: normalizedShipping.quote.message });
     }
-    if (requiresAdvancePayment && normalizedPayment.method === "cash") {
-      return res.status(400).json({ error: "Este pedido requiere pago anticipado y no permite efectivo." });
+    if (requiresAdvancePayment && normalizedPayment.method === "cash" && !DELIVERY_RULES.cashAllowedForAdvancePaymentOrders) {
+      return res.status(400).json({ error: "Este pedido requiere pago anticipado y no permite pago en efectivo." });
     }
 
     const canonicalPhone = normalizePhone(payload?.customer?.phone);

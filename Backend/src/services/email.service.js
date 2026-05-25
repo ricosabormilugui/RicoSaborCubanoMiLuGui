@@ -22,7 +22,7 @@ function formatCurrency(value) {
 }
 
 function getDeliveryModeLabel(mode) {
-  return mode === "pickup" ? "Recogida en local" : "Entrega a domicilio";
+  return mode === "pickup" ? "Recogida en Alcorcón" : "Entrega a domicilio";
 }
 
 function formatDeliveryDate(value) {
@@ -93,7 +93,7 @@ function getDiscountLabel(order) {
 
 function getShippingLabel(order) {
   if ((order?.deliveryType ?? order?.delivery?.type) === "pickup") {
-    return "Recogida en local · sin coste";
+    return "Recogida en Alcorcón · sin coste";
   }
 
   const zone = order?.shipping?.zoneName ? `${order.shipping.zoneName} · ` : "";

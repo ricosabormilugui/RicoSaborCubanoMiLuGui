@@ -10,7 +10,7 @@ import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
 import { MANUAL_PAYMENT_DETAILS } from '../../core/config/payment.config';
-import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../../core/config/shipping.config';
+import { DELIVERY_RULES, ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../../core/config/shipping.config';
 import { resolveApiBaseUrl } from '../../core/config/api.config';
 
 @Component({
@@ -137,7 +137,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                 </label>
                 <label>
                   Código postal
-                  <input formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="29001" (input)="sanitizePostalCode()" />
+                  <input formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922" (input)="sanitizePostalCode()" />
                   <small class="field-error" *ngIf="isInvalid('postalCode')">Introduce un código postal válido.</small>
                 </label>
               </div>
@@ -145,6 +145,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               <div class="shipping-quote" [class.blocked]="!shippingQuote().available">
                 <strong>Zona y coste de envío</strong>
                 <p>{{ shippingQuote().message }}</p>
+                <p class="meta">Antelación recomendada: {{ requiredAdvanceNoticeHours() }} horas.</p>
               </div>
 
               <div class="grid">
@@ -181,7 +182,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               </div>
 
               <div class="payment-options" role="radiogroup" aria-label="Método de pago">
-                <label class="payment-card" *ngFor="let method of paymentMethods" [class.active]="form.controls.paymentMethod.value === method.value">
+                <label class="payment-card" *ngFor="let method of availablePaymentMethods()" [class.active]="form.controls.paymentMethod.value === method.value">
                   <input type="radio" formControlName="paymentMethod" [value]="method.value" />
                   <span>
                     <strong>{{ method.label }}</strong>
@@ -193,6 +194,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               <div class="payment-instructions">
                 <strong>Instrucciones</strong>
                 <p>{{ selectedPaymentInstructions(orderId()) }}</p>
+                <p class="meta" *ngIf="requiresAdvancePayment()">{{ deliveryRules.notes }}</p>
               </div>
             </section>
 
@@ -255,6 +257,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
       <div class="app-alert app-alert-success" *ngIf="orderId()">
         ✅ Pedido recibido como <strong>pendiente de pago</strong>. Número: <strong>{{ orderId() }}</strong>
         <p>{{ selectedPaymentInstructions(orderId()) }}</p>
+                <p class="meta" *ngIf="requiresAdvancePayment()">{{ deliveryRules.notes }}</p>
       </div>
       <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
       <div class="app-alert app-alert-warn" *ngIf="notificationWarning()">{{ notificationWarning() }}</div>
@@ -352,6 +355,7 @@ export class CheckoutPageComponent {
     { value: 'bank_transfer', label: 'Transferencia', description: 'Pago por IBAN / cuenta bancaria' },
     { value: 'cash', label: 'Efectivo', description: 'Al recibir o recoger el pedido' }
   ];
+  readonly deliveryRules = DELIVERY_RULES;
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -391,6 +395,21 @@ export class CheckoutPageComponent {
     this.form.controls.deliveryType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((type) => this.updateAddressValidation(type));
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === 'cash') {
+        this.form.controls.paymentMethod.setValue('bizum');
+      }
+    });
+  }
+
+
+
+  availablePaymentMethods(): Array<{ value: PaymentMethod; label: string; description: string }> {
+    if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders) {
+      return this.paymentMethods.filter((method) => method.value !== 'cash');
+    }
+
+    return this.paymentMethods;
   }
 
   selectedPaymentLabel(): string {
@@ -418,7 +437,7 @@ export class CheckoutPageComponent {
   }
 
   canSubmitOrder(): boolean {
-    if (this.requiresAdvancePayment() && this.form.controls.paymentMethod.value === "cash") return false;
+    if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === "cash") return false;
     return this.shippingQuote().available;
   }
 
@@ -428,6 +447,14 @@ export class CheckoutPageComponent {
 
   showExistingEmailHint(): boolean {
     return Boolean(this.emailAlreadyRegistered()) && !this.customerAuth.isAuthenticated();
+  }
+
+
+
+  requiredAdvanceNoticeHours(): number {
+    return this.requiresAdvancePayment()
+      ? this.deliveryRules.personalizedAdvanceNoticeHours
+      : this.deliveryRules.advanceNoticeHours;
   }
 
   isInvalid(controlName: keyof typeof this.form.controls): boolean {
@@ -534,7 +561,7 @@ export class CheckoutPageComponent {
     this.sanitizePostalCode();
     this.applyCouponPreview();
 
-    if (this.requiresAdvancePayment() && this.form.controls.paymentMethod.value === "cash") {
+    if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === "cash") {
       this.notifications.warning('Pago no permitido', 'Este pedido requiere pago anticipado por tratarse de productos personalizados o bajo encargo.');
       return;
     }
@@ -558,7 +585,7 @@ export class CheckoutPageComponent {
 
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
-      payload.requiresAdvancePayment = this.requiresAdvancePayment() as any;
+      payload.requiresAdvancePayment = this.requiresAdvancePayment();
       const result = await this.orderService.submitOrder(payload);
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
