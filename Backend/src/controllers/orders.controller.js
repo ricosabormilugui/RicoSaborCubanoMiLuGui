@@ -2,17 +2,20 @@ import { randomUUID } from "crypto";
 import { sendOrderEmail } from "../services/email.service.js";
 import {
   appendOrderNotifications,
+  deleteOrderById,
   findCouponRedemption,
   findOrderById,
   findPreviousValidOrderForCustomer,
   listOrders,
   listOrdersForCustomer,
   saveOrder,
+  updateOrderPayment,
   updateOrderStatus
 } from "../repositories/orders.repository.js";
 import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
 import { findCustomerForCoupon, markFirstOrderCouponUsed, upsertCustomerFromOrder } from "../repositories/customers.repository.js";
 import { calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
+import { sendOrderStatusEmail } from "../services/email.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
@@ -239,6 +242,16 @@ function normalizePayment(payload) {
   };
 }
 
+function requiresAdvancePaymentForItems(items = []) {
+  return items.some((item) =>
+    Boolean(item?.requiresAdvancePayment)
+    || Boolean(item?.isCustomizable)
+    || (Array.isArray(item?.customization) && item.customization.length > 0)
+    || (Array.isArray(item?.customizationOptions) && item.customizationOptions.length > 0)
+    || String(item?.category ?? item?.categoryName ?? "").toLowerCase().includes("personaliz")
+  );
+}
+
 function buildOrderIdentity(payload, auth) {
   if (auth?.role === "customer") {
     return {
@@ -264,6 +277,7 @@ export async function createOrder(req, res) {
     const customerEmailNormalized = normalizeCustomerEmail(payload, req.auth);
     const normalizedDelivery = normalizeDelivery(payload);
     const normalizedPayment = normalizePayment(payload);
+    const requiresAdvancePayment = requiresAdvancePaymentForItems(payload?.items ?? []);
     const marketingConsent = normalizeMarketingConsent(payload);
     const normalizedShipping = normalizeShipping(payload, normalizedDelivery);
     const deliveryValidationError = validateDelivery(normalizedDelivery);
@@ -274,6 +288,9 @@ export async function createOrder(req, res) {
 
     if (!normalizedShipping.quote.available) {
       return res.status(400).json({ error: normalizedShipping.quote.message });
+    }
+    if (requiresAdvancePayment && normalizedPayment.method === "cash") {
+      return res.status(400).json({ error: "Este pedido requiere pago anticipado y no permite efectivo." });
     }
 
     const canonicalPhone = normalizePhone(payload?.customer?.phone);
@@ -324,6 +341,7 @@ export async function createOrder(req, res) {
       payment: normalizedPayment,
       paymentMethod: normalizedPayment.method,
       paymentStatus: normalizedPayment.status,
+      requiresAdvancePayment,
       shipping: normalizedShipping.details,
       shippingCost: normalizedShipping.details.cost,
       subtotal,
@@ -506,6 +524,54 @@ export async function updateOrderStatusForAdmin(req, res) {
       notifications
     });
 
+  } catch (error) {
+    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+  }
+}
+
+export async function deleteOrderForAdmin(req, res) {
+  try {
+    const { orderId } = req.params;
+    if (!orderId || String(orderId).trim().length < 4) {
+      return res.status(400).json({ error: "Invalid order id" });
+    }
+    const deleted = await deleteOrderById(orderId);
+    if (!deleted) return res.status(404).json({ error: "Order not found" });
+    return res.status(200).json({ ok: true, deleted: true, orderId });
+  } catch (error) {
+    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+  }
+}
+
+export async function updateOrderPaymentForAdmin(req, res) {
+  try {
+    const { orderId } = req.params;
+    const paymentStatus = String(req.body?.paymentStatus ?? "").trim();
+    const notifyCustomer = Boolean(req.body?.notifyCustomer ?? true);
+    const note = String(req.body?.note ?? "").trim();
+    const allowed = new Set(["pending", "paid", "rejected", "refunded", "failed", "cancelled"]);
+    if (!allowed.has(paymentStatus)) return res.status(400).json({ error: "Invalid paymentStatus" });
+    const existing = await findOrderById(orderId);
+    if (!existing) return res.status(404).json({ error: "Order not found" });
+    if (existing.paymentStatus === paymentStatus || existing?.payment?.status === paymentStatus) {
+      return res.status(200).json({ ok: true, order: existing, notifications: { email: { sent: false, warning: "payment-unchanged" } } });
+    }
+    const updated = await updateOrderPayment(orderId, {
+      status: paymentStatus,
+      note,
+      confirmedAt: paymentStatus === "paid" ? new Date().toISOString() : null
+    }, { paymentUpdatedBy: req.auth?.email ?? "admin" });
+    let email = { sent: false, warning: "payment-not-notified" };
+    if (notifyCustomer && paymentStatus === "paid" && existing.customer?.email) {
+      try {
+        await sendOrderStatusEmail(updated, { status: updated.status, statusNote: `Pago confirmado. ${note}`.trim() });
+        email = { sent: true, warning: null };
+      } catch (error) {
+        email = { sent: false, warning: error.message ?? "payment-email-failed" };
+      }
+    }
+    await appendOrderNotifications(orderId, buildNotificationHistory({ email }));
+    return res.status(200).json({ ok: true, order: updated, notifications: { email } });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }

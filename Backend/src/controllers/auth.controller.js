@@ -121,3 +121,16 @@ export async function getCustomerSession(req, res) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
+
+export async function checkEmailRegistered(req, res) {
+  try {
+    const email = String(req.query?.email ?? "").trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ error: "email is required" });
+    }
+    const user = await findUserByEmail(email);
+    return res.status(200).json({ exists: Boolean(user) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+  }
+}

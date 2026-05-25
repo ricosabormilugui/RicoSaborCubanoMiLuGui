@@ -8,6 +8,14 @@ export interface NotificationChannelResult {
   warning: string | null;
 }
 
+
+
+export interface UpdatePaymentResult {
+  notifications: {
+    email: NotificationChannelResult;
+  };
+}
+
 export interface UpdateStatusResult {
   notifications: {
     email: NotificationChannelResult;
@@ -90,5 +98,30 @@ export class AdminOrderService {
         email: data.notifications?.email ?? { sent: false, warning: 'unknown' }
       }
     };
+  }
+
+  async deleteOrder(orderId: string): Promise<void> {
+    const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${this.auth.token()}` }
+    });
+    if (!response.ok) throw new Error('No fue posible borrar el pedido.');
+  }
+
+  async updatePayment(orderId: string, paymentStatus: string, note = "", notifyCustomer = true): Promise<UpdatePaymentResult> {
+    const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}/payment`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.auth.token()}`
+      },
+      body: JSON.stringify({ paymentStatus, note, notifyCustomer })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "No fue posible actualizar pago.");
+    }
+    const data = await response.json();
+    return { notifications: { email: data.notifications?.email ?? { sent: false, warning: "unknown" } } };
   }
 }

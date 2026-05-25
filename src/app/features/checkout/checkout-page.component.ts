@@ -11,6 +11,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
 import { MANUAL_PAYMENT_DETAILS } from '../../core/config/payment.config';
 import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../../core/config/shipping.config';
+import { resolveApiBaseUrl } from '../../core/config/api.config';
 
 @Component({
   standalone: true,
@@ -34,12 +35,24 @@ import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../.
       <ng-template #checkoutContent>
         <div class="checkout-layout">
           <form class="checkout-form card" [formGroup]="form" (ngSubmit)="submit()">
+            
+            <section class="form-section" *ngIf="!customerAuth.isAuthenticated()">
+              <div class="section-head"><span>0</span><div><h2>Cuenta recomendada</h2><p>Crea una cuenta para consultar tus pedidos, ver estados y recibir actualizaciones.</p></div></div>
+              <div class="account-cta">
+                <a class="btn" routerLink="/login">Iniciar sesión</a>
+                <a class="btn" routerLink="/registro">Crear cuenta</a>
+                <span class="meta">Puedes continuar como invitado.</span>
+              </div>
+              <p class="field-error" *ngIf="showExistingEmailHint()">Ya existe una cuenta con este email. Inicia sesión para que este pedido quede asociado a tu cuenta.</p>
+            </section>
+
             <section class="form-section">
               <div class="section-head">
                 <span>1</span>
                 <div>
                   <h2>Datos de contacto</h2>
                   <p>Te contactaremos para validar el pago y coordinar la entrega.</p>
+                  <small class="meta" *ngIf="customerAuth.isAuthenticated()">Pedido asociado a tu cuenta.</small>
                 </div>
               </div>
 
@@ -322,6 +335,7 @@ import { ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../.
 export class CheckoutPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly apiBaseUrl = resolveApiBaseUrl();
 
   readonly loading = signal(false);
   readonly orderId = signal('');
@@ -331,6 +345,7 @@ export class CheckoutPageComponent {
   readonly notificationWarning = signal('');
   readonly couponPreviewMessage = signal('');
   readonly couponPreviewValid = signal(false);
+  readonly emailAlreadyRegistered = signal(false);
   readonly slots = ['12:00-14:00', '14:00-16:00', '18:00-20:00'];
   readonly paymentMethods: Array<{ value: PaymentMethod; label: string; description: string }> = [
     { value: 'bizum', label: 'Bizum', description: `Enviar al ${MANUAL_PAYMENT_DETAILS.bizumPhone}` },
@@ -359,7 +374,7 @@ export class CheckoutPageComponent {
   constructor(
     public readonly cart: CartService,
     private readonly orderService: OrderService,
-    private readonly customerAuth: CustomerAuthService,
+    public readonly customerAuth: CustomerAuthService,
     private readonly notifications: NotificationService,
     private readonly deliveryState: DeliveryStateService
   ) {
@@ -372,6 +387,7 @@ export class CheckoutPageComponent {
     });
 
     this.updateAddressValidation(this.form.controls.deliveryType.value);
+    this.form.controls.email.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((email) => void this.checkEmailRegistered(email ?? ""));
     this.form.controls.deliveryType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((type) => this.updateAddressValidation(type));
@@ -402,7 +418,16 @@ export class CheckoutPageComponent {
   }
 
   canSubmitOrder(): boolean {
+    if (this.requiresAdvancePayment() && this.form.controls.paymentMethod.value === "cash") return false;
     return this.shippingQuote().available;
+  }
+
+  requiresAdvancePayment(): boolean {
+    return this.cart.items().some((item) => Boolean((item as any).requiresAdvancePayment) || Boolean((item as any).customization?.length));
+  }
+
+  showExistingEmailHint(): boolean {
+    return Boolean(this.emailAlreadyRegistered()) && !this.customerAuth.isAuthenticated();
   }
 
   isInvalid(controlName: keyof typeof this.form.controls): boolean {
@@ -461,6 +486,17 @@ export class CheckoutPageComponent {
     }
   }
 
+  private async checkEmailRegistered(email: string): Promise<void> {
+    const clean = String(email ?? "").trim().toLowerCase();
+    if (!clean || this.customerAuth.isAuthenticated()) { this.emailAlreadyRegistered.set(false); return; }
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/auth/email-exists?email=${encodeURIComponent(clean)}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      this.emailAlreadyRegistered.set(Boolean(data.exists));
+    } catch {}
+  }
+
   private updateAddressValidation(deliveryType: 'delivery' | 'pickup'): void {
     const addressControl = this.form.controls.address;
     const postalCodeControl = this.form.controls.postalCode;
@@ -498,6 +534,11 @@ export class CheckoutPageComponent {
     this.sanitizePostalCode();
     this.applyCouponPreview();
 
+    if (this.requiresAdvancePayment() && this.form.controls.paymentMethod.value === "cash") {
+      this.notifications.warning('Pago no permitido', 'Este pedido requiere pago anticipado por tratarse de productos personalizados o bajo encargo.');
+      return;
+    }
+
     if (!this.shippingQuote().available) {
       this.notifications.warning('Revisa el envío', this.shippingQuote().message);
       return;
@@ -517,6 +558,7 @@ export class CheckoutPageComponent {
 
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
+      payload.requiresAdvancePayment = this.requiresAdvancePayment() as any;
       const result = await this.orderService.submitOrder(payload);
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
@@ -524,6 +566,7 @@ export class CheckoutPageComponent {
       this.notificationWarning.set(result.warning ?? '');
 
       this.notifications.success('Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`);
+      if (!this.customerAuth.isAuthenticated()) this.notifications.info('Cuenta recomendada', 'Crea una cuenta o inicia sesión para asociar y seguir tus pedidos.');
       if (result.warning) {
         this.notifications.warning('Aviso de notificación', result.warning);
       }

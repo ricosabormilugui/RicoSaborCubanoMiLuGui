@@ -51,7 +51,10 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
         <article class="order" *ngFor="let order of orders()">
           <header>
             <h3>{{ order.orderId }} · {{ order.customer?.fullName || 'Cliente' }}</h3>
-            <span class="badge" [class]="'badge ' + order.status">{{ order.status }}</span>
+            <div class="header-actions">
+              <span class="badge" [class]="'badge ' + order.status">{{ order.status }}</span>
+              <button class="icon-delete" title="Eliminar pedido" aria-label="Eliminar pedido" (click)="deleteOrder(order.orderId)">🗑</button>
+            </div>
           </header>
           <p>
             <strong>Tel:</strong> {{ order.customer?.phone || 'N/A' }} ·
@@ -62,7 +65,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }} ·
             <strong>📅:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} ·
             <strong>🕒:</strong> {{ order.deliverySlot || 'N/A' }} ·
-            <strong>Pago:</strong> {{ paymentLabel(order) }} · {{ paymentStatusLabel(order) }}
+            <strong>Pago:</strong> {{ paymentLabel(order) }} · {{ paymentStatusLabel(order) }} · <strong>{{ order.requiresAdvancePayment ? 'Pago anticipado requerido' : 'Efectivo permitido' }}</strong>
           </p>
           <ul>
             <li *ngFor="let item of order.items">
@@ -71,6 +74,20 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             </li>
           </ul>
           <p *ngIf="order.notes"><strong>Notas:</strong> {{ order.notes }}</p>
+
+          <div class="payment-tools">
+            <div class="payment-main">
+              <label class="payment-check">
+                <input
+                  type="checkbox"
+                  [checked]="isPaid(order)"
+                  (change)="togglePayment(order, $any($event.target).checked, paymentNote.value)" />
+                <span>Pago confirmado</span>
+              </label>
+              <small class="payment-hint">{{ isPaid(order) ? 'Pagado' : 'Pendiente de pago' }} · Método: {{ paymentLabel(order) }}</small>
+            </div>
+            <input #paymentNote placeholder="Nota de pago (opcional)" />
+          </div>
 
           <div class="status-tools">
             <select #nextStatus>
@@ -97,6 +114,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.actions{display:flex;gap:.6rem;flex-wrap:wrap}`,
     `.order{border:1px solid var(--border-soft);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--surface-1);color:var(--text-main)}`,
     `.order header{display:flex;justify-content:space-between;align-items:center;gap:.6rem}`,
+    `.header-actions{display:flex;align-items:center;gap:.5rem}`,
     `.badge{padding:.25rem .6rem;border-radius:999px;color:var(--on-accent);font-weight:700;text-transform:capitalize}`,
     `.badge.nuevo{background:var(--status-new-bg)}`,
     `.badge.confirmado{background:var(--status-confirmed-bg)}`,
@@ -107,10 +125,15 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
     `.badge.cancelado{background:var(--status-cancelled-bg)}`,
     `.badge.anulado{background:var(--status-void-bg)}`,
     `.status-tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}`,
+    `.payment-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,320px);gap:.55rem;margin:.6rem 0;padding:.6rem;border:1px solid var(--border-soft);border-radius:10px;background:var(--surface-0)}`,
+    `.payment-main{display:grid;gap:.2rem}`,
+    `.payment-check{display:flex;align-items:center;gap:.45rem;font-weight:700}`,
+    `.payment-hint{color:var(--text-soft)}`,
+    `.icon-delete{border:1px solid color-mix(in srgb,var(--error-text) 45%,var(--border-soft));background:transparent;color:var(--error-text);border-radius:8px;width:32px;height:32px;cursor:pointer;line-height:1}`,
     `.order p,.order li,.order h3,.order small,.order strong{color:inherit}`,
     `.err{color:var(--error-text);white-space:pre-line}`,
     `.ok{color:var(--ok-text);white-space:pre-line}`,
-    `@media (max-width:900px){.status-tools{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}`
+    `@media (max-width:900px){.status-tools{grid-template-columns:1fr}.payment-tools{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}`
   ]
 })
 export class AdminPageComponent {
@@ -178,6 +201,44 @@ export class AdminPageComponent {
       await this.loadOrders();
     } catch (error) {
       this.error.set(`❌ No se pudo actualizar el pedido\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
+    }
+  }
+
+  isPaid(order: AdminOrder): boolean {
+    return (order.payment?.status ?? order.paymentStatus) === 'paid';
+  }
+
+  async togglePayment(order: AdminOrder, checked: boolean, note: string): Promise<void> {
+    this.notice.set('');
+    this.error.set('');
+    if (!checked && this.isPaid(order)) {
+      const confirmed = globalThis.confirm('Vas a marcar este pedido como pendiente de pago. ¿Continuar?');
+      if (!confirmed) return;
+    }
+    try {
+      const nextStatus = checked ? 'paid' : 'pending';
+      const result = await this.adminOrders.updatePayment(order.orderId, nextStatus, note, checked);
+      this.notice.set(
+        checked
+          ? (result.notifications.email.sent ? '✅ Pago confirmado y email enviado.' : `⚠️ Pago confirmado. Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`)
+          : '✅ Pedido marcado nuevamente como pendiente de pago.'
+      );
+      await this.loadOrders();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'No se pudo actualizar el pago.');
+    }
+  }
+
+  async deleteOrder(orderId: string): Promise<void> {
+    if (!globalThis.confirm('¿Seguro que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
+    this.notice.set('');
+    this.error.set('');
+    try {
+      await this.adminOrders.deleteOrder(orderId);
+      this.orders.set(this.orders().filter((order) => order.orderId !== orderId));
+      this.notice.set('✅ Pedido eliminado correctamente.');
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'No se pudo eliminar el pedido.');
     }
   }
 

@@ -1,7 +1,9 @@
 import { Router } from "express";
 import {
   listOrdersForAdmin,
-  updateOrderStatusForAdmin
+  updateOrderStatusForAdmin,
+  deleteOrderForAdmin,
+  updateOrderPaymentForAdmin
 } from "../controllers/orders.controller.js";
 import {
   createProductForAdmin,
@@ -25,6 +27,8 @@ router.use(requireAdmin);
 router.get("/dashboard", getDashboardForAdmin);
 router.get("/orders", listOrdersForAdmin);
 router.patch("/orders/:orderId/status", updateOrderStatusForAdmin);
+router.patch("/orders/:orderId/payment", updateOrderPaymentForAdmin);
+router.delete("/orders/:orderId", deleteOrderForAdmin);
 router.get("/products", getProductsForAdmin);
 router.post("/products", createProductForAdmin);
 router.put("/products/:id", updateProductForAdmin);

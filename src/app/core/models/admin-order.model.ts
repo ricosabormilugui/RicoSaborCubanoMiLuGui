@@ -1,5 +1,5 @@
 export type AdminPaymentMethod = 'bizum' | 'bank_transfer' | 'cash';
-export type AdminPaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
+export type AdminPaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'rejected' | 'refunded';
 
 export type AdminOrderStatus = 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
 
@@ -41,6 +41,8 @@ export interface AdminOrder {
   };
   paymentMethod?: AdminPaymentMethod;
   paymentStatus?: AdminPaymentStatus;
+  requiresAdvancePayment?: boolean;
+  paymentConfirmedAt?: string;
   notes?: string;
   subtotal?: number;
   couponCode?: string | null;

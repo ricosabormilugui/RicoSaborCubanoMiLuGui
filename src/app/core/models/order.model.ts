@@ -94,4 +94,5 @@ export interface OrderPayload {
   taxAmount?: number;
   taxRate?: number;
   total: number;
+  requiresAdvancePayment?: boolean;
 }

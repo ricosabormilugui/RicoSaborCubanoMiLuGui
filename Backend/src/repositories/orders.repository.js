@@ -185,6 +185,33 @@ export async function appendOrderNotifications(orderId, notifications = []) {
   );
 }
 
+export async function deleteOrderById(orderId) {
+  const collection = await getOrdersCollection();
+  const result = await collection.deleteOne({ orderId });
+  return result.deletedCount > 0;
+}
+
+export async function updateOrderPayment(orderId, paymentUpdate = {}, metadata = {}) {
+  const collection = await getOrdersCollection();
+  const now = new Date().toISOString();
+  const result = await collection.findOneAndUpdate(
+    { orderId },
+    {
+      $set: {
+        "payment.status": paymentUpdate.status,
+        paymentStatus: paymentUpdate.status,
+        ...(paymentUpdate.note ? { "payment.note": paymentUpdate.note } : {}),
+        ...(paymentUpdate.confirmedAt ? { "payment.confirmedAt": paymentUpdate.confirmedAt, paymentConfirmedAt: paymentUpdate.confirmedAt } : {}),
+        ...metadata,
+        updatedAt: now
+      }
+    },
+    { returnDocument: "after" }
+  );
+
+  return result;
+}
+
 
 const ACTIVE_ORDER_STATUSES = ["nuevo", "confirmado", "preparando", "listo", "enviado"];
 const VOID_ORDER_STATUSES = ["cancelado", "anulado"];

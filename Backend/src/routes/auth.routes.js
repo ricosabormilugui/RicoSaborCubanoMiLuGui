@@ -4,7 +4,8 @@ import {
   loginAdmin,
   loginCustomer,
   promoteAdmin,
-  registerCustomer
+  registerCustomer,
+  checkEmailRegistered
 } from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 
@@ -15,5 +16,6 @@ router.post("/login", loginCustomer);
 router.post("/admin/login", loginAdmin);
 router.post("/admin/promote", promoteAdmin);
 router.get("/me", requireAuth, getCustomerSession);
+router.get("/email-exists", checkEmailRegistered);
 
 export default router;

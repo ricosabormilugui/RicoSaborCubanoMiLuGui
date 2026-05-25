@@ -48,8 +48,9 @@ import { environment } from '../../../environments/environment';
         </div>
 
         <p class="meta" *ngIf="lastContactId()">ID de solicitud: {{ lastContactId() }}</p>
-        <a class="btn btn-secondary" *ngIf="whatsappContactUrl()" [href]="whatsappContactUrl()" target="_blank" rel="noopener noreferrer">Contactar por WhatsApp</a>
-        <button class="btn btn-secondary" *ngIf="canRetry()" (click)="retryLastSubmission()" [disabled]="sending()">Reintentar</button>
+        <div class="secondary-actions"><a class="btn btn-secondary whatsapp-btn" *ngIf="whatsappContactUrl()" [href]="whatsappContactUrl()" target="_blank" rel="noopener noreferrer">Contactar por WhatsApp</a>
+        <button class="btn btn-secondary whatsapp-btn" *ngIf="canRetry()" (click)="retryLastSubmission()" [disabled]="sending()">Reintentar</button></div>
+        
       </article>
     </section>
   `,
@@ -72,7 +73,7 @@ import { environment } from '../../../environments/environment';
     `.app-alert{display:grid;gap:.22rem;white-space:pre-line}`,
     `.meta{color:var(--text-soft);font-size:.88rem;margin-top:.35rem}`,
     `.spinner{width:18px;height:18px;border:2px solid var(--on-accent);border-top-color:transparent;border-radius:50%;display:inline-block;animation:spin .6s linear infinite}`,
-    `@keyframes spin{to{transform:rotate(360deg)}}`
+    `.secondary-actions{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:.75rem;min-width:0}.whatsapp-btn{width:100%;max-width:100%;box-sizing:border-box;min-width:0}`,`@keyframes spin{to{transform:rotate(360deg)}}`,`@media (min-width:640px){.whatsapp-btn{width:auto}}`
   ]
 })
 export class ContactPageComponent {
