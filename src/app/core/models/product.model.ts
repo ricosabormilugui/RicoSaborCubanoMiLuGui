@@ -16,8 +16,10 @@ export interface ProductCustomizationOptions {
   themes?: ProductCustomizationOption[];
   colors?: ProductCustomizationOption[];
   sizes?: ProductCustomizationOption[];
+  flavors?: ProductCustomizationOption[];
   fillings?: ProductCustomizationOption[];
   toppings?: ProductCustomizationOption[];
+  decorations?: ProductCustomizationOption[];
 }
 
 export interface Product {
@@ -37,6 +39,8 @@ export interface Product {
   trackStock: boolean;
   stock: number;
   lowStockAlert: number;
+  minimumQuantity?: number;
+  unitLabel?: string;
   order?: number;
   isBestSeller?: boolean;
   featured?: boolean;
@@ -61,6 +65,8 @@ export interface ProductApiRecord {
   trackStock?: boolean;
   stock?: number;
   lowStockAlert?: number;
+  minimumQuantity?: number;
+  unitLabel?: string;
   order?: number;
   isBestSeller?: boolean;
   featured?: boolean;
@@ -76,8 +82,10 @@ export function isProductCustomizable(product: Product | null | undefined): bool
       (customizationOptions.themes?.length ?? 0) > 0
       || (customizationOptions.colors?.length ?? 0) > 0
       || (customizationOptions.sizes?.length ?? 0) > 0
+      || (customizationOptions.flavors?.length ?? 0) > 0
       || (customizationOptions.fillings?.length ?? 0) > 0
       || (customizationOptions.toppings?.length ?? 0) > 0
+      || (customizationOptions.decorations?.length ?? 0) > 0
     )
   );
   if (hasCustomizationGroups) return true;

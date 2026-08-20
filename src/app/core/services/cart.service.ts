@@ -20,11 +20,18 @@ export class CartService {
   readonly subtotal = computed(() => this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0));
   readonly totalItems = computed(() => this.items().reduce((sum, item) => sum + item.quantity, 0));
 
-  add(product: Product, customization: CartCustomizationSelection[] = [], unitPrice = product.price): void {
+  add(product: Product, customization: CartCustomizationSelection[] = [], unitPrice = product.price, amount = 1): void {
     const productId = buildCartProductId(product.id, customization);
     const existing = this.state().find((item) => item.productId === productId);
+    const addedQuantity = normalizePositiveInteger(amount, 1);
+    const minimumQuantity = normalizePositiveInteger(product.minimumQuantity, 1);
     if (existing) {
-      this.updateQuantity(productId, existing.quantity + 1);
+      this.setItems(this.state().map((item) => (item.productId === productId ? {
+        ...item,
+        quantity: Math.max(minimumQuantity, existing.quantity + addedQuantity),
+        minimumQuantity,
+        unitLabel: String(product.unitLabel ?? '').trim() || undefined
+      } : item)));
       return;
     }
 
@@ -36,7 +43,9 @@ export class CartService {
         name: product.name,
         description: product.description,
         unitPrice,
-        quantity: 1,
+        quantity: Math.max(minimumQuantity, addedQuantity),
+        minimumQuantity,
+        unitLabel: String(product.unitLabel ?? '').trim() || undefined,
         customization: customization.length ? customization : undefined
       }
     ]);
@@ -50,7 +59,9 @@ export class CartService {
     }
 
     this.setItems(
-      this.state().map((item) => (item.productId === productId ? { ...item, quantity: normalizedQuantity } : item))
+      this.state().map((item) => (item.productId === productId
+        ? { ...item, quantity: Math.max(normalizePositiveInteger(item.minimumQuantity, 1), normalizedQuantity) }
+        : item))
     );
   }
 
@@ -123,6 +134,7 @@ export class CartService {
     const name = String(raw.name ?? '').trim();
     const unitPrice = Number(raw.unitPrice);
     const quantity = Math.floor(Number(raw.quantity));
+    const minimumQuantity = normalizePositiveInteger(raw.minimumQuantity, 1);
 
     if (!productId || !name || !Number.isFinite(unitPrice) || unitPrice < 0) return null;
     if (!Number.isFinite(quantity) || quantity <= 0) return null;
@@ -132,7 +144,9 @@ export class CartService {
       name,
       description: raw.description ? String(raw.description) : '',
       unitPrice,
-      quantity: Math.min(MAX_RESTORED_QUANTITY, quantity),
+      quantity: Math.max(minimumQuantity, Math.min(MAX_RESTORED_QUANTITY, quantity)),
+      minimumQuantity,
+      unitLabel: String(raw.unitLabel ?? '').trim() || undefined,
       baseProductId: raw.baseProductId ? String(raw.baseProductId) : undefined,
       customization: normalizeCustomization(raw.customization)
     };
@@ -156,6 +170,11 @@ export class CartService {
       items
     } satisfies StoredCartState);
   }
+}
+
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  const quantity = Math.floor(Number(value));
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : fallback;
 }
 
 

@@ -52,8 +52,10 @@ export class HomePageComponent {
       void this.router.navigate(this.productRoute(product));
       return;
     }
-    this.cart.add(product);
-    this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+    const quantity = this.minimumQuantity(product);
+    this.cart.add(product, [], product.price, quantity);
+    const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
+    this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
   }
 
   addAction(product: Product): AddToCartAction {
@@ -62,6 +64,11 @@ export class HomePageComponent {
 
   isCustomizable(product: Product): boolean {
     return isProductCustomizable(product);
+  }
+
+  private minimumQuantity(product: Product): number {
+    const quantity = Math.floor(Number(product.minimumQuantity ?? 1));
+    return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
   }
 
   private updateSeo(): void {

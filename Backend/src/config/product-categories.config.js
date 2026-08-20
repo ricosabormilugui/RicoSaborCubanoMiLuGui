@@ -3,6 +3,7 @@ export const PRODUCT_CATEGORIES = [
   { slug: "platos", label: "Platos" },
   { slug: "tartas", label: "Tartas" },
   { slug: "dulces-gourmet", label: "Dulces Gourmet" },
+  { slug: "aperitivos", label: "Aperitivos" },
   { slug: "bebidas", label: "Bebidas" },
   { slug: "extras", label: "Extras" }
 ];

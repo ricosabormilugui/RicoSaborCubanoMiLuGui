@@ -15,6 +15,9 @@
           <div class="item-main">
             <span class="mobile-label">Producto</span>
             <strong class="item-name">{{ item.name }}</strong>
+            <small class="sale-meta" *ngIf="item.unitLabel || (item.minimumQuantity ?? 1) > 1">
+              {{ item.unitLabel ? 'Venta por ' + item.unitLabel : '' }}<span *ngIf="item.unitLabel && (item.minimumQuantity ?? 1) > 1"> · </span><span *ngIf="(item.minimumQuantity ?? 1) > 1">Mínimo {{ item.minimumQuantity }}</span>
+            </small>
             <ul class="custom-summary" *ngIf="item.customization?.length">
               <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.price"> (+{{ option.price | currency:'EUR' }})</span></li>
             </ul>
@@ -23,7 +26,7 @@
           <div class="quantity-cell">
             <span class="mobile-label">Cantidad</span>
             <div class="quantity-controls" [attr.aria-label]="'Cantidad de ' + item.name">
-              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity-1)" [attr.aria-label]="'Reducir cantidad de ' + item.name">−</button>
+              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity-1)" [disabled]="item.quantity <= (item.minimumQuantity ?? 1)" [attr.aria-label]="'Reducir cantidad de ' + item.name">−</button>
               <span class="qty-value">{{ item.quantity }}</span>
               <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity+1)" [attr.aria-label]="'Aumentar cantidad de ' + item.name">+</button>
             </div>

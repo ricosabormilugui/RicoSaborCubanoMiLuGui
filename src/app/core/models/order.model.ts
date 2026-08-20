@@ -10,6 +10,8 @@ export interface CartItem {
   description?: string;
   unitPrice: number;
   quantity: number;
+  minimumQuantity?: number;
+  unitLabel?: string;
   baseProductId?: string;
   customization?: CartCustomizationSelection[];
 }

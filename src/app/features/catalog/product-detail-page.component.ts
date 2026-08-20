@@ -36,10 +36,22 @@ export class ProductDetailPageComponent {
     void this.catalog.loadProducts();
     this.route.paramMap.subscribe((params) => { this.productParam.set(params.get('slug') ?? ''); this.quantity.set(1); this.selectedImage.set(''); this.selectedCustomization.set({}); this.customizationError.set(''); });
     effect(() => this.updateSeo());
+    effect(() => {
+      const product = this.product();
+      if (!product) return;
+      this.quantity.set(this.minimumQuantity(product));
+      const defaults = Object.fromEntries(
+        this.customizationGroups(product)
+          .filter((group) => group.options.length === 1)
+          .map((group) => [group.key, group.options[0]])
+      );
+      this.selectedCustomization.set(defaults);
+    });
   }
 
   selectImage(image: string): void { this.selectedImage.set(image); }
-  setQuantity(value: number | string): void { const parsed = Number(value); this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.min(99, Math.floor(parsed)) : 1); }
+  minimumQuantity(product: Product): number { const value = Math.floor(Number(product.minimumQuantity ?? 1)); return Number.isFinite(value) && value > 0 ? value : 1; }
+  setQuantity(value: number | string): void { const parsed = Number(value); const minimum = this.product() ? this.minimumQuantity(this.product()!) : 1; this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.max(minimum, Math.min(99, Math.floor(parsed))) : minimum); }
   productRoute(product: Product): string[] { return getProductRoute(product); }
   categoryLabel(value: string): string { return getProductCategoryLabel(value); }
   productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en Rico Sabor Cubano`; }
@@ -49,7 +61,7 @@ export class ProductDetailPageComponent {
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
   stars(rating: number): string { const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0)))); return '★★★★★'.slice(0, value) + '☆☆☆☆☆'.slice(value); }
   isCustomCake(product: Product): boolean { return isProductCustomizable(product); }
-  customizationGroups(product: Product): Array<{ key: string; label: string; options: ProductCustomizationOption[] }> { const options = product.customizationOptions ?? {}; return [{ key: 'themes', label: 'Temática', options: options.themes ?? [] }, { key: 'colors', label: 'Color', options: options.colors ?? [] }, { key: 'sizes', label: 'Tamaño / porciones', options: options.sizes ?? [] }, { key: 'fillings', label: 'Relleno', options: options.fillings ?? [] }, { key: 'toppings', label: 'Cobertura', options: options.toppings ?? [] }].filter((group) => group.options.length); }
+  customizationGroups(product: Product): Array<{ key: string; label: string; options: ProductCustomizationOption[] }> { const options = product.customizationOptions ?? {}; return [{ key: 'themes', label: 'Temática', options: options.themes ?? [] }, { key: 'colors', label: 'Color', options: options.colors ?? [] }, { key: 'sizes', label: 'Tamaño / porciones', options: options.sizes ?? [] }, { key: 'flavors', label: 'Bizcocho', options: options.flavors ?? [] }, { key: 'fillings', label: 'Relleno', options: options.fillings ?? [] }, { key: 'toppings', label: 'Cobertura', options: options.toppings ?? [] }, { key: 'decorations', label: 'Decoración', options: options.decorations ?? [] }].filter((group) => group.options.length); }
   selectCustomization(key: string, option: ProductCustomizationOption): void { this.selectedCustomization.set({ ...this.selectedCustomization(), [key]: option }); this.customizationError.set(''); }
   customizationExtraTotal(): number { return Object.values(this.selectedCustomization()).reduce((sum, option) => sum + Number(option.price ?? 0), 0); }
   customizedTotal(product: Product): number { return Number((Number(product.price ?? 0) + this.customizationExtraTotal()).toFixed(2)); }
@@ -57,11 +69,11 @@ export class ProductDetailPageComponent {
 
   addToCart(product: Product, amount = this.quantity()): boolean {
     const groups = this.customizationGroups(product);
-    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona temática, color, tamaño/porciones, relleno y cobertura antes de añadir la tarta.'); return false; }
-    const quantity = Math.max(1, Math.floor(amount));
+    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona todas las opciones de la tarta antes de añadirla.'); return false; }
+    const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
     const customization = this.selectedCustomizationItems(product);
     const unitPrice = this.customizedTotal(product);
-    for (let index = 0; index < quantity; index += 1) this.cart.add(product, customization, unitPrice);
+    this.cart.add(product, customization, unitPrice, quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
     this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
     return true;
@@ -84,11 +96,7 @@ export class ProductDetailPageComponent {
   }
 
   private hasRequiredCustomization(groups: Array<{ key: string }>): boolean {
-    const requiredKeys = ['themes', 'colors', 'sizes', 'fillings', 'toppings'];
-    const groupKeys = new Set(groups.map((group) => group.key));
-    return requiredKeys
-      .filter((key) => groupKeys.has(key))
-      .every((key) => Boolean(this.selectedCustomization()[key]));
+    return groups.every((group) => Boolean(this.selectedCustomization()[group.key]));
   }
 
   private updateSeo(): void {

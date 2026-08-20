@@ -3,6 +3,7 @@ import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord } from '../../core/models/product.model';
+import { PRODUCT_CREATION_PRESETS } from '../../core/config/product-creation-presets.config';
 import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
@@ -28,8 +29,13 @@ export class AdminProductsPageComponent {
   customizationThemesText = '';
   customizationColorsText = '';
   customizationSizesText = '';
+  customizationFlavorsText = '';
   customizationFillingsText = '';
   customizationToppingsText = '';
+  customizationDecorationsText = '';
+  selectedPresetId = '';
+
+  readonly productPresets = PRODUCT_CREATION_PRESETS;
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -60,6 +66,8 @@ export class AdminProductsPageComponent {
     trackStock: false,
     stock: 0,
     lowStockAlert: 5,
+    minimumQuantity: 1,
+    unitLabel: '',
     order: 0
   };
 
@@ -123,6 +131,8 @@ export class AdminProductsPageComponent {
       trackStock: product.trackStock ?? false,
       stock: Number(product.stock ?? 0),
       lowStockAlert: Number(product.lowStockAlert ?? 5),
+      minimumQuantity: Number(product.minimumQuantity ?? 1),
+      unitLabel: product.unitLabel ?? '',
       order: Number(product.order ?? 0)
     };
   }
@@ -138,8 +148,10 @@ export class AdminProductsPageComponent {
         themes: this.parseOptions(this.customizationThemesText),
         colors: this.parseOptions(this.customizationColorsText),
         sizes: this.parseOptions(this.customizationSizesText),
+        flavors: this.parseOptions(this.customizationFlavorsText),
         fillings: this.parseOptions(this.customizationFillingsText),
-        toppings: this.parseOptions(this.customizationToppingsText)
+        toppings: this.parseOptions(this.customizationToppingsText),
+        decorations: this.parseOptions(this.customizationDecorationsText)
       }
     };
   }
@@ -178,6 +190,8 @@ export class AdminProductsPageComponent {
       trackStock: product.trackStock ?? false,
       stock: Number(product.stock ?? 0),
       lowStockAlert: Number(product.lowStockAlert ?? 5),
+      minimumQuantity: Number(product.minimumQuantity ?? 1),
+      unitLabel: product.unitLabel ?? '',
       order: Number(product.order ?? 0)
     };
     this.imagesText = this.stringifyLines(product.images ?? [product.imageUrl].filter(Boolean));
@@ -186,8 +200,10 @@ export class AdminProductsPageComponent {
     this.customizationThemesText = this.stringifyOptions(product.customizationOptions?.themes);
     this.customizationColorsText = this.stringifyOptions(product.customizationOptions?.colors);
     this.customizationSizesText = this.stringifyOptions(product.customizationOptions?.sizes);
+    this.customizationFlavorsText = this.stringifyOptions(product.customizationOptions?.flavors);
     this.customizationFillingsText = this.stringifyOptions(product.customizationOptions?.fillings);
     this.customizationToppingsText = this.stringifyOptions(product.customizationOptions?.toppings);
+    this.customizationDecorationsText = this.stringifyOptions(product.customizationOptions?.decorations);
   }
 
   resetForm(): void {
@@ -203,6 +219,8 @@ export class AdminProductsPageComponent {
       trackStock: false,
       stock: 0,
       lowStockAlert: 5,
+      minimumQuantity: 1,
+      unitLabel: '',
       order: 0
     };
     this.imagesText = '';
@@ -211,8 +229,34 @@ export class AdminProductsPageComponent {
     this.customizationThemesText = '';
     this.customizationColorsText = '';
     this.customizationSizesText = '';
+    this.customizationFlavorsText = '';
     this.customizationFillingsText = '';
     this.customizationToppingsText = '';
+    this.customizationDecorationsText = '';
+    this.selectedPresetId = '';
+  }
+
+  applySelectedPreset(): void {
+    const preset = this.productPresets.find((item) => item.id === this.selectedPresetId);
+    if (!preset) return;
+
+    const selectedPresetId = this.selectedPresetId;
+    this.resetForm();
+    this.selectedPresetId = selectedPresetId;
+    this.form = {
+      ...this.form,
+      ...preset.product,
+      customizationOptions: preset.product.customizationOptions ?? {}
+    };
+
+    const options = preset.product.customizationOptions;
+    this.customizationThemesText = this.stringifyOptions(options?.themes);
+    this.customizationColorsText = this.stringifyOptions(options?.colors);
+    this.customizationSizesText = this.stringifyOptions(options?.sizes);
+    this.customizationFlavorsText = this.stringifyOptions(options?.flavors);
+    this.customizationFillingsText = this.stringifyOptions(options?.fillings);
+    this.customizationToppingsText = this.stringifyOptions(options?.toppings);
+    this.customizationDecorationsText = this.stringifyOptions(options?.decorations);
   }
 
   private parseLines(value: string): string[] {

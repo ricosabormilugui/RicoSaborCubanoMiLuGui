@@ -32,6 +32,19 @@
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <form class="product-form" (ngSubmit)="saveProduct()">
+          <h3>Plantilla de creación</h3>
+          <div class="grid two preset-tools">
+            <label>
+              <span>Producto del catálogo del documento</span>
+              <select [(ngModel)]="selectedPresetId" name="selectedPresetId">
+                <option value="">Selecciona una plantilla</option>
+                <option *ngFor="let preset of productPresets" [value]="preset.id">{{ preset.label }}</option>
+              </select>
+              <small>Precarga precios, opciones y formato de venta; podrás revisarlos antes de guardar.</small>
+            </label>
+            <button class="btn" type="button" (click)="applySelectedPreset()" [disabled]="!selectedPresetId">Cargar plantilla</button>
+          </div>
+
           <h3>Información básica</h3>
           <div class="grid two">
             <label>
@@ -44,7 +57,7 @@
               <datalist id="product-category-options">
                 <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
               </datalist>
-              <small>Usa slugs: tartas, dulces-gourmet, platos, bebidas, combos o extras.</small>
+              <small>Usa slugs: tartas, dulces-gourmet, aperitivos, platos, bebidas, combos o extras.</small>
             </label>
             <label>
               <span>Precio (€)</span>
@@ -62,6 +75,20 @@
               <span>Galería de imágenes</span>
               <textarea [(ngModel)]="imagesText" name="imagesText" placeholder="Una URL por línea para mostrar miniaturas en el detalle"></textarea>
               <small>Compatible con productos antiguos: si solo existe imagen principal, se seguirá usando.</small>
+            </label>
+          </div>
+
+          <h3>Formato de venta</h3>
+          <div class="grid two">
+            <label>
+              <span>Cantidad mínima</span>
+              <input [(ngModel)]="form.minimumQuantity" name="minimumQuantity" type="number" min="1" step="1" required />
+              <small>Por ejemplo: 6 para dulces gourmet o 5 para tamales.</small>
+            </label>
+            <label>
+              <span>Unidad o tipo de ración</span>
+              <input [(ngModel)]="form.unitLabel" name="unitLabel" placeholder="unidad / ración de 20 uds." />
+              <small>Se mostrará junto al precio y en el carrito.</small>
             </label>
           </div>
 
@@ -130,8 +157,10 @@
             <label><span>Temáticas</span><textarea [(ngModel)]="customizationThemesText" name="customizationThemesText" placeholder="Cumpleaños | 0"></textarea></label>
             <label><span>Colores</span><textarea [(ngModel)]="customizationColorsText" name="customizationColorsText" placeholder="Rosa | 0"></textarea></label>
             <label><span>Tamaños / porciones</span><textarea [(ngModel)]="customizationSizesText" name="customizationSizesText" placeholder="10 porciones | 8"></textarea></label>
+            <label><span>Bizcochos</span><textarea [(ngModel)]="customizationFlavorsText" name="customizationFlavorsText" placeholder="Red Velvet | 3"></textarea></label>
             <label><span>Rellenos</span><textarea [(ngModel)]="customizationFillingsText" name="customizationFillingsText" placeholder="Dulce de leche | 3"></textarea></label>
-            <label class="full"><span>Coberturas</span><textarea [(ngModel)]="customizationToppingsText" name="customizationToppingsText" placeholder="Fruta fresca | 4"></textarea></label>
+            <label><span>Coberturas</span><textarea [(ngModel)]="customizationToppingsText" name="customizationToppingsText" placeholder="Merengue italiano | 0"></textarea></label>
+            <label><span>Decoraciones</span><textarea [(ngModel)]="customizationDecorationsText" name="customizationDecorationsText" placeholder="Topper premium | 10"></textarea></label>
           </div>
 
           <div class="actions form-actions">

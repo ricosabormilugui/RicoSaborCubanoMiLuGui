@@ -43,8 +43,10 @@ function normalizeCustomizationOptions(value = {}) {
     themes: normalizeList(value.themes),
     colors: normalizeList(value.colors),
     sizes: normalizeList(value.sizes),
+    flavors: normalizeList(value.flavors),
     fillings: normalizeList(value.fillings),
-    toppings: normalizeList(value.toppings)
+    toppings: normalizeList(value.toppings),
+    decorations: normalizeList(value.decorations)
   };
 }
 
@@ -64,6 +66,8 @@ function buildPayload(body = {}, { partial = false } = {}) {
   if (!partial || body.trackStock !== undefined) payload.trackStock = Boolean(body.trackStock);
   if (!partial || body.stock !== undefined) payload.stock = Number(body.stock ?? 0);
   if (!partial || body.lowStockAlert !== undefined) payload.lowStockAlert = Number(body.lowStockAlert ?? 5);
+  if (!partial || body.minimumQuantity !== undefined) payload.minimumQuantity = Number(body.minimumQuantity ?? 1);
+  if (!partial || body.unitLabel !== undefined) payload.unitLabel = String(body.unitLabel ?? "").trim();
   if (!partial || body.available !== undefined) payload.available = Boolean(body.available);
   if (!partial || body.order !== undefined) payload.order = Number(body.order ?? 0);
 
@@ -93,6 +97,10 @@ function validateProduct(payload, { partial = false } = {}) {
 
   if ((!partial || payload.lowStockAlert !== undefined) && (!Number.isFinite(payload.lowStockAlert) || payload.lowStockAlert < 0)) {
     return "lowStockAlert must be >= 0";
+  }
+
+  if ((!partial || payload.minimumQuantity !== undefined) && (!Number.isInteger(payload.minimumQuantity) || payload.minimumQuantity < 1)) {
+    return "minimumQuantity must be an integer >= 1";
   }
 
   return null;

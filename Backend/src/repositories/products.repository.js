@@ -72,6 +72,8 @@ export async function createProduct(payload) {
     trackStock,
     stock,
     lowStockAlert,
+    minimumQuantity: Math.max(1, normalizeStockNumber(payload.minimumQuantity, 1)),
+    unitLabel: payload.unitLabel ?? "",
     available: payload.available ?? (trackStock ? stock > 0 : true),
     order: payload.order ?? 0,
     createdAt: now,
@@ -100,6 +102,8 @@ export async function updateProduct(id, payload) {
     ...(payload.trackStock !== undefined ? { trackStock: payload.trackStock } : {}),
     ...(payload.stock !== undefined ? { stock: normalizeStockNumber(payload.stock, 0) } : {}),
     ...(payload.lowStockAlert !== undefined ? { lowStockAlert: normalizeStockNumber(payload.lowStockAlert, 5) } : {}),
+    ...(payload.minimumQuantity !== undefined ? { minimumQuantity: Math.max(1, normalizeStockNumber(payload.minimumQuantity, 1)) } : {}),
+    ...(payload.unitLabel !== undefined ? { unitLabel: payload.unitLabel } : {}),
     ...(payload.available !== undefined ? { available: payload.available } : {}),
     ...(payload.order !== undefined ? { order: payload.order } : {}),
     updatedAt: new Date().toISOString()

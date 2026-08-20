@@ -18,6 +18,8 @@ export interface AdminProductPayload {
   trackStock: boolean;
   stock: number;
   lowStockAlert: number;
+  minimumQuantity: number;
+  unitLabel: string;
   order: number;
 }
 

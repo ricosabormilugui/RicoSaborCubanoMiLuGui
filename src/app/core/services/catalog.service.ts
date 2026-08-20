@@ -45,9 +45,16 @@ function normalizeCustomizationOptions(value: unknown): ProductCustomizationOpti
     themes: normalizeList(source.themes),
     colors: normalizeList(source.colors),
     sizes: normalizeList(source.sizes),
+    flavors: normalizeList(source.flavors),
     fillings: normalizeList(source.fillings),
-    toppings: normalizeList(source.toppings)
+    toppings: normalizeList(source.toppings),
+    decorations: normalizeList(source.decorations)
   };
+}
+
+function normalizeMinimumQuantity(value: unknown): number {
+  const quantity = Math.floor(Number(value));
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
 function toProduct(item: ProductApiRecord): Product {
@@ -68,6 +75,8 @@ function toProduct(item: ProductApiRecord): Product {
     trackStock: item.trackStock ?? false,
     stock: Number(item.stock ?? 0),
     lowStockAlert: Number(item.lowStockAlert ?? 5),
+    minimumQuantity: normalizeMinimumQuantity(item.minimumQuantity),
+    unitLabel: String(item.unitLabel ?? '').trim(),
     order: item.order ?? 0,
     isBestSeller: item.isBestSeller ?? false,
     featured: item.featured ?? false,
@@ -96,6 +105,8 @@ function toCachedProduct(item: Partial<Product>): Product | null {
     trackStock: item.trackStock ?? false,
     stock: Number(item.stock ?? 0),
     lowStockAlert: Number(item.lowStockAlert ?? 5),
+    minimumQuantity: normalizeMinimumQuantity(item.minimumQuantity),
+    unitLabel: String(item.unitLabel ?? '').trim(),
     order: item.order ?? 0,
     isBestSeller: item.isBestSeller ?? false,
     featured: item.featured ?? false,

@@ -34,9 +34,10 @@
             <div class="info-panel">
               <span class="tag" *ngIf="product()!.category">{{ categoryLabel(product()!.category) }}</span>
               <h1>{{ product()!.name }}</h1>
-              <strong class="price">{{ customizedTotal(product()!) | currency:'EUR' }}</strong>
+              <strong class="price">{{ customizedTotal(product()!) | currency:'EUR' }}<small *ngIf="product()!.unitLabel"> / {{ product()!.unitLabel }}</small></strong>
               <span class="base-price" *ngIf="customizationExtraTotal()">Base {{ product()!.price | currency:'EUR' }} + extras {{ customizationExtraTotal() | currency:'EUR' }}</span>
               <p class="description">{{ product()!.description || 'Producto casero preparado por Rico Sabor Cubano.' }}</p>
+              <p class="sale-note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
 
               <section class="cake-config" *ngIf="isCustomCake(product()!) && customizationGroups(product()!).length">
                 <h2>Personaliza tu tarta</h2>
@@ -55,7 +56,7 @@
               <div class="purchase-row">
                 <label class="quantity-field">
                   Cantidad
-                  <input type="number" min="1" max="99" inputmode="numeric" [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" />
+                  <input type="number" [attr.min]="minimumQuantity(product()!)" max="99" inputmode="numeric" [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" />
                 </label>
                 <app-add-to-cart-button class="add-button" variant="large" [action]="detailAddAction(product()!)" label="Añadir al carrito" [ariaLabel]="'Añadir ' + product()!.name + ' al carrito'" />
               </div>

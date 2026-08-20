@@ -103,8 +103,10 @@
             <p class="product-description" *ngIf="product.description">{{ product.description }}</p>
             <div class="price-block">
               <span *ngIf="isCustomizable(product)">Desde</span>
+              <span *ngIf="!isCustomizable(product) && product.unitLabel">por {{ product.unitLabel }}</span>
               <strong>{{ product.price | currency:'EUR' }}</strong>
             </div>
+            <small class="sale-note" *ngIf="minimumQuantity(product) > 1">Pedido mínimo: {{ minimumQuantity(product) }} unidades</small>
             <div class="actions">
               <button *ngIf="isCustomizable(product); else addProduct" class="btn btn-primary" type="button" (click)="addToCart(product)">Personalizar</button>
               <ng-template #addProduct>
