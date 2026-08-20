@@ -1,15 +1,16 @@
-
+<div class="catalog-page">
     <section class="hero">
-      <h1>Productos</h1>
-      <p>Catálogo completo de cocina cubana y platos caseros listos para pedir.</p>
-
+      <span class="hero-eyebrow">Productos</span>
+      <h1>Catálogo de sabores cubanos</h1>
+      <p>Comida casera y tartas personalizadas, preparadas para cada ocasión.</p>
       <div class="quick-categories" aria-label="Categorías rápidas">
-        <button class="cat-pill" type="button" [class.active]="category() === ''" (click)="setCategory('')">Todos</button>
+        <button class="cat-pill" type="button" [class.active]="category() === ''" [attr.aria-pressed]="category() === ''" (click)="setCategory('')">Todos</button>
         <button
           class="cat-pill"
           type="button"
           *ngFor="let option of categoryOptions()"
           [class.active]="category() === option.slug"
+          [attr.aria-pressed]="category() === option.slug"
           (click)="setCategory(option.slug)">
           {{ option.label }}
         </button>
@@ -56,10 +57,13 @@
     <section class="products-wrap" [attr.aria-busy]="isInitialLoading()">
       <div class="section-head">
         <div>
+          <span class="section-eyebrow">Nuestra selección</span>
           <h2 class="section-title">Catálogo completo</h2>
-          <p class="results-count" *ngIf="filteredProducts().length">{{ filteredProducts().length }} producto(s) disponibles</p>
+          <p class="results-count" *ngIf="filteredProducts().length">
+            {{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'producto disponible' : 'productos disponibles' }}
+          </p>
         </div>
-        <span class="section-note">Entra al detalle para ver ingredientes y descripción completa.</span>
+        <span class="section-note">Consulta ingredientes, opciones y descripción completa en cada producto.</span>
       </div>
 
       <div class="empty-state" *ngIf="!isInitialLoading() && !filteredProducts().length">
@@ -84,17 +88,26 @@
       </div>
 
       <div class="grid" *ngIf="!isInitialLoading() && filteredProducts().length">
-        <article class="product" *ngFor="let product of filteredProducts()">
+        <article class="product" *ngFor="let product of filteredProducts(); let first = first">
           <a class="image-link" [routerLink]="productRoute(product)" [attr.aria-label]="'Ver detalle de ' + product.name">
-            <img [src]="product.imageUrl || fallbackImage" [alt]="productImageAlt(product)" width="700" height="520" loading="lazy" decoding="async" />
+            <img [src]="product.imageUrl || fallbackImage" [alt]="productImageAlt(product)" width="700" height="520" [attr.loading]="first ? 'eager' : 'lazy'" decoding="async" />
+            <span class="product-badges">
+              <span class="product-badge badge-custom" *ngIf="isCustomizable(product)">Personalizable</span>
+              <span class="product-badge badge-best" *ngIf="product.isBestSeller">Más vendido</span>
+              <span class="product-badge badge-featured" *ngIf="product.featured && !product.isBestSeller">Destacado</span>
+            </span>
           </a>
           <div class="content">
             <span class="tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
             <a class="product-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
-            <strong>{{ product.price | currency:'EUR' }}</strong>
+            <p class="product-description" *ngIf="product.description">{{ product.description }}</p>
+            <div class="price-block">
+              <span *ngIf="isCustomizable(product)">Desde</span>
+              <strong>{{ product.price | currency:'EUR' }}</strong>
+            </div>
             <div class="actions">
               <button class="btn btn-primary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : '+ Añadir' }}</button>
-              <a class="btn btn-secondary details-link" [routerLink]="productRoute(product)">Ver producto</a>
+              <a class="details-link" [routerLink]="productRoute(product)">Ver detalles <span aria-hidden="true">→</span></a>
             </div>
           </div>
         </article>
@@ -103,8 +116,11 @@
 
     <section class="best-sellers" *ngIf="bestSellers().length">
       <div class="best-sellers-head">
-        <h2 class="section-title">Más vendidos</h2>
-        <span>Favoritos de nuestros clientes</span>
+        <div>
+          <span class="section-eyebrow">Los favoritos</span>
+          <h2 class="section-title">Más vendidos</h2>
+        </div>
+        <span>Los productos que nuestros clientes vuelven a elegir.</span>
       </div>
       <div class="mini-grid">
         <article class="mini-product" *ngFor="let product of bestSellers()">
@@ -114,9 +130,9 @@
           <div>
             <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
             <strong>{{ product.price | currency:'EUR' }}</strong>
-            <button class="btn btn-secondary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : 'Añadir' }}</button>
+            <button class="btn btn-primary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : '+ Añadir' }}</button>
           </div>
         </article>
       </div>
     </section>
-  
+</div>
