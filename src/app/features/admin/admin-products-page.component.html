@@ -1,237 +1,231 @@
+<section class="card login-card" *ngIf="!auth.isAuthenticated(); else panel">
+  <h1>Acceso administrador</h1>
+  <div class="field-grid two-columns">
+    <label class="field"><span>Email admin</span><input [(ngModel)]="email" placeholder="admin@dominio.com" /></label>
+    <label class="field"><span>Contraseña</span><input [(ngModel)]="password" type="password" placeholder="********" /></label>
+  </div>
+  <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
+  <p class="api-error" *ngIf="error()">{{ error() }}</p>
+</section>
 
-    <section class="card" *ngIf="!auth.isAuthenticated(); else panel">
-      <h1>Acceso administrador</h1>
-      <div class="grid two">
-        <label>
-          <span>Email admin</span>
-          <input [(ngModel)]="email" placeholder="admin@dominio.com" />
-        </label>
-        <label>
-          <span>Contraseña</span>
-          <input [(ngModel)]="password" type="password" placeholder="********" />
-        </label>
+<ng-template #panel>
+  <main class="admin-products-page">
+    <header class="page-header">
+      <div>
+        <span class="page-kicker">Catálogo</span>
+        <h1>{{ editId() ? 'Editar producto' : 'Crear producto' }}</h1>
+        <p>{{ editId() ? 'Actualiza la información del producto sin cambiar su identidad.' : 'Añade un nuevo producto al catálogo de Rico Sabor Cubano.' }}</p>
       </div>
-      <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
-      <p class="err" *ngIf="error()">{{ error() }}</p>
-    </section>
+      <div class="page-actions">
+        <a class="action-button secondary" href="#product-management">Ver productos creados</a>
+        <button class="action-button ghost" type="button" (click)="logout()">Salir</button>
+      </div>
+    </header>
 
-    <ng-template #panel>
-      <section class="card">
-        <div class="toolbar">
-          <h1>Admin · Productos</h1>
-          <div class="actions">
-            <button class="btn" (click)="loadProducts()">Actualizar</button>
-            <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
-            <button class="btn" routerLink="/admin/pedidos">Ir a pedidos</button>
-            <button class="btn" routerLink="/admin/cocina">Ir a cocina</button>
-            <button class="btn" routerLink="/admin/contactos">Contactos</button>
-            <button class="btn" (click)="logout()">Salir</button>
-          </div>
+    <nav class="admin-navigation" aria-label="Navegación administrativa">
+      <a routerLink="/admin/dashboard">Dashboard</a>
+      <a routerLink="/admin/pedidos">Pedidos</a>
+      <a routerLink="/admin/cocina">Cocina</a>
+      <a routerLink="/admin/contactos">Contactos</a>
+      <button type="button" (click)="loadProducts()" [disabled]="loading()">{{ loading() ? 'Actualizando…' : 'Actualizar productos' }}</button>
+    </nav>
+
+    <nav class="workspace-switcher" aria-label="Secciones de productos">
+      <a href="#product-editor" class="active"><span aria-hidden="true">＋</span>{{ editId() ? 'Edición actual' : 'Crear producto' }}</a>
+      <a href="#product-management">Gestionar productos <span class="count-badge">{{ products().length }}</span></a>
+    </nav>
+
+    <p class="api-error" role="alert" *ngIf="error()">{{ error() }}</p>
+
+    <form id="product-editor" class="product-wizard" (ngSubmit)="saveProduct()" novalidate>
+      <div class="wizard-titlebar">
+        <div>
+          <span>{{ editId() ? 'Editando' : 'Nuevo producto' }}</span>
+          <h2>{{ editId() ? form.name || 'Producto sin nombre' : 'Configura el producto' }}</h2>
         </div>
+        <small>Los campos con <strong>*</strong> son obligatorios</small>
+      </div>
 
-        <p class="err" *ngIf="error()">{{ error() }}</p>
+      <ol class="desktop-stepper" aria-label="Progreso de creación del producto">
+        <li *ngFor="let step of formSteps" [class.current]="formStep() === step.number" [class.complete]="isStepComplete(step.number)" [class.invalid]="isStepInvalid(step.number)">
+          <button type="button" (click)="goToStep(step.number)" [disabled]="!isStepAccessible(step.number)" [attr.aria-current]="formStep() === step.number ? 'step' : null">
+            <span class="step-marker"><ng-container *ngIf="isStepComplete(step.number); else stepNumber">✓</ng-container><ng-template #stepNumber>{{ step.number }}</ng-template></span>
+            <span class="step-label">{{ step.label }}</span>
+          </button>
+        </li>
+      </ol>
 
-        <form class="product-form" (ngSubmit)="saveProduct()">
-          <h3>Plantilla de creación</h3>
-          <div class="grid two preset-tools">
-            <label>
-              <span>Producto del catálogo del documento</span>
-              <select [(ngModel)]="selectedPresetId" name="selectedPresetId">
-                <option value="">Selecciona una plantilla</option>
-                <option *ngFor="let preset of productPresets" [value]="preset.id">{{ preset.label }}</option>
-              </select>
-              <small>Precarga precios, opciones y formato de venta; podrás revisarlos antes de guardar.</small>
-            </label>
-            <button class="btn" type="button" (click)="applySelectedPreset()" [disabled]="!selectedPresetId">Cargar plantilla</button>
+      <div class="mobile-stepper">
+        <div><span>Paso {{ formStep() }} de {{ formSteps.length }}</span><strong>{{ formSteps[formStep() - 1].label }}</strong></div>
+        <div class="progress-track" role="progressbar" [attr.aria-valuenow]="wizardProgress()" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="wizardProgress()"></span></div>
+      </div>
+
+      <section class="form-card" *ngIf="formStep() === 1" aria-labelledby="basic-step-title">
+        <header class="section-header">
+          <div class="section-icon" aria-hidden="true">01</div>
+          <div><h3 id="basic-step-title">Datos básicos</h3><p>Información principal utilizada en el catálogo y en los pedidos.</p></div>
+        </header>
+
+        <section class="template-section" aria-labelledby="template-title">
+          <div class="subsection-heading"><div><h4 id="template-title">¿Cómo quieres empezar?</h4><p>Puedes partir desde cero o precargar una plantilla existente.</p></div></div>
+          <div class="template-options">
+            <button class="template-choice" type="button" [class.selected]="!selectedPresetId" (click)="selectedPresetId = ''" [attr.aria-pressed]="!selectedPresetId">
+              <span class="choice-radio" aria-hidden="true"></span>
+              <span><strong>Crear desde cero</strong><small>Introduce todos los datos manualmente.</small></span>
+            </button>
+            <div class="template-choice template-picker" [class.selected]="selectedPresetId">
+              <span class="choice-radio" aria-hidden="true"></span>
+              <label class="field">
+                <span>Usar una plantilla existente</span>
+                <select [(ngModel)]="selectedPresetId" name="selectedPresetId">
+                  <option value="">Seleccionar plantilla</option>
+                  <option *ngFor="let preset of productPresets" [value]="preset.id">{{ preset.label }}</option>
+                </select>
+              </label>
+              <button class="load-template" type="button" (click)="applySelectedPreset()" [disabled]="!selectedPresetId">Cargar plantilla</button>
+            </div>
           </div>
+          <p class="template-note" *ngIf="selectedPresetId">La plantilla precargará precio, formato de venta y opciones habituales. Podrás modificar todo después.</p>
+        </section>
 
-          <h3>Información básica</h3>
-          <div class="grid two">
-            <label>
-              <span>Nombre del producto</span>
-              <input [(ngModel)]="form.name" name="name" placeholder="Croquetas" required />
+        <section class="form-subsection" aria-labelledby="main-info-title">
+          <div class="subsection-heading"><div><h4 id="main-info-title">Información principal</h4><p>Identifica el producto dentro del catálogo.</p></div></div>
+          <div class="field-grid two-columns">
+            <label class="field" [class.has-error]="nameError()">
+              <span>Nombre del producto <b aria-hidden="true">*</b></span>
+              <input [(ngModel)]="form.name" name="name" placeholder="Ej. Croquetas caseras" [attr.aria-invalid]="nameError() ? 'true' : null" aria-describedby="name-help name-error" />
+              <small id="name-help" *ngIf="!nameError()">Será el nombre visible para los clientes.</small>
+              <small id="name-error" class="field-error" *ngIf="nameError()">{{ nameError() }}</small>
             </label>
-            <label>
-              <span>Categoría</span>
-              <input [(ngModel)]="form.category" name="category" list="product-category-options" placeholder="platos / tartas / dulces-gourmet" required />
-              <datalist id="product-category-options">
+            <label class="field" [class.has-error]="categoryError()">
+              <span>Categoría <b aria-hidden="true">*</b></span>
+              <select [(ngModel)]="form.category" name="category" [attr.aria-invalid]="categoryError() ? 'true' : null" aria-describedby="category-error">
+                <option value="">Seleccionar categoría</option>
                 <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
-              </datalist>
-              <small>Usa slugs: tartas, dulces-gourmet, aperitivos, platos, bebidas, combos o extras.</small>
-            </label>
-            <label>
-              <span>Precio (€)</span>
-              <input [(ngModel)]="form.price" name="price" type="number" min="0" step="0.01" placeholder="13.00" required />
-            </label>
-            <label>
-              <span>Orden en catálogo</span>
-              <input [(ngModel)]="form.order" name="order" type="number" placeholder="0" />
-            </label>
-            <label class="full">
-              <span>Imagen principal del producto (URL)</span>
-              <input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://..." />
-            </label>
-            <label class="full">
-              <span>Galería de imágenes</span>
-              <textarea [(ngModel)]="imagesText" name="imagesText" placeholder="Una URL por línea para mostrar miniaturas en el detalle"></textarea>
-              <small>Compatible con productos antiguos: si solo existe imagen principal, se seguirá usando.</small>
+              </select>
+              <small id="category-error" class="field-error" *ngIf="categoryError()">{{ categoryError() }}</small>
             </label>
           </div>
+        </section>
 
-          <h3>Formato de venta</h3>
-          <div class="grid two">
-            <label>
-              <span>Cantidad mínima</span>
-              <input [(ngModel)]="form.minimumQuantity" name="minimumQuantity" type="number" min="1" step="1" required />
-              <small>Por ejemplo: 6 para dulces gourmet o 5 para tamales.</small>
-            </label>
-            <label>
-              <span>Unidad o tipo de ración</span>
-              <input [(ngModel)]="form.unitLabel" name="unitLabel" placeholder="unidad / ración de 20 uds." />
-              <small>Se mostrará junto al precio y en el carrito.</small>
-            </label>
+        <section class="form-subsection" aria-labelledby="price-format-title">
+          <div class="subsection-heading"><div><h4 id="price-format-title">Precio y formato de venta</h4><p>Define cuánto cuesta y cómo se vende.</p></div></div>
+          <div class="field-grid two-columns">
+            <label class="field" [class.has-error]="priceError()"><span>Precio (€) <b aria-hidden="true">*</b></span><input [(ngModel)]="form.price" name="price" type="number" min="0" step="0.01" placeholder="Ej. 15,00" [attr.aria-invalid]="priceError() ? 'true' : null" /><small class="field-error" *ngIf="priceError()">{{ priceError() }}</small></label>
+            <label class="field"><span>Unidad o tipo de ración</span><input [(ngModel)]="form.unitLabel" name="unitLabel" placeholder="Ej. ración de 20 uds." /><small>Se mostrará junto al precio.</small></label>
+            <label class="field" [class.has-error]="minimumQuantityError()"><span>Cantidad mínima <b aria-hidden="true">*</b></span><input [(ngModel)]="form.minimumQuantity" name="minimumQuantity" type="number" min="1" step="1" [attr.aria-invalid]="minimumQuantityError() ? 'true' : null" /><small class="field-error" *ngIf="minimumQuantityError()">{{ minimumQuantityError() }}</small></label>
+            <label class="field"><span>Orden en el catálogo</span><input [(ngModel)]="form.order" name="order" type="number" placeholder="0" /><small>Los valores menores aparecen primero.</small></label>
           </div>
+        </section>
+      </section>
 
-          <div class="preview" *ngIf="form.imageUrl">
-            <p>Vista previa:</p>
-            <img [src]="form.imageUrl" [alt]="form.name ? 'Vista previa de ' + form.name : 'Vista previa del producto'" class="product-preview" width="180" height="120" decoding="async" />
+      <section class="form-card" *ngIf="formStep() === 2" aria-labelledby="presentation-step-title">
+        <header class="section-header"><div class="section-icon" aria-hidden="true">02</div><div><h3 id="presentation-step-title">Presentación</h3><p>Contenido e imágenes que ayudarán al cliente a elegir.</p></div></header>
+
+        <section class="form-subsection">
+          <div class="subsection-heading"><div><h4>Información del producto</h4><p>Describe de forma breve qué recibirá el cliente.</p></div></div>
+          <div class="field-grid two-columns">
+            <label class="field full-width"><span>Descripción</span><textarea [(ngModel)]="form.description" name="description" placeholder="Describe el sabor, tamaño y uso recomendado"></textarea></label>
+            <label class="field"><span>Ingredientes</span><textarea [(ngModel)]="ingredientsText" name="ingredientsText" placeholder="Un ingrediente por línea"></textarea></label>
+            <label class="field"><span>Reseñas</span><textarea [(ngModel)]="reviewsText" name="reviewsText" placeholder="Autor | valoración | comentario | fecha opcional"></textarea><small>Una reseña por línea.</small></label>
           </div>
+        </section>
 
-          <h3>Inventario</h3>
-          <div class="grid two">
-            <label>
-              <span>Stock disponible</span>
-              <input [(ngModel)]="form.stock" name="stock" type="number" min="0" placeholder="0" />
-              <small>Cantidad actual disponible para vender.</small>
-            </label>
-            <label>
-              <span>Stock mínimo (alerta)</span>
-              <input [(ngModel)]="form.lowStockAlert" name="lowStockAlert" type="number" min="0" placeholder="5" />
-              <small>Se mostrará alerta cuando el stock sea ≤ a este valor.</small>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" [(ngModel)]="form.trackStock" name="trackStock" />
-              <div>
-                <strong>Controlar stock</strong>
-                <small>Si está activo, el sistema reducirá stock al recibir pedidos.</small>
-              </div>
-            </label>
+        <section class="form-subsection image-section">
+          <div class="subsection-heading"><div><h4>Imágenes del producto</h4><p>Actualmente las imágenes se añaden mediante URL.</p></div></div>
+          <div class="image-url-card">
+            <div class="image-placeholder" aria-hidden="true">＋</div>
+            <label class="field"><span>URL de imagen principal</span><input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://ejemplo.com/producto.webp" /><small>Formatos recomendados: PNG, JPG o WebP.</small></label>
           </div>
-
-          <h3>Visibilidad y disponibilidad</h3>
-          <div class="grid two">
-            <label class="checkbox">
-              <input type="checkbox" [(ngModel)]="form.published" name="published" />
-              <div>
-                <strong>Publicado en la web</strong>
-                <small>Si lo desactivas, no aparecerá en el catálogo.</small>
-              </div>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" [(ngModel)]="form.available" name="available" />
-              <div>
-                <strong>Disponible para pedidos</strong>
-                <small>Permite o bloquea la compra aunque esté publicado.</small>
-              </div>
-            </label>
+          <label class="field gallery-field"><span>Galería de imágenes</span><textarea [(ngModel)]="imagesText" name="imagesText" placeholder="Una URL por línea"></textarea><small>La primera imagen seguirá siendo la principal.</small></label>
+          <div class="image-previews" *ngIf="imagePreviewUrls().length" aria-label="Vista previa de imágenes">
+            <figure *ngFor="let image of imagePreviewUrls(); let first = first">
+              <img [src]="image" [alt]="first ? 'Imagen principal de ' + (form.name || 'producto') : 'Imagen de galería de ' + (form.name || 'producto')" width="132" height="104" loading="lazy" decoding="async" />
+              <figcaption>{{ first ? 'Principal' : 'Galería' }}</figcaption>
+            </figure>
           </div>
+        </section>
+      </section>
 
-          <h3>Descripción</h3>
-          <label class="full">
-            <span>Descripción del producto</span>
-            <textarea [(ngModel)]="form.description" name="description" placeholder="Describe el producto, tamaño, sabor y uso recomendado"></textarea>
-          </label>
-          <label class="full">
-            <span>Ingredientes</span>
-            <textarea [(ngModel)]="ingredientsText" name="ingredientsText" placeholder="Un ingrediente por línea"></textarea>
-          </label>
+      <section class="form-card" *ngIf="formStep() === 3" aria-labelledby="stock-step-title">
+        <header class="section-header"><div class="section-icon" aria-hidden="true">03</div><div><h3 id="stock-step-title">Venta y stock</h3><p>Controla inventario, publicación y disponibilidad.</p></div></header>
 
-          <h3>Opiniones</h3>
-          <label class="full">
-            <span>Reseñas</span>
-            <textarea [(ngModel)]="reviewsText" name="reviewsText" placeholder="Autor | valoración 1-5 | comentario | fecha opcional"></textarea>
-          </label>
+        <div class="sales-summary"><div><small>Precio configurado</small><strong>{{ form.price | currency:'EUR' }}</strong></div><div><small>Formato de venta</small><strong>Mínimo {{ form.minimumQuantity }} {{ form.unitLabel || 'unidad(es)' }}</strong></div><button type="button" (click)="editReviewStep(1)">Editar precio</button></div>
 
-          <h3>Personalización para tartas</h3>
-          <div class="grid two">
-            <label><span>Temáticas</span><textarea [(ngModel)]="customizationThemesText" name="customizationThemesText" placeholder="Cumpleaños | 0"></textarea></label>
-            <label><span>Colores</span><textarea [(ngModel)]="customizationColorsText" name="customizationColorsText" placeholder="Rosa | 0"></textarea></label>
-            <label><span>Tamaños / porciones</span><textarea [(ngModel)]="customizationSizesText" name="customizationSizesText" placeholder="10 porciones | 8"></textarea></label>
-            <label><span>Bizcochos</span><textarea [(ngModel)]="customizationFlavorsText" name="customizationFlavorsText" placeholder="Red Velvet | 3"></textarea></label>
-            <label><span>Rellenos</span><textarea [(ngModel)]="customizationFillingsText" name="customizationFillingsText" placeholder="Dulce de leche | 3"></textarea></label>
-            <label><span>Coberturas</span><textarea [(ngModel)]="customizationToppingsText" name="customizationToppingsText" placeholder="Merengue italiano | 0"></textarea></label>
-            <label><span>Decoraciones</span><textarea [(ngModel)]="customizationDecorationsText" name="customizationDecorationsText" placeholder="Topper premium | 10"></textarea></label>
+        <section class="form-subsection">
+          <div class="subsection-heading"><div><h4>Control de inventario</h4><p>Actívalo únicamente si necesitas descontar unidades con cada pedido.</p></div></div>
+          <label class="switch-card"><input type="checkbox" [(ngModel)]="form.trackStock" name="trackStock" /><span class="switch-control" aria-hidden="true"></span><span><strong>Controlar stock</strong><small>El sistema reducirá el stock al recibir pedidos.</small></span></label>
+          <div class="field-grid two-columns stock-fields" [class.muted]="!form.trackStock">
+            <label class="field" [class.has-error]="stockError()"><span>Stock disponible</span><input [(ngModel)]="form.stock" name="stock" type="number" min="0" [disabled]="!form.trackStock" [attr.aria-invalid]="stockError() ? 'true' : null" /><small class="field-error" *ngIf="stockError()">{{ stockError() }}</small></label>
+            <label class="field" [class.has-error]="lowStockError()"><span>Aviso de stock bajo</span><input [(ngModel)]="form.lowStockAlert" name="lowStockAlert" type="number" min="0" [disabled]="!form.trackStock" [attr.aria-invalid]="lowStockError() ? 'true' : null" /><small class="field-error" *ngIf="lowStockError()">{{ lowStockError() }}</small></label>
           </div>
+        </section>
 
-          <div class="actions form-actions">
-            <button class="btn btn-primary" type="submit">{{ editId() ? 'Guardar cambios' : '+ Nuevo producto' }}</button>
-            <button class="btn" type="button" *ngIf="editId()" (click)="resetForm()">Cancelar edición</button>
+        <section class="form-subsection">
+          <div class="subsection-heading"><div><h4>Disponibilidad</h4><p>Decide si el producto se muestra y si puede pedirse.</p></div></div>
+          <div class="switch-grid">
+            <label class="switch-card"><input type="checkbox" [(ngModel)]="form.published" name="published" /><span class="switch-control" aria-hidden="true"></span><span><strong>Publicado en la web</strong><small>Visible dentro del catálogo.</small></span></label>
+            <label class="switch-card"><input type="checkbox" [(ngModel)]="form.available" name="available" /><span class="switch-control" aria-hidden="true"></span><span><strong>Disponible para pedidos</strong><small>Los clientes pueden añadirlo al carrito.</small></span></label>
           </div>
-        </form>
+        </section>
+      </section>
 
-        <hr />
+      <section class="form-card" *ngIf="formStep() === 4" aria-labelledby="custom-step-title">
+        <header class="section-header"><div class="section-icon" aria-hidden="true">04</div><div><h3 id="custom-step-title">Personalización</h3><p>Configura opciones únicamente para productos que las necesiten.</p></div></header>
 
-        <h3>Listado de productos</h3>
-        <div class="grid two filters">
-          <label>
-            <span>Buscar producto</span>
-            <input [(ngModel)]="search" placeholder="Nombre o categoría" />
-          </label>
-          <label>
-            <span>Filtrar por categoría</span>
-            <select [(ngModel)]="categoryFilter">
-              <option value="">Todas</option>
-              <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
-            </select>
-          </label>
+        <div class="empty-customization" *ngIf="!customizationEditorOpen() && !hasCustomizationData()">
+          <div aria-hidden="true">✦</div><h4>Este producto no tiene personalización</h4><p>Déjalo así para platos, bebidas y productos simples. Si es una tarta, puedes añadir sus opciones.</p><button class="action-button secondary" type="button" (click)="openCustomizationEditor()">Configurar opciones</button>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Imagen</th>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Precio</th>
-                <th>Stock</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let product of filteredProducts()">
-                <td>
-                  <img *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" class="thumb" width="56" height="56" loading="lazy" decoding="async" />
-                  <span *ngIf="!product.imageUrl">—</span>
-                </td>
-                <td>
-                  <strong>{{ product.name }}</strong>
-                  <small class="meta">Orden: {{ product.order ?? 0 }}</small>
-                </td>
-                <td>{{ categoryLabel(product.category) }}</td>
-                <td>{{ product.price | currency:'EUR' }}</td>
-                <td>
-                  <ng-container *ngIf="product.trackStock; else noStockTracking">
-                    {{ product.stock ?? 0 }}
-                  </ng-container>
-                  <ng-template #noStockTracking>—</ng-template>
-                </td>
-                <td>
-                  <span class="status" [class.ok]="getStatus(product).kind === 'ok'" [class.warn]="getStatus(product).kind === 'warn'" [class.off]="getStatus(product).kind === 'off'">
-                    {{ getStatus(product).label }}
-                  </span>
-                </td>
-                <td class="actions">
-                  <button class="btn" (click)="editProduct(product)">Editar</button>
-                  <button class="btn" (click)="togglePublished(product)">{{ product.published ? 'Ocultar' : 'Publicar' }}</button>
-                  <button class="btn" (click)="toggleAvailability(product)">{{ product.available ? 'Desactivar' : 'Activar' }}</button>
-                  <button class="btn" (click)="removeProduct(product)">Eliminar</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <ng-container *ngIf="customizationEditorOpen() || hasCustomizationData()">
+          <div class="format-help"><strong>Cómo introducir opciones</strong><span>Una opción por línea. Para añadir suplemento usa <code>Nombre | precio</code>.</span></div>
+          <section class="customization-group"><div class="subsection-heading"><div><h4>Estilo y presentación</h4><p>Aspecto general solicitado por el cliente.</p></div></div><div class="field-grid two-columns"><label class="field"><span>Temáticas</span><textarea [(ngModel)]="customizationThemesText" name="customizationThemesText" placeholder="Cumpleaños"></textarea></label><label class="field"><span>Colores</span><textarea [(ngModel)]="customizationColorsText" name="customizationColorsText" placeholder="Rojo"></textarea></label></div></section>
+          <section class="customization-group"><div class="subsection-heading"><div><h4>Tamaño y sabores</h4><p>Variantes que afectan la elaboración o el precio.</p></div></div><div class="field-grid two-columns"><label class="field"><span>Tamaños / porciones</span><textarea [(ngModel)]="customizationSizesText" name="customizationSizesText" placeholder="Mediana | 15"></textarea></label><label class="field"><span>Bizcochos</span><textarea [(ngModel)]="customizationFlavorsText" name="customizationFlavorsText" placeholder="Red Velvet | 3"></textarea></label><label class="field"><span>Rellenos</span><textarea [(ngModel)]="customizationFillingsText" name="customizationFillingsText" placeholder="Dulce de leche"></textarea></label><label class="field"><span>Coberturas</span><textarea [(ngModel)]="customizationToppingsText" name="customizationToppingsText" placeholder="Merengue italiano"></textarea></label></div></section>
+          <section class="customization-group"><div class="subsection-heading"><div><h4>Decoración</h4><p>Acabados y elementos adicionales.</p></div></div><div class="field-grid two-columns"><label class="field"><span>Decoraciones</span><textarea [(ngModel)]="customizationDecorationsText" name="customizationDecorationsText" placeholder="Topper premium | 10"></textarea></label></div></section>
+        </ng-container>
+      </section>
+
+      <section class="form-card review-step" *ngIf="formStep() === 5" aria-labelledby="review-step-title">
+        <header class="section-header"><div class="section-icon" aria-hidden="true">05</div><div><h3 id="review-step-title">Revisar producto</h3><p>Comprueba qué se guardará antes de finalizar.</p></div></header>
+        <div class="review-list">
+          <article class="review-item"><div class="review-icon" aria-hidden="true">Aa</div><div><small>Producto</small><strong>{{ form.name || 'Sin nombre' }}</strong><span>{{ categoryLabel(form.category) || 'Sin categoría' }}</span></div><button type="button" (click)="editReviewStep(1)">Editar</button></article>
+          <article class="review-item"><div class="review-icon" aria-hidden="true">€</div><div><small>Precio y venta</small><strong>{{ form.price | currency:'EUR' }}</strong><span>Mínimo {{ form.minimumQuantity }} · {{ form.unitLabel || 'Sin formato indicado' }}</span></div><button type="button" (click)="editReviewStep(1)">Editar</button></article>
+          <article class="review-item"><div class="review-icon" aria-hidden="true">▧</div><div><small>Presentación</small><strong>{{ imagePreviewUrls().length }} {{ imagePreviewUrls().length === 1 ? 'imagen' : 'imágenes' }}</strong><span>{{ form.description ? 'Descripción completada' : 'Sin descripción' }}</span></div><button type="button" (click)="editReviewStep(2)">Editar</button></article>
+          <article class="review-item"><div class="review-icon" aria-hidden="true">#</div><div><small>Stock y estado</small><strong>{{ form.trackStock ? form.stock + ' unidades' : 'Sin control de stock' }}</strong><span>{{ form.published ? 'Publicado' : 'No publicado' }} · {{ form.available ? 'Disponible' : 'No disponible' }}</span></div><button type="button" (click)="editReviewStep(3)">Editar</button></article>
+          <article class="review-item"><div class="review-icon" aria-hidden="true">✦</div><div><small>Personalización</small><strong>{{ hasCustomizationData() ? customizationOptionCount() + ' opciones configuradas' : 'No disponible' }}</strong><span>{{ hasCustomizationData() ? 'El cliente podrá elegir variantes.' : 'Producto sin opciones adicionales.' }}</span></div><button type="button" (click)="editReviewStep(4)">Editar</button></article>
         </div>
       </section>
-    </ng-template>
-  
+
+      <footer class="form-actions">
+        <button class="wizard-button secondary" type="button" *ngIf="formStep() === 1" (click)="resetForm()">{{ editId() ? 'Cancelar edición' : 'Limpiar formulario' }}</button>
+        <button class="wizard-button secondary" type="button" *ngIf="formStep() > 1" (click)="previousStep()">← Atrás</button>
+        <span class="save-hint" *ngIf="formStep() < formSteps.length">Los cambios se guardarán al finalizar</span>
+        <button class="wizard-button primary" type="button" *ngIf="formStep() < formSteps.length" (click)="nextStep()">Continuar →</button>
+        <button class="wizard-button primary" type="submit" *ngIf="formStep() === formSteps.length">{{ editId() ? 'Guardar cambios' : 'Crear producto' }}</button>
+      </footer>
+    </form>
+
+    <section id="product-management" class="product-management">
+      <header class="management-header"><div><span class="page-kicker">Gestión directa</span><h2>Productos creados</h2><p>Edita publicación, disponibilidad o contenido de los productos existentes.</p></div><span>{{ filteredProducts().length }} productos</span></header>
+      <div class="field-grid two-columns filters">
+        <label class="field"><span>Buscar producto</span><input [(ngModel)]="search" placeholder="Nombre o categoría" /></label>
+        <label class="field"><span>Filtrar por categoría</span><select [(ngModel)]="categoryFilter"><option value="">Todas</option><option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option></select></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Imagen</th><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let product of filteredProducts()">
+              <td><img *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" class="thumb" width="56" height="56" loading="lazy" decoding="async" /><span *ngIf="!product.imageUrl">—</span></td>
+              <td><strong>{{ product.name }}</strong><small class="meta">Orden: {{ product.order ?? 0 }}</small></td>
+              <td>{{ categoryLabel(product.category) }}</td><td>{{ product.price | currency:'EUR' }}</td>
+              <td><ng-container *ngIf="product.trackStock; else noStockTracking">{{ product.stock ?? 0 }}</ng-container><ng-template #noStockTracking>—</ng-template></td>
+              <td><span class="status" [class.ok]="getStatus(product).kind === 'ok'" [class.warn]="getStatus(product).kind === 'warn'" [class.off]="getStatus(product).kind === 'off'">{{ getStatus(product).label }}</span></td>
+              <td><div class="row-actions"><button type="button" (click)="editProduct(product)">Editar</button><button type="button" (click)="togglePublished(product)">{{ product.published ? 'Ocultar' : 'Publicar' }}</button><button type="button" (click)="toggleAvailability(product)">{{ product.available ? 'Desactivar' : 'Activar' }}</button><button class="danger" type="button" (click)="removeProduct(product)">Eliminar</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</ng-template>
