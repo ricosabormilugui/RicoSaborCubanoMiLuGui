@@ -57,7 +57,7 @@
                   Cantidad
                   <input type="number" min="1" max="99" inputmode="numeric" [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" />
                 </label>
-                <button class="btn btn-primary add-button" type="button" (click)="addToCart(product()!)">Añadir al carrito</button>
+                <app-add-to-cart-button class="add-button" variant="large" [action]="detailAddAction(product()!)" label="Añadir al carrito" [ariaLabel]="'Añadir ' + product()!.name + ' al carrito'" />
               </div>
             </div>
           </article>
@@ -86,7 +86,14 @@
             <div class="mini-grid">
               <article class="mini-product" *ngFor="let item of relatedProducts()">
                 <a class="mini-image" [routerLink]="productRoute(item)" [attr.aria-label]="'Ver detalle de ' + item.name"><img [src]="productImages(item)[0] || fallbackImage" [alt]="productImageAlt(item)" width="152" height="152" loading="lazy" decoding="async" /></a>
-                <div class="mini-content"><a class="mini-name" [routerLink]="productRoute(item)">{{ item.name }}</a><strong>{{ item.price | currency:'EUR' }}</strong><button class="btn btn-secondary" type="button" (click)="addRelated(item)">{{ isCustomCake(item) ? 'Personalizar' : 'Añadir' }}</button></div>
+                <div class="mini-content">
+                  <a class="mini-name" [routerLink]="productRoute(item)">{{ item.name }}</a>
+                  <strong>{{ item.price | currency:'EUR' }}</strong>
+                  <button *ngIf="isCustomCake(item); else addRelatedProduct" class="btn btn-secondary" type="button" (click)="addRelated(item)">Personalizar</button>
+                  <ng-template #addRelatedProduct>
+                    <app-add-to-cart-button variant="compact" [action]="relatedAddAction(item)" label="Añadir" [ariaLabel]="'Añadir ' + item.name + ' al carrito'" />
+                  </ng-template>
+                </div>
               </article>
             </div>
           </section>

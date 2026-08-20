@@ -9,12 +9,13 @@ import { isProductCustomizable, Product } from '../../core/models/product.model'
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
+import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent],
   templateUrl: './catalog-page.component.html',
   styleUrls: ['./catalog-page.component.css']
 })
@@ -155,6 +156,10 @@ export class CatalogPageComponent {
     }
     this.cart.add(product);
     this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+  }
+
+  addAction(product: Product): AddToCartAction {
+    return () => this.addToCart(product);
   }
 
   isCustomizable(product: Product): boolean {

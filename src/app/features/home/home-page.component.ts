@@ -10,10 +10,11 @@ import { getProductRoute, selectBestSellers } from '../../core/models/product-fi
 import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
+import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, AddToCartButtonComponent],
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.css']
 })
@@ -53,6 +54,10 @@ export class HomePageComponent {
     }
     this.cart.add(product);
     this.notifications.info('Producto añadido', `${product.name} se agregó al carrito.`);
+  }
+
+  addAction(product: Product): AddToCartAction {
+    return () => this.addToCart(product);
   }
 
   isCustomizable(product: Product): boolean {

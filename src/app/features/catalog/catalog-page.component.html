@@ -106,7 +106,10 @@
               <strong>{{ product.price | currency:'EUR' }}</strong>
             </div>
             <div class="actions">
-              <button class="btn btn-primary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : '+ Añadir' }}</button>
+              <button *ngIf="isCustomizable(product); else addProduct" class="btn btn-primary" type="button" (click)="addToCart(product)">Personalizar</button>
+              <ng-template #addProduct>
+                <app-add-to-cart-button [action]="addAction(product)" label="Añadir" [ariaLabel]="'Añadir ' + product.name + ' al carrito'" />
+              </ng-template>
               <a class="details-link" [routerLink]="productRoute(product)">Ver detalles <span aria-hidden="true">→</span></a>
             </div>
           </div>
@@ -130,7 +133,10 @@
           <div>
             <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
             <strong>{{ product.price | currency:'EUR' }}</strong>
-            <button class="btn btn-primary" type="button" (click)="addToCart(product)">{{ isCustomizable(product) ? 'Personalizar' : '+ Añadir' }}</button>
+            <button *ngIf="isCustomizable(product); else addBestSeller" class="btn btn-primary" type="button" (click)="addToCart(product)">Personalizar</button>
+            <ng-template #addBestSeller>
+              <app-add-to-cart-button variant="compact" [action]="addAction(product)" label="Añadir" [ariaLabel]="'Añadir ' + product.name + ' al carrito'" />
+            </ng-template>
           </div>
         </article>
       </div>

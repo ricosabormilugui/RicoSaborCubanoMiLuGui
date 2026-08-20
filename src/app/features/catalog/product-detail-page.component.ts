@@ -12,10 +12,11 @@ import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/confi
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
+import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent],
   templateUrl: './product-detail-page.component.html',
   styleUrls: ['./product-detail-page.component.css']
 })
@@ -54,23 +55,32 @@ export class ProductDetailPageComponent {
   customizedTotal(product: Product): number { return Number((Number(product.price ?? 0) + this.customizationExtraTotal()).toFixed(2)); }
   private selectedCustomizationItems(product: Product): CartCustomizationSelection[] { const labels = new Map(this.customizationGroups(product).map((group) => [group.key, group.label])); return Object.entries(this.selectedCustomization()).map(([key, option]) => ({ label: labels.get(key) ?? key, value: option.name, price: option.price })); }
 
-  addToCart(product: Product, amount = this.quantity()): void {
+  addToCart(product: Product, amount = this.quantity()): boolean {
     const groups = this.customizationGroups(product);
-    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona temática, color, tamaño/porciones, relleno y cobertura antes de añadir la tarta.'); return; }
+    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona temática, color, tamaño/porciones, relleno y cobertura antes de añadir la tarta.'); return false; }
     const quantity = Math.max(1, Math.floor(amount));
     const customization = this.selectedCustomizationItems(product);
     const unitPrice = this.customizedTotal(product);
     for (let index = 0; index < quantity; index += 1) this.cart.add(product, customization, unitPrice);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
     this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
+    return true;
   }
 
-  addRelated(item: Product): void {
+  addRelated(item: Product): boolean {
     if (this.isCustomCake(item)) {
       void this.router.navigate(this.productRoute(item));
-      return;
+      return false;
     }
-    this.addToCart(item, 1);
+    return this.addToCart(item, 1);
+  }
+
+  detailAddAction(product: Product): AddToCartAction {
+    return () => this.addToCart(product);
+  }
+
+  relatedAddAction(product: Product): AddToCartAction {
+    return () => this.addRelated(product);
   }
 
   private hasRequiredCustomization(groups: Array<{ key: string }>): boolean {
