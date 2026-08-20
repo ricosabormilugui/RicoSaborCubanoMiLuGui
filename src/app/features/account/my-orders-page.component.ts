@@ -21,6 +21,7 @@ import { CustomerOrdersService, CustomerOrder } from '../../core/services/custom
         <article class="order" *ngFor="let order of orders()">
           <h3>{{ order.orderId }} · {{ order.status }}</h3>
           <p><strong>Fecha:</strong> {{ order.createdAt | date:'short' }} · <strong>Total:</strong> {{ (order.total ?? 0) | currency:'EUR' }}</p>
+          <p><strong>Entrega:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} · {{ order.deliverySlot || 'N/A' }} · {{ order.deliveryType || 'delivery' }}</p>
           <ul>
             <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}</li>
           </ul>
@@ -31,7 +32,7 @@ import { CustomerOrdersService, CustomerOrder } from '../../core/services/custom
       </div>
     </section>
   `,
-  styles: [`.order{border:1px solid #e5e7eb;border-radius:12px;padding:.9rem;margin-top:.8rem;background:#fff}.err{color:#b42318}`]
+  styles: [`.order{border:1px solid var(--border-soft);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--surface-1);color:var(--text-main)}.order h3,.order p,.order li,.order strong{color:inherit}.err{color:var(--error-text)}`]
 })
 export class MyOrdersPageComponent {
   readonly orders = signal<CustomerOrder[]>([]);

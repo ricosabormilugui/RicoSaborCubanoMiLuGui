@@ -1,4 +1,7 @@
-export type AdminOrderStatus = 'nuevo' | 'enviado' | 'entregado' | 'anulado';
+export type AdminPaymentMethod = 'bizum' | 'bank_transfer' | 'cash';
+export type AdminPaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'rejected' | 'refunded';
+
+export type AdminOrderStatus = 'nuevo' | 'confirmado' | 'preparando' | 'listo' | 'enviado' | 'entregado' | 'cancelado' | 'anulado';
 
 export interface AdminOrder {
   orderId: string;
@@ -18,8 +21,34 @@ export interface AdminOrder {
     unitPrice: number;
     quantity: number;
   }>;
+  deliveryDate?: string;
+  deliverySlot?: string;
+  deliveryType?: "delivery" | "pickup";
+  shipping?: {
+    zoneId?: string;
+    zoneName?: string;
+    postalCode?: string;
+    cost?: number;
+    minimumOrder?: number;
+    freeShippingFrom?: number;
+    freeShippingApplied?: boolean;
+  };
+  shippingCost?: number;
+  payment?: {
+    method?: AdminPaymentMethod;
+    status?: AdminPaymentStatus;
+    instructions?: string;
+  };
+  paymentMethod?: AdminPaymentMethod;
+  paymentStatus?: AdminPaymentStatus;
+  requiresAdvancePayment?: boolean;
+  paymentConfirmedAt?: string;
   notes?: string;
   subtotal?: number;
+  couponCode?: string | null;
+  discountAmount?: number;
+  discountType?: string | null;
+  discountPercent?: number;
   taxAmount?: number;
   taxRate?: number;
   total?: number;
@@ -28,5 +57,11 @@ export interface AdminOrder {
     at: string;
     note?: string | null;
     signature?: string | null;
+  }>;
+  notifications?: Array<{
+    type: 'email';
+    status: 'sent' | 'failed';
+    date: string;
+    error?: string | null;
   }>;
 }

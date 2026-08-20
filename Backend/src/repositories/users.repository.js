@@ -28,3 +28,23 @@ export async function findUserById(id) {
   const db = await getDb();
   return db.collection(getUsersCollectionName()).findOne({ _id: new ObjectId(id) });
 }
+
+export async function promoteUserToAdmin(email) {
+  const db = await getDb();
+  const normalizedEmail = String(email ?? "").trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  const collection = db.collection(getUsersCollectionName());
+  const result = await collection.findOneAndUpdate(
+    { email: normalizedEmail },
+    {
+      $set: {
+        role: "admin",
+        updatedAt: new Date().toISOString()
+      }
+    },
+    { returnDocument: "after" }
+  );
+
+  return result;
+}

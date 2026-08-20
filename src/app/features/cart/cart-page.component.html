@@ -1,0 +1,51 @@
+
+    <section class="cart-card card">
+      <h1>Carrito</h1>
+      <p class="empty-cart" *ngIf="!cart.items().length">Tu carrito está vacío.</p>
+
+      <div class="cart-list" *ngIf="cart.items().length" aria-label="Productos en el carrito">
+        <div class="cart-head" aria-hidden="true">
+          <span>Producto</span>
+          <span>Cant.</span>
+          <span>Precio</span>
+          <span></span>
+        </div>
+
+        <article class="cart-item" *ngFor="let item of cart.items()">
+          <div class="item-main">
+            <span class="mobile-label">Producto</span>
+            <strong class="item-name">{{ item.name }}</strong>
+            <ul class="custom-summary" *ngIf="item.customization?.length">
+              <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.price"> (+{{ option.price | currency:'EUR' }})</span></li>
+            </ul>
+          </div>
+
+          <div class="quantity-cell">
+            <span class="mobile-label">Cantidad</span>
+            <div class="quantity-controls" [attr.aria-label]="'Cantidad de ' + item.name">
+              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity-1)" [attr.aria-label]="'Reducir cantidad de ' + item.name">−</button>
+              <span class="qty-value">{{ item.quantity }}</span>
+              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity+1)" [attr.aria-label]="'Aumentar cantidad de ' + item.name">+</button>
+            </div>
+          </div>
+
+          <div class="price-cell">
+            <span class="mobile-label">Precio</span>
+            <strong>{{ item.unitPrice * item.quantity | currency:'USD' }}</strong>
+          </div>
+
+          <div class="remove-cell">
+            <button class="btn btn-danger remove-btn" type="button" (click)="cart.remove(item.productId)">Quitar</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="cart-footer" *ngIf="cart.items().length">
+        <div class="total-row">
+          <span>Total</span>
+          <strong>{{ cart.subtotal() | currency:'USD' }}</strong>
+        </div>
+        <a routerLink="/checkout" class="btn btn-primary checkout-btn">Ir al checkout</a>
+      </div>
+    </section>
+  

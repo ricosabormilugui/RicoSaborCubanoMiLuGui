@@ -1,10 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
+import { AdminAuthService } from './admin-auth.service';
 
 export interface CustomerProfile {
   userId: string;
   email: string;
-  role: 'customer';
+  role: 'customer' | 'admin';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -15,6 +16,10 @@ export class CustomerAuthService {
 
   readonly token = signal<string>(this.readStorage(this.tokenKey));
   readonly profile = signal<CustomerProfile | null>(this.readProfile());
+
+  constructor(private readonly adminAuth: AdminAuthService) {
+    this.syncAdminSession();
+  }
 
   private readStorage(key: string): string {
     try {
@@ -28,7 +33,15 @@ export class CustomerAuthService {
     try {
       const raw = globalThis?.localStorage?.getItem(this.profileKey);
       if (!raw) return null;
-      return JSON.parse(raw) as CustomerProfile;
+
+      const parsed = JSON.parse(raw) as Partial<CustomerProfile>;
+      if (!parsed.userId || !parsed.email) return null;
+
+      return {
+        userId: String(parsed.userId),
+        email: String(parsed.email),
+        role: parsed.role === 'admin' ? 'admin' : 'customer'
+      };
     } catch {
       return null;
     }
@@ -52,6 +65,16 @@ export class CustomerAuthService {
     }
   }
 
+  private syncAdminSession(): void {
+    const role = this.profile()?.role;
+    if (role === 'admin' && this.token()) {
+      this.adminAuth.setToken(this.token());
+      return;
+    }
+
+    this.adminAuth.logout();
+  }
+
   isAuthenticated(): boolean {
     return this.token().length > 0;
   }
@@ -70,8 +93,13 @@ export class CustomerAuthService {
       }
 
       const data = (await response.json()) as CustomerProfile;
-      this.profile.set({ userId: data.userId, email: data.email, role: 'customer' });
+      this.profile.set({
+        userId: data.userId,
+        email: data.email,
+        role: data.role === 'admin' ? 'admin' : 'customer'
+      });
       this.persist();
+      this.syncAdminSession();
     } catch {
       // Keep local session if backend isn't reachable from frontend environment
     }
@@ -81,6 +109,7 @@ export class CustomerAuthService {
     this.token.set('');
     this.profile.set(null);
     this.persist();
+    this.syncAdminSession();
   }
 
   async register(fullName: string, email: string, password: string): Promise<{ linkedOrders: number }> {
@@ -111,13 +140,14 @@ export class CustomerAuthService {
       throw new Error('Credenciales inválidas.');
     }
 
-    const data = (await response.json()) as { token: string; userId: string; role: 'customer' };
+    const data = (await response.json()) as { token: string; userId: string; role: 'customer' | 'admin' };
     this.token.set(data.token ?? '');
     this.profile.set({
       userId: data.userId,
       email,
-      role: 'customer'
+      role: data.role === 'admin' ? 'admin' : 'customer'
     });
     this.persist();
+    this.syncAdminSession();
   }
 }

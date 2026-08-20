@@ -4,12 +4,35 @@ interface OrderPayload {
     phone?: string;
     email?: string;
   };
+  deliveryDate?: string;
+  deliverySlot?: string;
+  deliveryType?: 'delivery' | 'pickup';
   delivery?: {
     mode?: 'delivery' | 'pickup';
+    type?: 'delivery' | 'pickup';
+    date?: string;
+    slot?: string;
     address?: string;
     reference?: string;
     preferredTime?: string;
   };
+  payment?: {
+    method?: 'bizum' | 'bank_transfer' | 'cash';
+    status?: 'pending' | 'paid' | 'failed' | 'cancelled';
+    instructions?: string;
+  };
+  paymentMethod?: 'bizum' | 'bank_transfer' | 'cash';
+  paymentStatus?: 'pending' | 'paid' | 'failed' | 'cancelled';
+  shipping?: {
+    zoneId?: string;
+    zoneName?: string;
+    postalCode?: string;
+    cost?: number;
+    minimumOrder?: number;
+    freeShippingFrom?: number;
+    freeShippingApplied?: boolean;
+  };
+  shippingCost?: number;
   notes?: string;
   items?: Array<{
     productId: string;
@@ -25,7 +48,7 @@ interface OrderPayload {
 }
 
 type NotificationResult = {
-  channel: 'email' | 'whatsapp';
+  channel: 'email';
   configured: boolean;
   sent: boolean;
   detail?: string;
@@ -49,19 +72,55 @@ function getEnv(name: string): string | undefined {
   return value && value.trim().length > 0 ? value : undefined;
 }
 
-function getDeliveryModeLabel(mode: OrderPayload['delivery'] extends { mode?: infer T } ? T : never): string {
+function getDeliveryModeLabel(mode: 'delivery' | 'pickup' | undefined): string {
   return mode === 'pickup' ? 'Recogida en local' : 'Entrega a domicilio';
 }
 
-function resolveTaxSummary(payload: OrderPayload): { subtotal: number; taxAmount: number; total: number; taxLabel: string } {
+function formatDateTime(value: Date = new Date()): string {
+  return value.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function getPaymentMethod(payload: OrderPayload): 'bizum' | 'bank_transfer' | 'cash' {
+  const method = payload.payment?.method ?? payload.paymentMethod ?? 'bizum';
+  return method === 'bank_transfer' || method === 'cash' ? method : 'bizum';
+}
+
+function getPaymentMethodLabel(method: ReturnType<typeof getPaymentMethod>): string {
+  const labels = {
+    bizum: 'Bizum',
+    bank_transfer: 'Transferencia bancaria',
+    cash: 'Efectivo / Cash'
+  } as const;
+
+  return labels[method];
+}
+
+function getPaymentInstructions(orderId: string, payload: OrderPayload): string {
+  const method = getPaymentMethod(payload);
+
+  if (method === 'bizum') {
+    return `Enviar Bizum al ${getEnv('PAYMENT_BIZUM_PHONE') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BIZUM_PHONE'} indicando pedido ${orderId}.`;
+  }
+
+  if (method === 'bank_transfer') {
+    const iban = getEnv('PAYMENT_BANK_IBAN') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BANK_IBAN';
+    const holder = getEnv('PAYMENT_BANK_HOLDER') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BANK_HOLDER';
+    return `Transferencia a ${iban}, titular ${holder}, indicando pedido ${orderId} en el concepto.`;
+  }
+
+  return `${getEnv('PAYMENT_CASH_INSTRUCTIONS') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_CASH_INSTRUCTIONS: pagar en efectivo al recibir o recoger el pedido.'} Indica pedido ${orderId} al equipo.`;
+}
+
+function resolveTaxSummary(payload: OrderPayload): { subtotal: number; shippingCost: number; taxAmount: number; total: number; taxLabel: string } {
   const subtotal = Number(payload.subtotal ?? 0);
-  const total = Number(payload.total ?? subtotal);
-  const inferredTax = Number((total - subtotal).toFixed(2));
+  const shippingCost = Number(payload.shipping?.cost ?? payload.shippingCost ?? 0);
+  const total = Number(payload.total ?? subtotal + shippingCost);
+  const inferredTax = Number((total - subtotal - shippingCost).toFixed(2));
   const taxAmount = Number((payload.taxAmount ?? inferredTax).toFixed(2));
   const taxRate = Number(payload.taxRate ?? 0);
   const taxLabel = taxRate > 0 ? `Impuestos (${taxRate.toFixed(2)}%)` : 'Impuestos';
 
-  return { subtotal, taxAmount, total, taxLabel };
+  return { subtotal, shippingCost, taxAmount, total, taxLabel };
 }
 
 function buildOrderItemsRows(items: OrderPayload['items'] = []): string {
@@ -89,11 +148,12 @@ function buildOrderItemsRows(items: OrderPayload['items'] = []): string {
 }
 
 function buildOrderFinancialSummary(payload: OrderPayload): string {
-  const { subtotal, taxAmount, total, taxLabel } = resolveTaxSummary(payload);
+  const { subtotal, shippingCost, taxAmount, total, taxLabel } = resolveTaxSummary(payload);
 
   return `
     <div style="text-align:right;margin-bottom:18px;">
       <p style="margin:0 0 6px;"><strong>Subtotal:</strong> ${formatCurrency(subtotal)}</p>
+      <p style="margin:0 0 6px;"><strong>Envío:</strong> ${formatCurrency(shippingCost)}</p>
       <p style="margin:0 0 6px;"><strong>${taxLabel}:</strong> ${formatCurrency(taxAmount)}</p>
       <p style="margin:0;"><strong>Total:</strong> <span style="font-size:18px;">${formatCurrency(total)}</span></p>
     </div>
@@ -104,15 +164,32 @@ function buildAdminOrderEmail(orderId: string, payload: OrderPayload, customerEm
   const customerName = escapeHtml(payload.customer?.fullName ?? 'N/A');
   const phone = escapeHtml(payload.customer?.phone ?? 'N/A');
   const email = escapeHtml(customerEmail || 'N/A');
-  const deliveryMode = getDeliveryModeLabel(payload.delivery?.mode);
+  const deliveryMode = getDeliveryModeLabel(payload.delivery?.type ?? payload.delivery?.mode ?? payload.deliveryType);
+  const deliveryDate = escapeHtml(payload.delivery?.date ?? payload.deliveryDate ?? 'No definida');
+  const deliverySlot = escapeHtml(payload.delivery?.slot ?? payload.deliverySlot ?? payload.delivery?.preferredTime ?? 'Sin franja');
+  const address = escapeHtml(payload.delivery?.address ?? 'No aplica');
+  const reference = escapeHtml(payload.delivery?.reference ?? 'No indicada');
+  const notes = escapeHtml(payload.notes ?? 'Sin notas');
+  const paymentMethod = getPaymentMethod(payload);
+  const paymentInstructions = escapeHtml(getPaymentInstructions(orderId, payload));
+  const shippingLabel = escapeHtml(payload.deliveryType === 'pickup' || payload.delivery?.type === 'pickup' ? 'Recogida en local · sin coste' : `${payload.shipping?.zoneName ? `${payload.shipping.zoneName} · ` : ''}${formatCurrency(payload.shipping?.cost ?? payload.shippingCost)}`);
 
   return `
     <div style="font-family:Arial;">
-      <h2>Nuevo pedido ${escapeHtml(orderId)}</h2>
+      <h2>Nuevo pedido ${escapeHtml(orderId)} · pendiente de pago</h2>
+      <p><strong>Fecha/hora:</strong> ${formatDateTime()}</p>
+      <p><strong>Estado:</strong> Pedido recibido · pendiente de pago</p>
+      <p><strong>Método de pago:</strong> ${escapeHtml(getPaymentMethodLabel(paymentMethod))}</p>
+      <p><strong>Instrucciones:</strong> ${paymentInstructions}</p>
+      <hr/>
       <p><strong>Cliente:</strong> ${customerName}</p>
       <p><strong>Teléfono:</strong> ${phone}</p>
       <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Entrega:</strong> ${deliveryMode}</p>
+      <p><strong>Entrega:</strong> ${deliveryMode} · ${deliveryDate} · ${deliverySlot}</p>
+      <p><strong>Envío:</strong> ${shippingLabel}</p>
+      <p><strong>Dirección:</strong> ${address}</p>
+      <p><strong>Referencia:</strong> ${reference}</p>
+      <p><strong>Notas:</strong> ${notes}</p>
 
       <table style="width:100%;border-collapse:collapse;">
         <thead>
@@ -135,12 +212,16 @@ function buildAdminOrderEmail(orderId: string, payload: OrderPayload, customerEm
 
 function buildCustomerOrderEmail(orderId: string, payload: OrderPayload): string {
   const customerName = escapeHtml(payload.customer?.fullName ?? 'cliente');
+  const paymentMethod = getPaymentMethod(payload);
+  const paymentInstructions = escapeHtml(getPaymentInstructions(orderId, payload));
 
   return `
     <div style="font-family:Arial;">
-      <h2>Gracias por tu pedido</h2>
+      <h2>Pedido recibido · pendiente de pago</h2>
       <p>Hola ${customerName}</p>
-      <p>Tu pedido <strong>${escapeHtml(orderId)}</strong> ha sido recibido.</p>
+      <p>Tu pedido <strong>${escapeHtml(orderId)}</strong> ha sido recibido, pero <strong>no queda confirmado definitivamente hasta validar el pago</strong>.</p>
+      <p><strong>Método:</strong> ${escapeHtml(getPaymentMethodLabel(paymentMethod))}</p>
+      <p><strong>Instrucciones:</strong> ${paymentInstructions}</p>
 
       <table style="width:100%;border-collapse:collapse;">
         <tbody>
@@ -173,7 +254,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
       body: JSON.stringify({
         from,
         to: [to],
-        subject: `Nuevo pedido ${orderId}`,
+        subject: `Nuevo pedido ${orderId} · pendiente de pago`,
         html: buildAdminOrderEmail(orderId, payload, customerEmail)
       })
     });
@@ -192,7 +273,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
         body: JSON.stringify({
           from,
           to: [customerEmail],
-          subject: `Confirmación pedido ${orderId}`,
+          subject: `Pedido recibido ${orderId} · pendiente de pago`,
           html: buildCustomerOrderEmail(orderId, payload)
         })
       });
@@ -201,56 +282,6 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
     return { channel: 'email', configured: true, sent: true };
   } catch (error) {
     return { channel: 'email', configured: true, sent: false };
-  }
-}
-
-function buildWhatsappMessage(orderId: string, payload: OrderPayload): string {
-  const itemsSummary = (payload.items ?? [])
-    .map((item) => `• ${item.quantity} x ${item.name}`)
-    .join('\n');
-
-  return `🛒 Nuevo pedido ${orderId}
-Cliente: ${payload.customer?.fullName ?? 'N/A'}
-Teléfono: ${payload.customer?.phone ?? 'N/A'}
-${itemsSummary}
-Total: ${formatCurrency(payload.total)}`;
-}
-
-function resolveWhatsappWebhookUrl(): string | undefined {
-  const directUrl = getEnv('WHATSAPP_WEBHOOK_URL');
-  if (directUrl) return directUrl;
-
-  const backendApiUrl = getEnv('BACKEND_API_URL');
-  if (!backendApiUrl) return undefined;
-
-  return `${backendApiUrl.replace(/\/$/, '')}/api/whatsapp/notify`;
-}
-
-async function sendWhatsAppNotification(orderId: string, payload: OrderPayload): Promise<NotificationResult> {
-  const webhookUrl = resolveWhatsappWebhookUrl();
-
-  if (!webhookUrl) {
-    return { channel: 'whatsapp', configured: false, sent: false };
-  }
-
-  try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderId,
-        message: buildWhatsappMessage(orderId, payload),
-        payload
-      })
-    });
-
-    if (!response.ok) {
-      return { channel: 'whatsapp', configured: true, sent: false };
-    }
-
-    return { channel: 'whatsapp', configured: true, sent: true };
-  } catch {
-    return { channel: 'whatsapp', configured: true, sent: false };
   }
 }
 
@@ -264,8 +295,7 @@ export default async (request: Request): Promise<Response> => {
   const orderId = `RS-${Date.now()}`;
 
   const notifications = await Promise.all([
-    sendEmailNotification(orderId, payload),
-    sendWhatsAppNotification(orderId, payload)
+    sendEmailNotification(orderId, payload)
   ]);
 
   return new Response(

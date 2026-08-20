@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /checkout
+Disallow: /carrito
+Disallow: /mis-pedidos
+
+Sitemap: https://ricosaborcubano.com/sitemap.xml

@@ -3,6 +3,25 @@ import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminOrder, AdminOrderStatus } from '../models/admin-order.model';
 import { AdminAuthService } from './admin-auth.service';
 
+export interface NotificationChannelResult {
+  sent: boolean;
+  warning: string | null;
+}
+
+
+
+export interface UpdatePaymentResult {
+  notifications: {
+    email: NotificationChannelResult;
+  };
+}
+
+export interface UpdateStatusResult {
+  notifications: {
+    email: NotificationChannelResult;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminOrderService {
   private readonly apiBase = resolveApiBaseUrl();
@@ -41,7 +60,12 @@ export class AdminOrderService {
     return data.orders ?? [];
   }
 
-  async updateStatus(orderId: string, status: AdminOrderStatus, statusNote?: string, deliverySignature?: string): Promise<void> {
+  async updateStatus(
+    orderId: string,
+    status: AdminOrderStatus,
+    statusNote?: string,
+    deliverySignature?: string
+  ): Promise<UpdateStatusResult> {
     const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}/status`, {
       method: 'PATCH',
       headers: {
@@ -52,8 +76,52 @@ export class AdminOrderService {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
+      let detail = '';
+      try {
+        const data = (await response.json()) as { error?: string };
+        detail = data.error ?? '';
+      } catch {
+        detail = await response.text();
+      }
+
       throw new Error(detail || 'No fue posible actualizar estado del pedido.');
     }
+
+    const data = (await response.json()) as {
+      notifications?: {
+        email?: NotificationChannelResult;
+      };
+    };
+
+    return {
+      notifications: {
+        email: data.notifications?.email ?? { sent: false, warning: 'unknown' }
+      }
+    };
+  }
+
+  async deleteOrder(orderId: string): Promise<void> {
+    const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${this.auth.token()}` }
+    });
+    if (!response.ok) throw new Error('No fue posible borrar el pedido.');
+  }
+
+  async updatePayment(orderId: string, paymentStatus: string, note = "", notifyCustomer = true): Promise<UpdatePaymentResult> {
+    const response = await fetch(`${this.apiBase}/admin/orders/${encodeURIComponent(orderId)}/payment`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.auth.token()}`
+      },
+      body: JSON.stringify({ paymentStatus, note, notifyCustomer })
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "No fue posible actualizar pago.");
+    }
+    const data = await response.json();
+    return { notifications: { email: data.notifications?.email ?? { sent: false, warning: "unknown" } } };
   }
 }

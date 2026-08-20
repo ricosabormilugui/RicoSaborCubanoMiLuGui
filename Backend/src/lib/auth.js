@@ -1,6 +1,10 @@
 import crypto from "crypto";
 import { getRequiredEnv } from "./env.js";
 
+function getAuthSecret() {
+  return process.env.AUTH_TOKEN_SECRET || process.env.AUTH_JWT_SECRET || getRequiredEnv("AUTH_TOKEN_SECRET");
+}
+
 function base64url(input) {
   return Buffer.from(input).toString("base64url");
 }
@@ -29,7 +33,7 @@ export function signToken(payload, expiresInSeconds = 60 * 60 * 8) {
 
   const encodedHeader = base64url(JSON.stringify(header));
   const encodedBody = base64url(JSON.stringify(body));
-  const secret = getRequiredEnv("AUTH_TOKEN_SECRET");
+  const secret = getAuthSecret();
   const signature = crypto.createHmac("sha256", secret).update(`${encodedHeader}.${encodedBody}`).digest("base64url");
 
   return `${encodedHeader}.${encodedBody}.${signature}`;
@@ -39,7 +43,7 @@ export function verifyToken(token) {
   const [encodedHeader, encodedBody, signature] = String(token).split(".");
   if (!encodedHeader || !encodedBody || !signature) return null;
 
-  const secret = getRequiredEnv("AUTH_TOKEN_SECRET");
+  const secret = getAuthSecret();
   const expectedSignature = crypto.createHmac("sha256", secret).update(`${encodedHeader}.${encodedBody}`).digest("base64url");
   if (signature !== expectedSignature) return null;
 
