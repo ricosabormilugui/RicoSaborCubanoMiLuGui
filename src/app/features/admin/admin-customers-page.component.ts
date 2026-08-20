@@ -72,6 +72,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <select [(ngModel)]="marketingFilter" name="marketingFilter" (change)="applyFilters()">
               <option value="">Todos</option>
               <option value="true">Con consentimiento</option>
+              <option value="false">Sin consentimiento</option>
             </select>
           </label>
           <label>

@@ -191,7 +191,7 @@ export class AdminContactsPageComponent {
     try {
       const contact = await this.adminContacts.getContact(id);
       this.selectedContact.set(contact);
-      this.contacts.update((current) => current.map((item) => item.id === contact.id ? contact : item));
+      this.syncContactWithActiveFilter(contact);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo abrir el contacto.');
     }
@@ -208,7 +208,7 @@ export class AdminContactsPageComponent {
     try {
       const result = await this.adminContacts.replyContact(contact.id, this.replyMessage, this.sendEmail);
       this.selectedContact.set(result.contact);
-      this.contacts.update((current) => current.map((item) => item.id === result.contact.id ? result.contact : item));
+      this.syncContactWithActiveFilter(result.contact);
 
       const emailLine = result.notifications.email.sent
         ? '📧 Respuesta enviada por email'
@@ -221,5 +221,15 @@ export class AdminContactsPageComponent {
     } finally {
       this.sendingReply.set(false);
     }
+  }
+
+  private syncContactWithActiveFilter(contact: AdminContact): void {
+    this.contacts.update((current) => {
+      if (this.statusFilter && contact.status !== this.statusFilter) {
+        return current.filter((item) => item.id !== contact.id);
+      }
+
+      return current.map((item) => item.id === contact.id ? contact : item);
+    });
   }
 }

@@ -29,6 +29,7 @@ export class AdminCustomerService {
 
     if (search) query.set('search', search);
     if (params.marketingFilter === 'true') query.set('marketing', 'true');
+    if (params.marketingFilter === 'false') query.set('marketing', 'false');
     if (params.ordersFilter === 'with_orders') query.set('hasOrders', 'true');
     if (params.ordersFilter === 'without_orders') query.set('hasOrders', 'false');
     if (params.couponFilter) query.set('couponStatus', params.couponFilter);

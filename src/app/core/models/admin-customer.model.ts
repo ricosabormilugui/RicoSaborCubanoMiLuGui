@@ -1,7 +1,7 @@
 export type AdminCustomerCouponStatus = 'used' | 'available' | 'not_requested' | 'unknown';
 export type AdminCustomerCouponFilter = '' | 'used' | 'not_used';
 export type AdminCustomerOrdersFilter = '' | 'with_orders' | 'without_orders';
-export type AdminCustomerMarketingFilter = '' | 'true';
+export type AdminCustomerMarketingFilter = '' | 'true' | 'false';
 
 export interface AdminCustomerCoupon {
   code?: string | null;

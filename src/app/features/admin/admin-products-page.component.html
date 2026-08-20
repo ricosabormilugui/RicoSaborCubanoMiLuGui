@@ -208,8 +208,8 @@
     <section id="product-management" class="product-management">
       <header class="management-header"><div><span class="page-kicker">Gestión directa</span><h2>Productos creados</h2><p>Edita publicación, disponibilidad o contenido de los productos existentes.</p></div><span>{{ filteredProducts().length }} productos</span></header>
       <div class="field-grid two-columns filters">
-        <label class="field"><span>Buscar producto</span><input [(ngModel)]="search" placeholder="Nombre o categoría" /></label>
-        <label class="field"><span>Filtrar por categoría</span><select [(ngModel)]="categoryFilter"><option value="">Todas</option><option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option></select></label>
+        <label class="field"><span>Buscar producto</span><input [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Nombre o categoría" /></label>
+        <label class="field"><span>Filtrar por categoría</span><select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)"><option value="">Todas</option><option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option></select></label>
       </div>
       <div class="table-wrap">
         <table>

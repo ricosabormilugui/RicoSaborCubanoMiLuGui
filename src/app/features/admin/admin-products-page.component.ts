@@ -3,6 +3,7 @@ import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord } from '../../core/models/product.model';
+import { matchesProductSearch } from '../../core/models/product-filter';
 import { PRODUCT_CREATION_PRESETS } from '../../core/config/product-creation-presets.config';
 import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
@@ -21,8 +22,8 @@ import {
 export class AdminProductsPageComponent {
   email = '';
   password = '';
-  search = '';
-  categoryFilter = '';
+  readonly search = signal('');
+  readonly categoryFilter = signal('');
   imagesText = '';
   ingredientsText = '';
   reviewsText = '';
@@ -56,15 +57,16 @@ export class AdminProductsPageComponent {
   readonly categoryOptions = computed(() => mergeCategoryOptions(this.products().map((product) => product.category)));
 
   readonly filteredProducts = computed(() => {
-    const query = this.search.trim().toLowerCase();
-    const category = normalizeCategorySlug(this.categoryFilter);
+    const query = this.search();
+    const category = normalizeCategorySlug(this.categoryFilter());
 
     return this.products()
       .filter((item) => (category ? normalizeCategorySlug(item.category) === category : true))
-      .filter((item) => {
-        const text = `${item.name ?? ''} ${item.category ?? ''}`.toLowerCase();
-        return query ? text.includes(query) : true;
-      });
+      .filter((item) => matchesProductSearch({
+        name: item.name,
+        description: item.description,
+        category: item.category
+      }, query));
   });
 
   form: AdminProductPayload = {

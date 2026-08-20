@@ -40,6 +40,10 @@ export async function createContact(contact) {
   return { ...normalized, _id: result.insertedId };
 }
 
+function escapeRegex(value) {
+  return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function listContacts({ status, search, limit = 100 } = {}) {
   const collection = await getContactsCollection();
   const query = {};
@@ -51,11 +55,12 @@ export async function listContacts({ status, search, limit = 100 } = {}) {
   if (search) {
     const term = String(search).trim();
     if (term) {
+      const safeTerm = escapeRegex(term);
       query.$or = [
-        { name: { $regex: term, $options: "i" } },
-        { phone: { $regex: term, $options: "i" } },
-        { email: { $regex: term, $options: "i" } },
-        { message: { $regex: term, $options: "i" } }
+        { name: { $regex: safeTerm, $options: "i" } },
+        { phone: { $regex: safeTerm, $options: "i" } },
+        { email: { $regex: safeTerm, $options: "i" } },
+        { message: { $regex: safeTerm, $options: "i" } }
       ];
     }
   }
