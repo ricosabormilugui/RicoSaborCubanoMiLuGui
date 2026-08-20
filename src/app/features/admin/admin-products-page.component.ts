@@ -494,6 +494,14 @@ export class AdminProductsPageComponent {
     }
   }
 
+  showProductEditor(): void {
+    this.scrollToSection('product-editor');
+  }
+
+  showProductManagement(): void {
+    this.scrollToSection('product-management');
+  }
+
   private scrollToSection(id: string): void {
     globalThis.setTimeout(() => globalThis.document?.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }

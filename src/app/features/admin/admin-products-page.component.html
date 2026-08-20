@@ -17,7 +17,7 @@
         <p>{{ editId() ? 'Actualiza la información del producto sin cambiar su identidad.' : 'Añade un nuevo producto al catálogo de Rico Sabor Cubano.' }}</p>
       </div>
       <div class="page-actions">
-        <a class="action-button secondary" href="#product-management">Ver productos creados</a>
+        <button class="action-button secondary" type="button" (click)="showProductManagement()">Ver productos creados</button>
         <button class="action-button ghost" type="button" (click)="logout()">Salir</button>
       </div>
     </header>
@@ -31,8 +31,8 @@
     </nav>
 
     <nav class="workspace-switcher" aria-label="Secciones de productos">
-      <a href="#product-editor" class="active"><span aria-hidden="true">＋</span>{{ editId() ? 'Edición actual' : 'Crear producto' }}</a>
-      <a href="#product-management">Gestionar productos <span class="count-badge">{{ products().length }}</span></a>
+      <button type="button" class="active" (click)="showProductEditor()"><span aria-hidden="true">＋</span>{{ editId() ? 'Edición actual' : 'Crear producto' }}</button>
+      <button type="button" (click)="showProductManagement()">Gestionar productos <span class="count-badge">{{ products().length }}</span></button>
     </nav>
 
     <p class="api-error" role="alert" *ngIf="error()">{{ error() }}</p>
