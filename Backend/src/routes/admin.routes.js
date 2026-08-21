@@ -19,12 +19,15 @@ import {
 } from "../controllers/admin-contacts.controller.js";
 import { listCustomersForAdmin } from "../controllers/admin-customers.controller.js";
 import { getDashboardForAdmin } from "../controllers/admin-dashboard.controller.js";
+import { getHomeContentForAdmin, updateHomeContentForAdmin } from "../controllers/home.controller.js";
 
 const router = Router();
 
 router.use(requireAdmin);
 
 router.get("/dashboard", getDashboardForAdmin);
+router.get("/home", getHomeContentForAdmin);
+router.put("/home", updateHomeContentForAdmin);
 router.get("/orders", listOrdersForAdmin);
 router.patch("/orders/:orderId/status", updateOrderStatusForAdmin);
 router.patch("/orders/:orderId/payment", updateOrderPaymentForAdmin);

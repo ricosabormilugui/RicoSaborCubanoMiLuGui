@@ -23,7 +23,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img [src]="heroImage()" alt="Comida y tartas de Rico Sabor Cubano" width="1200" height="900" fetchpriority="high" />
+      <img *ngIf="heroImage()" [src]="heroImage()" alt="Comida y tartas de Rico Sabor Cubano" width="1200" height="900" fetchpriority="high" />
     </div>
   </section>
 
@@ -47,7 +47,8 @@
     </div>
     <div class="collections-track" #collectionsTrack>
       <a class="collection-card" *ngFor="let category of collections()" [routerLink]="['/categoria', category.slug]">
-        <img [src]="category.imageUrl" [alt]="category.label" width="480" height="480" loading="lazy" decoding="async" />
+        <img *ngIf="category.imageUrl" class="collection-photo" [src]="category.imageUrl" [alt]="category.label" width="480" height="480" loading="lazy" decoding="async" />
+        <span *ngIf="!category.imageUrl" class="collection-photo" aria-hidden="true"></span>
         <span>{{ category.label }}</span>
       </a>
     </div>
@@ -70,7 +71,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img [src]="cubanImage()" alt="Comida cubana casera" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cubanImage()" [src]="cubanImage()" alt="Comida cubana casera" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -91,7 +92,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img [src]="heroImage()" alt="Tartas personalizadas de Rico Sabor Cubano" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cakesImage()" [src]="cakesImage()" alt="Tartas personalizadas de Rico Sabor Cubano" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -108,7 +109,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img [src]="spanishImage()" alt="Platos de inspiración española" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="spanishImage()" [src]="spanishImage()" alt="Platos de inspiración española" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 

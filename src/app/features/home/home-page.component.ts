@@ -6,9 +6,10 @@ import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product } from '../../core/models/product.model';
-import { getProductRoute, matchesProductSearch, selectBestSellers } from '../../core/models/product-filter';
-import { PRODUCT_CATEGORIES, getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
+import { PRODUCT_CATEGORIES, getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
+import { HomeContentService } from '../../core/services/home-content.service';
 import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { IconComponent } from '../../shared/ui/icon.component';
@@ -21,6 +22,7 @@ import { IconComponent } from '../../shared/ui/icon.component';
 })
 export class HomePageComponent {
   private readonly catalog = inject(CatalogService);
+  private readonly homeContent = inject(HomeContentService);
   private readonly cart = inject(CartService);
   private readonly notifications = inject(NotificationService);
   private readonly seo = inject(SeoService);
@@ -34,13 +36,14 @@ export class HomePageComponent {
   readonly marqueeItems = ['Casero', 'Sabor cubano', 'Alcorcón', 'Por encargo', 'Hecho con cariño'];
 
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
-  readonly heroImage = computed(() => this.imageForCategory('tartas') || this.bestSellers()[0]?.imageUrl || this.fallbackImage);
-  readonly cubanImage = computed(() => this.imageForQuery('cubano') || this.imageForCategory('platos') || this.imageForCategory('combos') || this.fallbackImage);
-  readonly spanishImage = computed(() => this.imageForQuery('española') || this.imageForCategory('platos') || this.fallbackImage);
+  readonly heroImage = computed(() => this.homeContent.content().heroImageUrl);
+  readonly cubanImage = computed(() => this.homeContent.content().cubanImageUrl);
+  readonly cakesImage = computed(() => this.homeContent.content().cakesImageUrl);
+  readonly spanishImage = computed(() => this.homeContent.content().spanishImageUrl);
   readonly collections = computed(() =>
     PRODUCT_CATEGORIES.map((category) => ({
       ...category,
-      imageUrl: this.imageForCategory(category.slug) || this.fallbackImage
+      imageUrl: this.homeContent.content().categoryImages[category.slug] || ''
     }))
   );
   readonly reviews = computed(() =>
@@ -55,6 +58,7 @@ export class HomePageComponent {
 
   constructor() {
     void this.catalog.loadProducts();
+    void this.homeContent.load();
     effect(() => this.updateSeo());
   }
 
@@ -93,22 +97,6 @@ export class HomePageComponent {
   scrollCollections(track: HTMLElement): void {
     const amount = Math.max(240, Math.round(track.clientWidth * 0.7));
     track.scrollBy({ left: amount, behavior: 'smooth' });
-  }
-
-  private imageForCategory(slug: string): string | undefined {
-    return this.catalog.products().find((product) =>
-      normalizeCategorySlug(product.category) === slug && this.hasImage(product)
-    )?.imageUrl;
-  }
-
-  private imageForQuery(query: string): string | undefined {
-    return this.catalog.products().find((product) =>
-      matchesProductSearch(product, query) && this.hasImage(product)
-    )?.imageUrl;
-  }
-
-  private hasImage(product: Product): boolean {
-    return Boolean(product.imageUrl?.trim());
   }
 
   private minimumQuantity(product: Product): number {

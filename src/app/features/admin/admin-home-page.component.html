@@ -1,0 +1,77 @@
+<section class="card login-card" *ngIf="!auth.isAuthenticated(); else panel">
+  <h1>Acceso administrador</h1>
+  <div class="login-grid">
+    <input [(ngModel)]="email" placeholder="Email admin" />
+    <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
+  </div>
+  <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
+  <p class="err" *ngIf="error()">{{ error() }}</p>
+</section>
+
+<ng-template #panel>
+  <section class="card">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">Apariencia</p>
+        <h1>Portada</h1>
+        <p class="muted">Pega la URL de cada foto (Cloudinary u otra). Si dejas un campo vacío, esa sección no muestra imagen.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" (click)="loadHome()" [disabled]="loading()">{{ loading() ? 'Cargando…' : 'Actualizar' }}</button>
+        <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
+        <button class="btn" routerLink="/admin/pedidos">Pedidos</button>
+        <button class="btn" routerLink="/admin/cocina">Cocina</button>
+        <button class="btn" routerLink="/admin/contactos">Contactos</button>
+        <button class="btn" routerLink="/admin/clientes">Clientes</button>
+        <button class="btn" routerLink="/admin/productos">Productos</button>
+        <button class="btn" type="button" (click)="logout()">Salir</button>
+      </div>
+    </div>
+
+    <p class="ok" *ngIf="notice()">{{ notice() }}</p>
+    <p class="err" *ngIf="error()">{{ error() }}</p>
+
+    <form (ngSubmit)="saveHome()" novalidate>
+      <section class="slot-group" aria-labelledby="bricks-title">
+        <h2 id="bricks-title">Bloques de la home</h2>
+        <div class="slot-grid">
+          <article class="slot" *ngFor="let slot of brickSlots">
+            <label class="field">
+              <span>{{ slot.label }}</span>
+              <small>{{ slot.hint }}</small>
+              <input
+                [ngModel]="slotValue(slot.key)"
+                (ngModelChange)="setSlotValue(slot.key, $event)"
+                [name]="slot.key"
+                placeholder="https://res.cloudinary.com/..." />
+            </label>
+            <img *ngIf="slotValue(slot.key)" [src]="slotValue(slot.key)" [alt]="'Vista previa de ' + slot.label" width="320" height="200" loading="lazy" decoding="async" />
+            <p class="empty" *ngIf="!slotValue(slot.key)">Sin imagen</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="slot-group" aria-labelledby="categories-title">
+        <h2 id="categories-title">Elige por categoría</h2>
+        <div class="slot-grid">
+          <article class="slot" *ngFor="let category of categories">
+            <label class="field">
+              <span>{{ category.label }}</span>
+              <small>Tarjeta de categoría en la home</small>
+              <input
+                [(ngModel)]="form.categoryImages[category.slug]"
+                [name]="'category-' + category.slug"
+                placeholder="https://res.cloudinary.com/..." />
+            </label>
+            <img *ngIf="form.categoryImages[category.slug]" [src]="form.categoryImages[category.slug]" [alt]="'Vista previa de ' + category.label" width="320" height="200" loading="lazy" decoding="async" />
+            <p class="empty" *ngIf="!form.categoryImages[category.slug]">Sin imagen</p>
+          </article>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="loading()">{{ loading() ? 'Guardando…' : 'Guardar portada' }}</button>
+      </div>
+    </form>
+  </section>
+</ng-template>

@@ -42,6 +42,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <button class="btn" routerLink="/admin/contactos">Contactos</button>
             <button class="btn" routerLink="/admin/clientes">Clientes</button>
             <button class="btn" routerLink="/admin/productos">Productos</button>
+            <button class="btn" routerLink="/admin/portada">Portada</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>

@@ -139,6 +139,7 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
         <a routerLink="/admin/contactos" (click)="closeMenu()" *ngIf="isAdmin()">Admin contactos</a>
         <a routerLink="/admin/clientes" (click)="closeMenu()" *ngIf="isAdmin()">Admin clientes</a>
         <a routerLink="/admin/productos" (click)="closeMenu()" *ngIf="isAdmin()">Admin productos</a>
+        <a routerLink="/admin/portada" (click)="closeMenu()" *ngIf="isAdmin()">Admin portada</a>
       </aside>
 
       <div class="overlay" *ngIf="menuOpen()" (click)="closeMenu()"></div>

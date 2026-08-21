@@ -221,7 +221,7 @@
   scroll-snap-align: start;
 }
 
-.collection-card img {
+.collection-photo {
   display: block;
   width: 100%;
   aspect-ratio: 1;
@@ -230,7 +230,7 @@
   background: var(--surface-2);
 }
 
-.collection-card span {
+.collection-card span:not(.collection-photo) {
   display: block;
   margin-top: 0.75rem;
   color: var(--text-soft);

@@ -4,6 +4,7 @@ import ordersRouter from "./routes/orders.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import productsRouter from "./routes/products.routes.js";
+import homeRouter from "./routes/home.routes.js";
 import contactRouter from "./routes/contact.routes.js";
 import newsletterRouter from "./routes/newsletter.routes.js";
 import { logger } from "./lib/logger.js";
@@ -49,6 +50,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api", ordersRouter);
 app.use("/api", productsRouter);
+app.use("/api", homeRouter);
 app.use("/api", contactRouter);
 app.use("/api", newsletterRouter);
 app.use("/api/auth", authRouter);

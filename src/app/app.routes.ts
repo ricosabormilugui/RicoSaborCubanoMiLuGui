@@ -70,6 +70,11 @@ export const appRoutes: Routes = [
     canActivate: [adminGuard]
   },
   {
+    path: 'admin/portada',
+    loadComponent: () => import('./features/admin/admin-home-page.component').then((m) => m.AdminHomePageComponent),
+    canActivate: [adminGuard]
+  },
+  {
     path: 'login',
     loadComponent: () => import('./features/auth/login-page.component').then((m) => m.LoginPageComponent)
   },
