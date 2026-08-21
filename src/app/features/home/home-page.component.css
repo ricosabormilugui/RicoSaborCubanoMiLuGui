@@ -216,6 +216,7 @@
 .collections-track {
   width: 100%;
   gap: clamp(0.65rem, 1.2vw, 1rem);
+  padding-top: 0.45rem;
 }
 
 .collection-card {
@@ -225,6 +226,17 @@
   text-align: center;
   text-decoration: none;
   scroll-snap-align: start;
+  transition: transform 0.22s ease;
+}
+
+.collection-card:hover,
+.collection-card:focus-visible {
+  z-index: 1;
+  transform: translateY(-5px);
+}
+
+.collection-card:focus-visible {
+  outline: none;
 }
 
 .collection-photo {
@@ -235,6 +247,31 @@
   overflow: hidden;
   border-radius: 16px;
   background: var(--surface-2);
+  transition: box-shadow 0.22s ease;
+}
+
+.collection-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--brand-red) 0%, transparent);
+  pointer-events: none;
+  transition: background 0.22s ease;
+}
+
+.collection-card:hover .collection-photo,
+.collection-card:focus-visible .collection-photo {
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--brand-red) 26%, transparent);
+}
+
+.collection-card:hover .collection-photo::after,
+.collection-card:focus-visible .collection-photo::after {
+  background: color-mix(in srgb, var(--brand-red) 16%, transparent);
+}
+
+.collection-card:focus-visible .collection-photo {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 3px;
 }
 
 .collection-photo img {
@@ -244,6 +281,12 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
+  transition: transform 0.35s ease;
+}
+
+.collection-card:hover .collection-photo img,
+.collection-card:focus-visible .collection-photo img {
+  transform: scale(1.07);
 }
 
 .collection-label {
@@ -251,6 +294,12 @@
   margin-top: 0.65rem;
   color: var(--text-soft);
   font-size: 0.98rem;
+  transition: color 0.22s ease;
+}
+
+.collection-card:hover .collection-label,
+.collection-card:focus-visible .collection-label {
+  color: var(--text-main);
 }
 
 .slider-next {
@@ -448,5 +497,23 @@
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
+  }
+
+  .collection-card,
+  .collection-photo,
+  .collection-photo img,
+  .collection-photo::after,
+  .collection-label {
+    transition: none;
+  }
+
+  .collection-card:hover,
+  .collection-card:focus-visible {
+    transform: none;
+  }
+
+  .collection-card:hover .collection-photo img,
+  .collection-card:focus-visible .collection-photo img {
+    transform: none;
   }
 }
