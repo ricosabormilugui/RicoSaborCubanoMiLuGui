@@ -54,7 +54,9 @@ type AddToCartButtonState = 'idle' | 'animating' | 'success' | 'error';
     </button>
   `,
   styles: [`
-    :host{display:block;width:100%}
+    :host{display:block;max-width:100%}
+    :host:has(.add-cart-button--compact){width:max-content;justify-self:start}
+    :host:has(.add-cart-button--large){width:100%}
     .add-cart-button{position:relative;display:grid;width:100%;min-height:44px;place-items:center;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent-red) 80%,#fff 20%);border-radius:10px;padding:.58rem .78rem;background:var(--accent-red);color:var(--on-accent);box-shadow:0 7px 16px color-mix(in srgb,var(--accent-red) 24%,transparent);font:inherit;font-size:.88rem;font-weight:850;line-height:1.1;cursor:pointer;transition:transform .16s ease,filter .18s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease}
     .add-cart-button:hover:not(:disabled):not(.is-animating){transform:translateY(-1px);filter:brightness(1.06)}
     .add-cart-button:active:not(:disabled){transform:translateY(0) scale(.985)}
