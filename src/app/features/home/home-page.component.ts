@@ -1,15 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product } from '../../core/models/product.model';
-import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
-import { getProductCategoryLabel } from '../../core/config/product-categories.config';
+import { getProductRoute, matchesProductSearch, selectBestSellers } from '../../core/models/product-filter';
+import { PRODUCT_CATEGORIES, getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
 import { SeoService } from '../../core/services/seo.service';
-import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 
@@ -27,8 +27,31 @@ export class HomePageComponent {
   private readonly router = inject(Router);
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
-  readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=700';
+  readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=1200';
+  readonly localZone = SHIPPING_ZONES[0];
+  readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
+  readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
+  readonly marqueeItems = ['Casero', 'Sabor cubano', 'Alcorcón', 'Por encargo', 'Hecho con cariño'];
+
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
+  readonly heroImage = computed(() => this.imageForCategory('tartas') || this.bestSellers()[0]?.imageUrl || this.fallbackImage);
+  readonly cubanImage = computed(() => this.imageForQuery('cubano') || this.imageForCategory('platos') || this.imageForCategory('combos') || this.fallbackImage);
+  readonly spanishImage = computed(() => this.imageForQuery('española') || this.imageForCategory('platos') || this.fallbackImage);
+  readonly collections = computed(() =>
+    PRODUCT_CATEGORIES.map((category) => ({
+      ...category,
+      imageUrl: this.imageForCategory(category.slug) || this.fallbackImage
+    }))
+  );
+  readonly reviews = computed(() =>
+    this.catalog.products()
+      .flatMap((product) => (product.reviews ?? []).map((review) => ({
+        ...review,
+        productName: product.name
+      })))
+      .filter((review) => review.comment?.trim())
+      .slice(0, 3)
+  );
 
   constructor() {
     void this.catalog.loadProducts();
@@ -65,6 +88,27 @@ export class HomePageComponent {
 
   isCustomizable(product: Product): boolean {
     return isProductCustomizable(product);
+  }
+
+  scrollCollections(track: HTMLElement): void {
+    const amount = Math.max(240, Math.round(track.clientWidth * 0.7));
+    track.scrollBy({ left: amount, behavior: 'smooth' });
+  }
+
+  private imageForCategory(slug: string): string | undefined {
+    return this.catalog.products().find((product) =>
+      normalizeCategorySlug(product.category) === slug && this.hasImage(product)
+    )?.imageUrl;
+  }
+
+  private imageForQuery(query: string): string | undefined {
+    return this.catalog.products().find((product) =>
+      matchesProductSearch(product, query) && this.hasImage(product)
+    )?.imageUrl;
+  }
+
+  private hasImage(product: Product): boolean {
+    return Boolean(product.imageUrl?.trim());
   }
 
   private minimumQuantity(product: Product): number {

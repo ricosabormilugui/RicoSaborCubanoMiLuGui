@@ -9,8 +9,11 @@ import {
   LucidePhone,
   LucideSearch,
   LucideShoppingBag,
+  LucideStore,
   LucideSun,
+  LucideTruck,
   LucideUser,
+  LucideUtensils,
   LucideX
 } from '@lucide/angular';
 
@@ -24,8 +27,11 @@ export type AppIconName =
   | 'moon'
   | 'phone'
   | 'search'
+  | 'store'
   | 'sun'
+  | 'truck'
   | 'user'
+  | 'utensils'
   | 'whatsapp';
 
 @Component({
@@ -42,8 +48,11 @@ export type AppIconName =
     LucidePhone,
     LucideSearch,
     LucideShoppingBag,
+    LucideStore,
     LucideSun,
+    LucideTruck,
     LucideUser,
+    LucideUtensils,
     LucideX
   ],
   template: `
@@ -57,8 +66,11 @@ export type AppIconName =
       @case ('moon') { <svg lucideMoon [size]="size()" /> }
       @case ('phone') { <svg lucidePhone [size]="size()" /> }
       @case ('search') { <svg lucideSearch [size]="size()" /> }
+      @case ('store') { <svg lucideStore [size]="size()" /> }
       @case ('sun') { <svg lucideSun [size]="size()" /> }
+      @case ('truck') { <svg lucideTruck [size]="size()" /> }
       @case ('user') { <svg lucideUser [size]="size()" /> }
+      @case ('utensils') { <svg lucideUtensils [size]="size()" /> }
       @case ('whatsapp') { <svg lucideMessageCircle [size]="size()" /> }
     }
   `,

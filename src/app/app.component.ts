@@ -19,6 +19,7 @@ import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
 import { IconComponent } from './shared/ui/icon.component';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
 import { SeoService } from './core/services/seo.service';
+import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
 
 @Component({
   selector: 'app-root',
@@ -161,8 +162,8 @@ import { SeoService } from './core/services/seo.service';
         <div class="overlay" (click)="toggleSearch()"></div>
       </section>
 
-      <main class="page-content">
-        <div class="container main-layout">
+      <main class="page-content" [class.is-flush]="isHome()">
+        <div class="container main-layout" [class.is-flush]="isHome()">
           <div class="route-fade" [@fade]="currentRoute()">
             <router-outlet />
           </div>
@@ -213,6 +214,16 @@ import { SeoService } from './core/services/seo.service';
         </nav>
       </footer>
 
+      <a
+        class="whatsapp-float"
+        *ngIf="showWhatsAppFloat()"
+        [href]="whatsappUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Escribir por WhatsApp">
+        <app-icon name="whatsapp" [size]="26" />
+      </a>
+
       <app-cookie-banner />
       <app-notifications />
     </div>
@@ -258,7 +269,11 @@ import { SeoService } from './core/services/seo.service';
     `.result:hover,.result:focus-visible{background:var(--surface-2)}`,
     `.no-results{padding:.7rem;color:var(--text-soft);font-weight:700}`,
     `.page-content{width:100%;max-width:none;margin:0;padding:clamp(16px,4vw,40px) 0;flex:1}`,
+    `.page-content.is-flush{padding:0}`,
+    `.container.is-flush{max-width:none;padding:0}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
+    `.whatsapp-float{position:fixed;right:18px;bottom:18px;z-index:70;width:56px;height:56px;display:grid;place-items:center;border-radius:50%;background:#25d366;color:#fff;box-shadow:0 10px 24px rgba(0,0,0,.28);transition:transform .16s ease,filter .16s ease}`,
+    `.whatsapp-float:hover,.whatsapp-float:focus-visible{transform:translateY(-2px);filter:brightness(1.06);outline:3px solid color-mix(in srgb,var(--accent-green) 50%,transparent);outline-offset:3px}`,
     `.site-footer{border-top:1px solid var(--border-soft);background:color-mix(in srgb,var(--surface-0) 88%,var(--bg-main) 12%);padding:clamp(20px,4vw,36px) 0}`,
     `.footer-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,460px);gap:1rem;align-items:start}`,
     `.site-footer h2{margin:.2rem 0 .45rem;color:var(--text-main)}`,
@@ -295,6 +310,7 @@ export class AppComponent {
   readonly newsletterNotice = signal('');
   readonly newsletterError = signal('');
   readonly legalLinks = LEGAL_NAV_LINKS;
+  readonly whatsappUrl = buildWhatsAppContactUrl();
 
   readonly searchResults = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
@@ -451,6 +467,14 @@ export class AppComponent {
 
   isAdmin(): boolean {
     return this.customerAuth.profile()?.role === 'admin';
+  }
+
+  isHome(): boolean {
+    return this.router.url.split('?')[0] === '/';
+  }
+
+  showWhatsAppFloat(): boolean {
+    return !this.router.url.startsWith('/admin');
   }
 
   currentRoute(): string {
