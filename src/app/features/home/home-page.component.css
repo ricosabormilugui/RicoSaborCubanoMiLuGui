@@ -213,8 +213,14 @@
   padding-bottom: 0.4rem;
 }
 
+.collections-track {
+  width: 100%;
+  gap: clamp(0.65rem, 1.2vw, 1rem);
+}
+
 .collection-card {
-  flex: 0 0 min(70vw, 240px);
+  flex: 1 1 0;
+  min-width: 148px;
   color: inherit;
   text-align: center;
   text-decoration: none;
@@ -222,19 +228,29 @@
 }
 
 .collection-photo {
+  position: relative;
   display: block;
   width: 100%;
   aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: 18px;
+  overflow: hidden;
+  border-radius: 16px;
   background: var(--surface-2);
 }
 
-.collection-card span:not(.collection-photo) {
+.collection-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.collection-label {
   display: block;
-  margin-top: 0.75rem;
+  margin-top: 0.65rem;
   color: var(--text-soft);
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 .slider-next {

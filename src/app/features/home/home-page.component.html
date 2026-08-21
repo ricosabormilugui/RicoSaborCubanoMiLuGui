@@ -47,9 +47,10 @@
     </div>
     <div class="collections-track" #collectionsTrack>
       <a class="collection-card" *ngFor="let category of collections()" [routerLink]="['/categoria', category.slug]">
-        <img *ngIf="category.imageUrl" class="collection-photo" [src]="category.imageUrl" [alt]="category.label" width="480" height="480" loading="lazy" decoding="async" />
-        <span *ngIf="!category.imageUrl" class="collection-photo" aria-hidden="true"></span>
-        <span>{{ category.label }}</span>
+        <span class="collection-photo">
+          <img *ngIf="category.imageUrl" [src]="category.imageUrl" [alt]="category.label" width="320" height="200" loading="lazy" decoding="async" />
+        </span>
+        <span class="collection-label">{{ category.label }}</span>
       </a>
     </div>
   </section>
