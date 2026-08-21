@@ -16,13 +16,14 @@ import { NewsletterService } from './core/services/newsletter.service';
 import { LEGAL_NAV_LINKS } from './core/config/legal-links.config';
 import { CookieConsentService } from './core/services/cookie-consent.service';
 import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
+import { IconComponent } from './shared/ui/icon.component';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
 import { SeoService } from './core/services/seo.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, NotificationsComponent, CookieBannerComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, NotificationsComponent, CookieBannerComponent, IconComponent],
   animations: [
     trigger('fade', [
       transition('* <=> *', [
@@ -33,12 +34,17 @@ import { SeoService } from './core/services/seo.service';
   ],
   template: `
     <div class="app-shell">
-      <div class="top-banner">🎁 Regalo sorpresa en tu primer pedido</div>
+      <div class="top-banner">
+        <app-icon name="gift" [size]="16" />
+        <span>Regalo sorpresa en tu primer pedido</span>
+      </div>
 
       <header class="navbar">
         <div class="container nav-grid">
           <div class="nav-left">
-            <button class="icon-btn" type="button" (click)="toggleMenu()" aria-label="Abrir menú">☰</button>
+            <button class="icon-btn" type="button" (click)="toggleMenu()" aria-label="Abrir menú">
+              <app-icon name="menu" />
+            </button>
           </div>
 
           <a class="nav-center" routerLink="/">
@@ -46,25 +52,33 @@ import { SeoService } from './core/services/seo.service';
           </a>
 
           <div class="nav-right">
-            <button class="icon-btn mobile-only" type="button" (click)="openSearch()" aria-label="Buscar">🔍</button>
+            <button class="icon-btn mobile-only" type="button" (click)="openSearch()" aria-label="Buscar">
+              <app-icon name="search" />
+            </button>
 
             <button class="cart-box" type="button" (click)="openCart()" aria-label="Carrito">
-              🛒
+              <app-icon name="cart" />
               <span class="badge" *ngIf="cart.totalItems()">{{ cart.totalItems() }}</span>
             </button>
 
             <div class="desktop-only">
-              <button class="icon-btn" type="button" (click)="openSearch()" aria-label="Buscar">🔍</button>
+              <button class="icon-btn" type="button" (click)="openSearch()" aria-label="Buscar">
+                <app-icon name="search" />
+              </button>
 
               <button class="icon-btn" type="button" (click)="openCalendar()" aria-label="Elegir fecha de entrega">
-                📅
+                <app-icon name="calendar" />
                 <span *ngIf="deliveryState.date()" class="badge-date">{{ deliveryState.date() | date:'dd/MM' }}</span>
               </button>
 
-              <button class="icon-btn" type="button" (click)="openContact()" aria-label="Contacto">📞</button>
+              <button class="icon-btn" type="button" (click)="openContact()" aria-label="Contacto">
+                <app-icon name="phone" />
+              </button>
 
               <div class="user-menu">
-                <button class="icon-btn" type="button" (click)="toggleUserMenu()" aria-label="Cuenta">👤</button>
+                <button class="icon-btn" type="button" (click)="toggleUserMenu()" aria-label="Cuenta">
+                  <app-icon name="user" />
+                </button>
 
                 <div class="dropdown" *ngIf="userMenuOpen()">
                   <ng-container *ngIf="!customerAuth.isAuthenticated(); else loggedMenu">
@@ -80,7 +94,7 @@ import { SeoService } from './core/services/seo.service';
               </div>
 
               <button class="theme-btn" type="button" (click)="toggleTheme()" [attr.aria-label]="theme() === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'">
-                {{ theme() === 'dark' ? '☀️' : '🌙' }}
+                <app-icon [name]="theme() === 'dark' ? 'sun' : 'moon'" />
               </button>
             </div>
           </div>
@@ -88,7 +102,10 @@ import { SeoService } from './core/services/seo.service';
       </header>
 
       <aside class="side-menu" [class.open]="menuOpen()">
-        <div class="menu-header">👤 {{ customerAuth.profile()?.email ?? 'Invitado' }}</div>
+        <div class="menu-header">
+          <app-icon name="user" [size]="18" />
+          <span>{{ customerAuth.profile()?.email ?? 'Invitado' }}</span>
+        </div>
 
         <a routerLink="/" (click)="closeMenu()">Inicio</a>
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
@@ -102,7 +119,7 @@ import { SeoService } from './core/services/seo.service';
           class="menu-action menu-theme-action"
           (click)="toggleTheme()"
           [attr.aria-label]="theme() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
-          <span>{{ theme() === 'dark' ? '☀️' : '🌙' }}</span>
+          <app-icon [name]="theme() === 'dark' ? 'sun' : 'moon'" [size]="18" />
           <span>{{ theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
         </button>
 
@@ -129,7 +146,9 @@ import { SeoService } from './core/services/seo.service';
         <div class="search-card card">
           <div class="search-head">
             <h3>Buscar productos</h3>
-            <button type="button" (click)="toggleSearch()">✕</button>
+            <button class="icon-btn" type="button" (click)="toggleSearch()" aria-label="Cerrar búsqueda">
+              <app-icon name="close" [size]="20" />
+            </button>
           </div>
           <input [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keydown.enter)="openCatalogFromSearch()" placeholder="Ej. croquetas, combo..." aria-label="Buscar productos" />
           <button class="search-submit" type="button" (click)="openCatalogFromSearch()">Buscar productos</button>
@@ -198,7 +217,7 @@ import { SeoService } from './core/services/seo.service';
     </div>
   `,
   styles: [
-    `.top-banner{background:var(--accent-red);text-align:center;padding:6px;font-size:14px;color:var(--on-accent);font-weight:700}`,
+    `.top-banner{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent-red);text-align:center;padding:6px 12px;font-size:14px;color:var(--on-accent);font-weight:700}`,
     `.app-shell{width:100%;min-height:100vh;display:flex;flex-direction:column}`,
     `.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0;width:100%;max-width:100%;min-width:0;overflow-x:clip;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
     `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,2vw,10px);min-width:0;max-width:100%}`,
@@ -206,21 +225,22 @@ import { SeoService } from './core/services/seo.service';
     `.nav-right{justify-content:flex-end}`,
     `.nav-center{text-align:center;flex:1 1 auto;min-width:0;text-decoration:none;color:var(--text-main);overflow:hidden}`,
     `.logo{font-size:clamp(15px,4.4vw,18px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
-    `.icon-btn{background:transparent;border:none;color:var(--text-main);font-size:16px;cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
+    `.icon-btn{background:transparent;border:none;color:var(--text-main);cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
-    `.cart-box{position:relative;padding:6px 8px;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
+    `.cart-box{position:relative;width:34px;height:34px;padding:0;display:inline-grid;place-items:center;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
     `.badge{position:absolute;top:-5px;right:-5px;background:var(--accent-red);border-radius:50%;font-size:10px;padding:2px 5px;color:var(--on-accent)}`,
     `.badge-date{position:absolute;bottom:-4px;right:-7px;font-size:10px;background:var(--ok-active-bg);color:var(--ok-active-text);border-radius:6px;padding:2px 4px}`,
     `.desktop-only{display:none}`,
     `.mobile-only{display:inline-flex}`,
-    `.theme-btn{background:color-mix(in srgb, var(--surface-2) 80%, transparent);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);color:var(--text-main);border-radius:10px;padding:6px 9px;cursor:pointer}`,
+    `.theme-btn{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;background:color-mix(in srgb, var(--surface-2) 80%, transparent);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);color:var(--text-main);border-radius:10px;cursor:pointer}`,
     `.user-menu{position:relative}`,
     `.dropdown{position:absolute;right:0;top:38px;display:grid;gap:4px;background:var(--surface-0);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);border-radius:10px;padding:8px;min-width:150px;z-index:60;animation:fadeIn .2s ease}`,
     `.dropdown button{background:color-mix(in srgb, var(--surface-2) 40%, transparent);border:0;color:var(--text-main);padding:8px;border-radius:8px;text-align:left;cursor:pointer}`,
     `.dropdown button:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
     `.side-menu{position:fixed;left:0;top:0;width:min(280px,calc(100vw - 24px));max-width:100%;height:100%;background:var(--surface-0);transition:.3s;z-index:100;padding:20px;display:grid;align-content:start;gap:10px;transform:translateX(-100%);overflow-y:auto;overflow-x:hidden}`,
     `.side-menu.open{transform:translateX(0)}`,
-    `.menu-header{color:var(--text-main);background:color-mix(in srgb, var(--surface-2) 55%, transparent);padding:10px 12px;border-radius:10px}`,
+    `.menu-header{display:flex;align-items:center;gap:8px;color:var(--text-main);background:color-mix(in srgb, var(--surface-2) 55%, transparent);padding:10px 12px;border-radius:10px;min-width:0}`,
+    `.menu-header span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`,
     `.side-menu a,.menu-action{color:var(--text-main);text-decoration:none;background:color-mix(in srgb, var(--surface-2) 40%, transparent);padding:10px 12px;border-radius:10px;border:0;text-align:left;cursor:pointer;min-width:0;max-width:100%;overflow-wrap:anywhere}`,
     `.side-menu a:hover,.menu-action:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
     `.menu-theme-action{display:flex;align-items:center;justify-content:space-between;gap:.75rem}`,
@@ -230,7 +250,7 @@ import { SeoService } from './core/services/seo.service';
     `.search-card{z-index:96;width:min(640px,92vw);display:grid;gap:.6rem}`,
     `.search-head{display:flex;justify-content:space-between;align-items:center}`,
     `.search-head h3{margin:0}`,
-    `.search-head button{background:none;border:0;color:var(--text-main);font-size:20px;cursor:pointer}`,
+    `.search-head .icon-btn{color:var(--text-main)}`,
     `.search-submit{justify-self:start;border:1px solid var(--border-soft);background:var(--surface-2);color:var(--text-main);border-radius:10px;padding:.5rem .8rem;font-weight:700;cursor:pointer}`,
     `.result{display:grid;gap:2px;padding:.6rem .7rem;border-radius:8px;background:var(--surface-1);cursor:pointer;color:var(--text-main)}`,
     `.result span{color:var(--text-soft);font-size:.85rem}`,
