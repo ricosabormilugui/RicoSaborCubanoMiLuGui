@@ -2,6 +2,7 @@
   --brand-blue: #0068a8;
   --brand-red: #ed1b34;
   --brand-cream: #f5f0df;
+  --radius-pill: 999px;
 
   --bg-main: #111827;
   --bg-elevated: #14213a;
@@ -119,24 +120,44 @@ body {
 }
 
 .btn {
-  border: 0;
-  border-radius: 10px;
-  padding: 0.6rem 1rem;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0.65rem 1.15rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.92rem;
   font-weight: 700;
-  transition: transform .16s ease, filter .2s ease;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform .16s ease, filter .2s ease, background .2s ease, border-color .2s ease;
 }
 
-.btn:hover { transform: translateY(-1px); }
-.btn:disabled { opacity: .65; cursor: not-allowed; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+.btn:disabled { opacity: .65; cursor: not-allowed; transform: none; filter: none; }
+.btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-green) 68%, transparent);
+  outline-offset: 3px;
+}
 
 .btn-primary {
   background: var(--accent-red);
+  border-color: color-mix(in srgb, var(--accent-red) 82%, #fff 18%);
   color: var(--on-accent);
 }
 
 .btn-danger {
   background: var(--danger-bg);
+  border-color: color-mix(in srgb, var(--danger-bg) 82%, #fff 18%);
   color: var(--on-accent);
 }
 
@@ -144,6 +165,36 @@ body {
   background: var(--surface-2);
   color: var(--text-main);
   border: 1px solid var(--border-soft);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--text-main);
+  color: var(--text-main);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-main);
+}
+
+.btn-sm {
+  min-height: 34px;
+  padding: 0.38rem 0.8rem;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+.btn-lg {
+  min-height: 48px;
+  padding: 0.85rem 1.4rem;
+  gap: 10px;
+  font-size: 0.98rem;
+}
+
+.btn-block {
+  width: 100%;
 }
 
 input, select, textarea {

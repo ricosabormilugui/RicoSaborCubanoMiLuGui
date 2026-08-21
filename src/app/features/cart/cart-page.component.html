@@ -38,7 +38,7 @@
           </div>
 
           <div class="remove-cell">
-            <button class="btn btn-danger remove-btn" type="button" (click)="cart.remove(item.productId)">Quitar</button>
+            <button class="btn btn-danger btn-sm remove-btn" type="button" (click)="cart.remove(item.productId)">Quitar</button>
           </div>
         </article>
       </div>
@@ -48,7 +48,10 @@
           <span>Total</span>
           <strong>{{ cart.subtotal() | currency:'USD' }}</strong>
         </div>
-        <a routerLink="/checkout" class="btn btn-primary checkout-btn">Ir al checkout</a>
+        <a routerLink="/checkout" class="btn btn-primary btn-lg checkout-btn">
+          Ir al checkout
+          <app-icon name="arrow" [size]="16" />
+        </a>
       </div>
     </section>
   

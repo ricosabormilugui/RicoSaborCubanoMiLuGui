@@ -200,6 +200,7 @@ import { SeoService } from './core/services/seo.service';
             </label>
             <button class="btn btn-primary" type="submit" [disabled]="newsletterLoading()">
               {{ newsletterLoading() ? 'Guardando...' : 'Activar cupón' }}
+              <app-icon *ngIf="!newsletterLoading()" name="arrow" [size]="16" />
             </button>
             <p class="ok" *ngIf="newsletterNotice()">{{ newsletterNotice() }}</p>
             <p class="err" *ngIf="newsletterError()">{{ newsletterError() }}</p>

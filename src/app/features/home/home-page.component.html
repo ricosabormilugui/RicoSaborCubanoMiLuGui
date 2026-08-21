@@ -9,8 +9,14 @@
             para que tu celebración tenga un toque especial de Rico Sabor Cubano.
           </p>
           <div class="cta-row">
-            <a class="btn btn-primary" routerLink="/productos" [queryParams]="{ category: 'tartas' }">Ver tartas</a>
-            <a class="btn btn-secondary" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">Pedir por WhatsApp</a>
+            <a class="btn btn-primary btn-lg" routerLink="/productos" [queryParams]="{ category: 'tartas' }">
+              Ver tartas
+              <app-icon name="arrow" [size]="16" />
+            </a>
+            <a class="btn btn-secondary btn-lg" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+              <app-icon name="whatsapp" [size]="16" />
+              Pedir por WhatsApp
+            </a>
           </div>
         </div>
 
@@ -30,7 +36,10 @@
             celebraciones o pedidos de grupo.
           </p>
         </div>
-        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'cubano' }">Ver comida cubana</a>
+        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'cubano' }">
+          Ver comida cubana
+          <app-icon name="arrow" [size]="16" />
+        </a>
       </section>
 
       <section class="feature-section spanish-food" aria-labelledby="spanish-food-title">
@@ -41,7 +50,10 @@
             Propuestas caseras de inspiración española para reuniones, comidas familiares y encargos especiales con atención directa.
           </p>
         </div>
-        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'española' }">Ver comida española</a>
+        <a class="btn btn-secondary" routerLink="/productos" [queryParams]="{ q: 'española' }">
+          Ver comida española
+          <app-icon name="arrow" [size]="16" />
+        </a>
       </section>
 
       <section class="best-sellers" *ngIf="bestSellers().length" aria-labelledby="best-sellers-title">

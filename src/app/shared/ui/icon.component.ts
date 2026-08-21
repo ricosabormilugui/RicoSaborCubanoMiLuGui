@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
+  LucideArrowRight,
   LucideCalendar,
   LucideGift,
   LucideMenu,
+  LucideMessageCircle,
   LucideMoon,
   LucidePhone,
   LucideSearch,
@@ -13,6 +15,7 @@ import {
 } from '@lucide/angular';
 
 export type AppIconName =
+  | 'arrow'
   | 'calendar'
   | 'cart'
   | 'close'
@@ -22,16 +25,19 @@ export type AppIconName =
   | 'phone'
   | 'search'
   | 'sun'
-  | 'user';
+  | 'user'
+  | 'whatsapp';
 
 @Component({
   selector: 'app-icon',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    LucideArrowRight,
     LucideCalendar,
     LucideGift,
     LucideMenu,
+    LucideMessageCircle,
     LucideMoon,
     LucidePhone,
     LucideSearch,
@@ -42,6 +48,7 @@ export type AppIconName =
   ],
   template: `
     @switch (name()) {
+      @case ('arrow') { <svg lucideArrowRight [size]="size()" /> }
       @case ('calendar') { <svg lucideCalendar [size]="size()" /> }
       @case ('cart') { <svg lucideShoppingBag [size]="size()" /> }
       @case ('close') { <svg lucideX [size]="size()" /> }
@@ -52,6 +59,7 @@ export type AppIconName =
       @case ('search') { <svg lucideSearch [size]="size()" /> }
       @case ('sun') { <svg lucideSun [size]="size()" /> }
       @case ('user') { <svg lucideUser [size]="size()" /> }
+      @case ('whatsapp') { <svg lucideMessageCircle [size]="size()" /> }
     }
   `,
   styles: [`

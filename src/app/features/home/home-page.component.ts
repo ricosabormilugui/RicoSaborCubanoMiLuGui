@@ -11,10 +11,11 @@ import { getProductCategoryLabel } from '../../core/config/product-categories.co
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, AddToCartButtonComponent],
+  imports: [CommonModule, RouterLink, AddToCartButtonComponent, IconComponent],
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.css']
 })

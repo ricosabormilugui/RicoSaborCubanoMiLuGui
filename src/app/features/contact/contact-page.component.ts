@@ -6,10 +6,11 @@ import { ContactFormPayload, ContactService } from '../../core/services/contact.
 import { NotificationService } from '../../core/services/notification.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { environment } from '../../../environments/environment';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, IconComponent],
   template: `
     <section class="contact-shell">
       <article class="card contact-card">
@@ -48,7 +49,11 @@ import { environment } from '../../../environments/environment';
         </div>
 
         <p class="meta" *ngIf="lastContactId()">ID de solicitud: {{ lastContactId() }}</p>
-        <div class="secondary-actions"><a class="btn btn-secondary whatsapp-btn" *ngIf="whatsappContactUrl()" [href]="whatsappContactUrl()" target="_blank" rel="noopener noreferrer">Contactar por WhatsApp</a>
+        <div class="secondary-actions">
+          <a class="btn btn-secondary whatsapp-btn" *ngIf="whatsappContactUrl()" [href]="whatsappContactUrl()" target="_blank" rel="noopener noreferrer">
+            <app-icon name="whatsapp" [size]="16" />
+            Contactar por WhatsApp
+          </a>
         <button class="btn btn-secondary whatsapp-btn" *ngIf="canRetry()" (click)="retryLastSubmission()" [disabled]="sending()">Reintentar</button></div>
         
       </article>
