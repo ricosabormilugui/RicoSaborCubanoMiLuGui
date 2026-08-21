@@ -33,7 +33,7 @@ import { CookieConsentService } from '../../core/services/cookie-consent.service
     </section>
   `,
   styles: [
-    `.cookie-banner{position:fixed;inset:auto 0 0;z-index:200;padding:1rem;background:linear-gradient(180deg,transparent,var(--overlay-bg))}`,
+    `.cookie-banner{position:fixed;inset:auto 0 0;z-index:200;padding:1rem 1rem max(1rem, env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,var(--overlay-bg))}`,
     `.cookie-card{width:min(980px,100%);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;border:1px solid var(--border-soft);border-radius:18px;padding:1rem;background:var(--surface-0);box-shadow:var(--shadow-card);color:var(--text-main)}`,
     `.eyebrow{margin:0;color:var(--accent-green);font-weight:900;text-transform:uppercase;font-size:.78rem;letter-spacing:.05em}`,
     `h2{margin:.15rem 0 .35rem}`,
@@ -45,7 +45,7 @@ import { CookieConsentService } from '../../core/services/cookie-consent.service
     `.locked{opacity:.8}`,
     `.cookie-actions{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end}`,
     `.cookie-actions .btn{white-space:nowrap}`,
-    `@media (max-width:760px){.cookie-card{grid-template-columns:1fr}.cookie-actions{justify-content:stretch}.cookie-actions .btn{flex:1 1 140px}}`
+    `@media (max-width:760px){.cookie-card{grid-template-columns:1fr}.cookie-actions{justify-content:stretch}.cookie-actions .btn{flex:1 1 140px;min-height:44px}}`
   ]
 })
 export class CookieBannerComponent {

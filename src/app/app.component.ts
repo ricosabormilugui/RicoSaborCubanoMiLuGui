@@ -290,7 +290,8 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
     `.legal-footer a:hover,.legal-footer a:focus-visible,.legal-footer button:hover,.legal-footer button:focus-visible{color:var(--accent-green);outline:2px solid color-mix(in srgb,var(--accent-green) 35%,transparent);outline-offset:3px;border-radius:6px}`,
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:12px;padding:7px 10px;line-height:1.3}.navbar{padding:8px 0;padding-top:max(8px,env(safe-area-inset-top))}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px}.search-modal{padding:12px;padding-top:max(12px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.whatsapp-float{right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));width:52px;height:52px}.side-menu{padding-top:max(20px,env(safe-area-inset-top));width:min(320px,calc(100vw - 16px))}.site-footer h2{font-size:clamp(1.25rem,6vw,1.55rem)}.newsletter-form .btn{width:100%}.legal-footer{padding:0 8px}}`,
+    `@media (hover:none){.icon-btn:hover{transform:none}}`,
     `@media (min-width:768px){.desktop-only{display:flex;gap:8px}.mobile-only{display:none}.logo{font-size:24px}}`
   ]
 })

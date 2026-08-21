@@ -29,7 +29,8 @@ import { NotificationService } from '../../core/services/notification.service';
     `.notify.info{border-color:color-mix(in srgb, var(--info-text) 40%, var(--border-soft));background:color-mix(in srgb, var(--info-text) 13%, var(--surface-0))}`,
     `.notify.warning{border-color:color-mix(in srgb, var(--warning-text) 45%, var(--border-soft));background:color-mix(in srgb, var(--warning-text) 14%, var(--surface-0))}`,
     `.close{position:absolute;top:6px;right:8px;border:0;background:transparent;color:var(--text-soft);cursor:pointer;font-size:1.05rem}`,
-    `@keyframes slideIn{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`
+    `@keyframes slideIn{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`,
+    `@media (max-width:760px){.notify-wrap{left:12px;right:12px;top:max(64px,env(safe-area-inset-top));max-width:none}}`
   ]
 })
 export class NotificationsComponent {
