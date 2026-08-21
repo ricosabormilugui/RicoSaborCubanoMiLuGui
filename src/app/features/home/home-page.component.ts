@@ -33,7 +33,7 @@ export class HomePageComponent {
   readonly localZone = SHIPPING_ZONES[0];
   readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
   readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
-  readonly marqueeItems = ['Casero', 'Sabor cubano', 'Alcorcón', 'Por encargo', 'Hecho con cariño'];
+  readonly marqueeItems = ['Casero', 'Sabor cubano', 'Por encargo', 'Hecho con cariño'];
 
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
   readonly heroImage = computed(() => this.homeContent.content().heroImageUrl);
