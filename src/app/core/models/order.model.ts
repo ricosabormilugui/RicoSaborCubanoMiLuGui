@@ -1,6 +1,10 @@
 export interface CartCustomizationSelection {
+  groupKey?: string;
+  optionId?: string;
   label: string;
   value: string;
+  priceModifier?: number;
+  /** Campo legado de carritos anteriores. */
   price?: number;
 }
 
@@ -8,11 +12,15 @@ export interface CartItem {
   productId: string;
   name: string;
   description?: string;
+  /** Precio final por unidad: basePrice + modificadores seleccionados. */
   unitPrice: number;
+  /** Precio base del producto antes de personalización. */
+  basePrice?: number;
   quantity: number;
   minimumQuantity?: number;
   unitLabel?: string;
   baseProductId?: string;
+  configurationId?: string;
   customization?: CartCustomizationSelection[];
   requiresAdvancePayment?: boolean;
 }

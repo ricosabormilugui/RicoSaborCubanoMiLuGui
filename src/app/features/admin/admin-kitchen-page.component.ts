@@ -56,7 +56,7 @@ type KitchenLane = 'nuevos' | 'preparando' | 'listos';
               <p><strong>{{ order.customer?.fullName || 'Cliente' }}</strong> · {{ order.customer?.phone || 'N/A' }}</p>
               <p>💰 {{ (order.total ?? 0) | currency:'EUR' }}</p>
               <ul>
-                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}</li>
+                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}<small *ngFor="let option of item.customization"> · {{ option.label }}: {{ option.value }}</small></li>
               </ul>
             </article>
           </section>
@@ -71,7 +71,7 @@ type KitchenLane = 'nuevos' | 'preparando' | 'listos';
               <p><strong>{{ order.customer?.fullName || 'Cliente' }}</strong> · {{ order.customer?.phone || 'N/A' }}</p>
               <p>💰 {{ (order.total ?? 0) | currency:'EUR' }}</p>
               <ul>
-                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}</li>
+                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}<small *ngFor="let option of item.customization"> · {{ option.label }}: {{ option.value }}</small></li>
               </ul>
             </article>
           </section>
@@ -86,7 +86,7 @@ type KitchenLane = 'nuevos' | 'preparando' | 'listos';
               <p><strong>{{ order.customer?.fullName || 'Cliente' }}</strong> · {{ order.customer?.phone || 'N/A' }}</p>
               <p>💰 {{ (order.total ?? 0) | currency:'EUR' }}</p>
               <ul>
-                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}</li>
+                <li *ngFor="let item of order.items">{{ item.quantity }} x {{ item.name }}<small *ngFor="let option of item.customization"> · {{ option.label }}: {{ option.value }}</small></li>
               </ul>
             </article>
           </section>

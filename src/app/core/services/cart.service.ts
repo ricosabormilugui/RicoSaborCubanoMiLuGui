@@ -1,13 +1,15 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { CartCustomizationSelection, CartItem } from '../models/order.model';
-import { Product } from '../models/product.model';
+import { isProductCustomizable, Product } from '../models/product.model';
+import { buildCustomizationOptionId, calculateFinalUnitPrice, getCustomizationGroupKeyByLabel, getPriceModifier, roundMoney } from '../utils/customization-pricing';
 
 const CART_STORAGE_KEY = 'ricosabor-cart';
-const CART_SCHEMA_VERSION = 2;
+const CART_SCHEMA_VERSION = 3;
+const SUPPORTED_CART_SCHEMA_VERSIONS = new Set([2, CART_SCHEMA_VERSION]);
 const MAX_RESTORED_QUANTITY = 99;
 
 interface StoredCartState {
-  version: typeof CART_SCHEMA_VERSION;
+  version: number;
   items: CartItem[];
 }
 
@@ -17,18 +19,25 @@ export class CartService {
   private readonly state = signal<CartItem[]>(this.restoreCart());
 
   readonly items = computed(() => this.state());
-  readonly subtotal = computed(() => this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0));
+  readonly subtotal = computed(() => roundMoney(this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)));
   readonly totalItems = computed(() => this.items().reduce((sum, item) => sum + item.quantity, 0));
 
-  add(product: Product, customization: CartCustomizationSelection[] = [], unitPrice = product.price, amount = 1): void {
-    const productId = buildCartProductId(product.id, customization);
+  add(product: Product, customization: CartCustomizationSelection[] = [], amount = 1): void {
+    const configurationId = buildConfigurationId(customization);
+    const productId = configurationId ? `${product.id}::${configurationId}` : product.id;
     const existing = this.state().find((item) => item.productId === productId);
     const addedQuantity = normalizePositiveInteger(amount, 1);
     const minimumQuantity = normalizePositiveInteger(product.minimumQuantity, 1);
+    const basePrice = roundMoney(Number(product.price ?? 0));
+    const unitPrice = calculateFinalUnitPrice(basePrice, customization);
     if (existing) {
       this.setItems(this.state().map((item) => (item.productId === productId ? {
         ...item,
         quantity: Math.max(minimumQuantity, existing.quantity + addedQuantity),
+        basePrice,
+        unitPrice,
+        customization: customization.length ? customization : undefined,
+        requiresAdvancePayment: isProductCustomizable(product),
         minimumQuantity,
         unitLabel: String(product.unitLabel ?? '').trim() || undefined
       } : item)));
@@ -40,12 +49,15 @@ export class CartService {
       {
         productId,
         baseProductId: product.id,
+        configurationId: configurationId || undefined,
         name: product.name,
         description: product.description,
         unitPrice,
+        basePrice,
         quantity: Math.max(minimumQuantity, addedQuantity),
         minimumQuantity,
         unitLabel: String(product.unitLabel ?? '').trim() || undefined,
+        requiresAdvancePayment: isProductCustomizable(product),
         customization: customization.length ? customization : undefined
       }
     ]);
@@ -85,7 +97,7 @@ export class CartService {
 
       const parsed = JSON.parse(raw) as Partial<StoredCartState> | CartItem[];
       const isLegacyCart = Array.isArray(parsed);
-      const isSupportedCart = !isLegacyCart && parsed.version === CART_SCHEMA_VERSION;
+      const isSupportedCart = !isLegacyCart && SUPPORTED_CART_SCHEMA_VERSIONS.has(Number(parsed.version));
       if (!isLegacyCart && !isSupportedCart) return [];
 
       const items = isLegacyCart ? parsed : parsed.items;
@@ -130,13 +142,20 @@ export class CartService {
     if (!value || typeof value !== 'object') return null;
 
     const raw = value as Partial<CartItem>;
-    const productId = String(raw.productId ?? '').trim();
+    const storedProductId = String(raw.productId ?? '').trim();
     const name = String(raw.name ?? '').trim();
     const unitPrice = Number(raw.unitPrice);
     const quantity = Math.floor(Number(raw.quantity));
     const minimumQuantity = normalizePositiveInteger(raw.minimumQuantity, 1);
+    const customization = normalizeCustomization(raw.customization);
+    const modifiersTotal = (customization ?? []).reduce((sum, item) => sum + getPriceModifier(item), 0);
+    const basePriceValue = Number(raw.basePrice ?? unitPrice - modifiersTotal);
+    const basePrice = Number.isFinite(basePriceValue) && basePriceValue >= 0 ? roundMoney(basePriceValue) : unitPrice;
+    const baseProductId = raw.baseProductId ? String(raw.baseProductId) : storedProductId.split('::')[0];
+    const configurationId = buildConfigurationId(customization ?? []);
+    const productId = configurationId ? `${baseProductId}::${configurationId}` : baseProductId;
 
-    if (!productId || !name || !Number.isFinite(unitPrice) || unitPrice < 0) return null;
+    if (!storedProductId || !baseProductId || !name || !Number.isFinite(unitPrice) || unitPrice < 0) return null;
     if (!Number.isFinite(quantity) || quantity <= 0) return null;
 
     return {
@@ -144,11 +163,14 @@ export class CartService {
       name,
       description: raw.description ? String(raw.description) : '',
       unitPrice,
+      basePrice,
       quantity: Math.max(minimumQuantity, Math.min(MAX_RESTORED_QUANTITY, quantity)),
       minimumQuantity,
       unitLabel: String(raw.unitLabel ?? '').trim() || undefined,
-      baseProductId: raw.baseProductId ? String(raw.baseProductId) : undefined,
-      customization: normalizeCustomization(raw.customization)
+      baseProductId,
+      configurationId: configurationId || undefined,
+      requiresAdvancePayment: Boolean(raw.requiresAdvancePayment) || Boolean(customization?.length),
+      customization
     };
   }
 
@@ -181,21 +203,33 @@ function normalizePositiveInteger(value: unknown, fallback: number): number {
 function normalizeCustomization(value: unknown): CartCustomizationSelection[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const items = value
-    .map((item) => {
+    .map((item): CartCustomizationSelection | null => {
       const source = item as Partial<CartCustomizationSelection>;
       const label = String(source.label ?? '').trim();
       const optionValue = String(source.value ?? '').trim();
-      const price = Number(source.price ?? 0);
-      return label && optionValue ? { label, value: optionValue, ...(Number.isFinite(price) && price > 0 ? { price } : {}) } : null;
+      const priceModifier = getPriceModifier(source);
+      const groupKey = String(source.groupKey ?? '').trim() || getCustomizationGroupKeyByLabel(label) || '';
+      const optionId = String(source.optionId ?? '').trim() || buildCustomizationOptionId(optionValue);
+      return label && optionValue ? {
+        ...(groupKey ? { groupKey } : {}),
+        ...(optionId ? { optionId } : {}),
+        label,
+        value: optionValue,
+        ...(priceModifier > 0 ? { priceModifier } : {})
+      } : null;
     })
     .filter((item): item is CartCustomizationSelection => Boolean(item));
   return items.length ? items : undefined;
 }
 
-function buildCartProductId(productId: string, customization: CartCustomizationSelection[]): string {
-  if (!customization.length) return productId;
+function buildConfigurationId(customization: CartCustomizationSelection[]): string {
+  if (!customization.length) return '';
   const suffix = customization
-    .map((item) => `${item.label}:${item.value}:${item.price ?? 0}`)
+    .map((item) => `${item.groupKey ?? item.label}:${item.optionId ?? item.value}`)
+    .sort((a, b) => a.localeCompare(b))
     .join('|');
-  return `${productId}::${globalThis.btoa(unescape(encodeURIComponent(suffix))).replace(/=+$/g, '')}`;
+  return globalThis.btoa(unescape(encodeURIComponent(suffix)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }

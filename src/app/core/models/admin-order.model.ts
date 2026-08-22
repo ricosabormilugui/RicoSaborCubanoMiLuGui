@@ -18,8 +18,16 @@ export interface AdminOrder {
     productId: string;
     name: string;
     description?: string;
+    basePrice?: number;
     unitPrice: number;
     quantity: number;
+    customization?: Array<{
+      groupKey?: string;
+      optionId?: string;
+      label: string;
+      value: string;
+      priceModifier?: number;
+    }>;
   }>;
   deliveryDate?: string;
   deliverySlot?: string;

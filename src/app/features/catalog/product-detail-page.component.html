@@ -34,8 +34,12 @@
             <div class="info-panel">
               <span class="tag" *ngIf="product()!.category">{{ categoryLabel(product()!.category) }}</span>
               <h1>{{ product()!.name }}</h1>
+              <span class="price-label" *ngIf="isCustomCake(product()!)">Precio final</span>
               <strong class="price">{{ customizedTotal(product()!) | currency:'EUR' }}<small *ngIf="product()!.unitLabel"> / {{ product()!.unitLabel }}</small></strong>
-              <span class="base-price" *ngIf="customizationExtraTotal()">Base {{ product()!.price | currency:'EUR' }} + extras {{ customizationExtraTotal() | currency:'EUR' }}</span>
+              <span class="base-price" *ngIf="isCustomCake(product()!)">Precio base {{ product()!.price | currency:'EUR' }}<ng-container *ngIf="customizationExtraTotal()"> · Extras +{{ customizationExtraTotal() | currency:'EUR' }}</ng-container></span>
+              <div class="price-breakdown" *ngIf="selectedPricedOptions().length">
+                <span *ngFor="let option of selectedPricedOptions()"><span>{{ option.name }}</span><strong>+{{ optionPriceModifier(option) | currency:'EUR' }}</strong></span>
+              </div>
               <p class="description">{{ product()!.description || 'Producto casero preparado por Rico Sabor Cubano.' }}</p>
               <p class="sale-note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
 
@@ -43,10 +47,10 @@
                 <h2>Personaliza tu tarta</h2>
                 <p>Elige las opciones de tu encargo. Los extras actualizan el precio final.</p>
                 <div class="option-group" *ngFor="let group of customizationGroups(product()!)">
-                  <span>{{ group.label }}</span>
+                  <span>{{ group.label }} <small>{{ group.required ? 'Obligatorio' : 'Opcional' }} · {{ group.selectionType === 'multiple' ? 'Varias opciones' : 'Una opción' }}</small></span>
                   <div class="option-list">
-                    <button type="button" class="option-chip" *ngFor="let option of group.options" [class.active]="selectedCustomization()[group.key]?.name === option.name" (click)="selectCustomization(group.key, option)">
-                      {{ option.name }} <small *ngIf="option.price">+{{ option.price | currency:'EUR' }}</small>
+                    <button type="button" class="option-chip" *ngFor="let option of group.options" [class.active]="isOptionSelected(group.key, option)" [attr.aria-pressed]="isOptionSelected(group.key, option)" (click)="selectCustomization(group, option)">
+                      {{ option.name }} <small *ngIf="optionPriceModifier(option)">(+{{ optionPriceModifier(option) | currency:'EUR' }})</small>
                     </button>
                   </div>
                 </div>

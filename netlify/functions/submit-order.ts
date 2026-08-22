@@ -304,20 +304,35 @@ export default async (request: Request): Promise<Response> => {
     });
   }
 
-  const orderId = `RS-${Date.now()}`;
-
-  const notifications = await Promise.all([
-    sendEmailNotification(orderId, payload)
-  ]);
-
-  return new Response(
-    JSON.stringify({
-      orderId,
-      accepted: true,
-      notifications
-    }),
-    { status: 200 }
-  );
+  const backendBase = getEnv('BACKEND_API_URL');
+  if (!backendBase) {
+    return new Response(JSON.stringify({ error: 'La creación segura de pedidos requiere BACKEND_API_URL.' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  const apiBase = backendBase.replace(/\/$/, '').endsWith('/api')
+    ? backendBase.replace(/\/$/, '')
+    : `${backendBase.replace(/\/$/, '')}/api`;
+  try {
+    const response = await fetch(`${apiBase}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(request.headers.get('authorization') ? { Authorization: request.headers.get('authorization')! } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    return new Response(await response.text(), {
+      status: response.status,
+      headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json' }
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: 'No se pudo validar el pedido con el backend.' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 };
 
 type RuntimeDeliveryType = 'delivery' | 'pickup';

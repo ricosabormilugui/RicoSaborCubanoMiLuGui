@@ -166,10 +166,10 @@ export class OrderService {
           channel: string;
           sent: boolean;
           detail?: string;
-        }>;
+        }> | Record<string, unknown>;
       };
 
-      const notificationErrors = (data.notifications ?? [])
+      const notificationErrors = (Array.isArray(data.notifications) ? data.notifications : [])
         .filter((item) => !item.sent && item.detail)
         .map((item) => `${item.channel}: ${item.detail}`);
 

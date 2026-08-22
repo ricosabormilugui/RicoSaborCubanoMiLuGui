@@ -1,0 +1,11 @@
+{
+  "groups": [
+    { "key": "themes", "label": "Temática", "selectionType": "single", "required": true },
+    { "key": "colors", "label": "Color", "selectionType": "single", "required": true },
+    { "key": "sizes", "label": "Tamaño / porciones", "selectionType": "single", "required": true },
+    { "key": "flavors", "label": "Bizcocho", "selectionType": "single", "required": true },
+    { "key": "fillings", "label": "Relleno", "selectionType": "single", "required": true },
+    { "key": "toppings", "label": "Cobertura", "selectionType": "single", "required": true },
+    { "key": "decorations", "label": "Decoración", "selectionType": "single", "required": true }
+  ]
+}

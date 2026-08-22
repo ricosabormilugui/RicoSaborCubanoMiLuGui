@@ -8,6 +8,7 @@ import {
   updateProduct
 } from "../repositories/products.repository.js";
 import { normalizeCategorySlug } from "../config/product-categories.config.js";
+import { normalizeProductCustomizationOptions } from "../services/product-customization.service.js";
 
 
 function normalizeImages(value, imageUrl = "") {
@@ -30,26 +31,6 @@ function normalizeReviews(value) {
   })).filter((item) => item.author && item.comment);
 }
 
-function normalizeCustomizationOptions(value = {}) {
-  const normalizeList = (items) => Array.isArray(items)
-    ? items.map((item) => {
-      if (typeof item === "string") return { name: item.trim() };
-      const price = Number(item?.price ?? 0);
-      return { name: String(item?.name ?? "").trim(), ...(Number.isFinite(price) && price > 0 ? { price } : {}) };
-    }).filter((item) => item.name)
-    : [];
-
-  return {
-    themes: normalizeList(value.themes),
-    colors: normalizeList(value.colors),
-    sizes: normalizeList(value.sizes),
-    flavors: normalizeList(value.flavors),
-    fillings: normalizeList(value.fillings),
-    toppings: normalizeList(value.toppings),
-    decorations: normalizeList(value.decorations)
-  };
-}
-
 function buildPayload(body = {}, { partial = false } = {}) {
   const payload = {};
 
@@ -61,7 +42,7 @@ function buildPayload(body = {}, { partial = false } = {}) {
   if (!partial || body.images !== undefined) payload.images = normalizeImages(body.images, payload.imageUrl);
   if (!partial || body.ingredients !== undefined) payload.ingredients = normalizeIngredients(body.ingredients);
   if (!partial || body.reviews !== undefined) payload.reviews = normalizeReviews(body.reviews);
-  if (!partial || body.customizationOptions !== undefined) payload.customizationOptions = normalizeCustomizationOptions(body.customizationOptions);
+  if (!partial || body.customizationOptions !== undefined) payload.customizationOptions = normalizeProductCustomizationOptions(body.customizationOptions);
   if (!partial || body.published !== undefined) payload.published = Boolean(body.published);
   if (!partial || body.trackStock !== undefined) payload.trackStock = Boolean(body.trackStock);
   if (!partial || body.stock !== undefined) payload.stock = Number(body.stock ?? 0);

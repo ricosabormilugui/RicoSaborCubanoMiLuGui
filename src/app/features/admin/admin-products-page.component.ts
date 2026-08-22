@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ProductApiRecord } from '../../core/models/product.model';
+import { ProductApiRecord, ProductCustomizationGroupKey, ProductCustomizationGroupSettings } from '../../core/models/product.model';
 import { matchesProductSearch } from '../../core/models/product-filter';
 import { PRODUCT_CREATION_PRESETS } from '../../core/config/product-creation-presets.config';
 import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
@@ -12,6 +12,7 @@ import {
   AdminProductPayload,
   AdminProductService
 } from '../../core/services/admin-product.service';
+import { defaultGroupSettings, readGroupSettings } from '../../core/utils/customization-pricing';
 
 @Component({
   standalone: true,
@@ -34,6 +35,7 @@ export class AdminProductsPageComponent {
   customizationFillingsText = '';
   customizationToppingsText = '';
   customizationDecorationsText = '';
+  customizationGroupSettings: Record<ProductCustomizationGroupKey, Required<ProductCustomizationGroupSettings>> = defaultGroupSettings();
   selectedPresetId = '';
 
   readonly productPresets = PRODUCT_CREATION_PRESETS;
@@ -290,7 +292,8 @@ export class AdminProductsPageComponent {
         flavors: this.parseOptions(this.customizationFlavorsText),
         fillings: this.parseOptions(this.customizationFillingsText),
         toppings: this.parseOptions(this.customizationToppingsText),
-        decorations: this.parseOptions(this.customizationDecorationsText)
+        decorations: this.parseOptions(this.customizationDecorationsText),
+        groupSettings: this.customizationGroupSettings
       }
     };
   }
@@ -346,6 +349,7 @@ export class AdminProductsPageComponent {
     this.customizationFillingsText = this.stringifyOptions(product.customizationOptions?.fillings);
     this.customizationToppingsText = this.stringifyOptions(product.customizationOptions?.toppings);
     this.customizationDecorationsText = this.stringifyOptions(product.customizationOptions?.decorations);
+    this.customizationGroupSettings = readGroupSettings(product.customizationOptions);
     this.customizationEditorOpen.set(this.hasCustomizationData());
     this.scrollToSection('product-editor');
   }
@@ -381,6 +385,7 @@ export class AdminProductsPageComponent {
     this.customizationFillingsText = '';
     this.customizationToppingsText = '';
     this.customizationDecorationsText = '';
+    this.customizationGroupSettings = defaultGroupSettings();
     this.selectedPresetId = '';
   }
 
@@ -405,6 +410,7 @@ export class AdminProductsPageComponent {
     this.customizationFillingsText = this.stringifyOptions(options?.fillings);
     this.customizationToppingsText = this.stringifyOptions(options?.toppings);
     this.customizationDecorationsText = this.stringifyOptions(options?.decorations);
+    this.customizationGroupSettings = readGroupSettings(options);
     this.customizationEditorOpen.set(this.hasCustomizationData());
   }
 
@@ -416,16 +422,19 @@ export class AdminProductsPageComponent {
     return values.map((item) => String(item ?? '').trim()).filter(Boolean).join('\n');
   }
 
-  private parseOptions(value: string): Array<{ name: string; price?: number }> {
+  private parseOptions(value: string): Array<{ name: string; priceModifier?: number }> {
     return String(value ?? '').split('\n').map((line) => {
       const [name, priceValue] = line.split('|').map((part) => part.trim());
       const price = Number(priceValue ?? 0);
-      return name ? { name, ...(Number.isFinite(price) && price > 0 ? { price } : {}) } : null;
-    }).filter((item): item is { name: string; price?: number } => Boolean(item));
+      return name ? { name, ...(Number.isFinite(price) && price > 0 ? { priceModifier: price } : {}) } : null;
+    }).filter((item): item is { name: string; priceModifier?: number } => Boolean(item));
   }
 
-  private stringifyOptions(values: Array<{ name?: string; price?: number }> = []): string {
-    return values.map((item) => `${item.name ?? ''}${item.price ? ` | ${item.price}` : ''}`.trim()).filter(Boolean).join('\n');
+  private stringifyOptions(values: Array<{ name?: string; priceModifier?: number; price?: number }> = []): string {
+    return values.map((item) => {
+      const modifier = Number(item.priceModifier ?? item.price ?? 0);
+      return `${item.name ?? ''}${modifier > 0 ? ` | ${modifier}` : ''}`.trim();
+    }).filter(Boolean).join('\n');
   }
 
   private parseReviews(value: string): Array<{ author: string; rating: number; comment: string; date?: string }> {

@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
-import { Product, ProductApiRecord, ProductCustomizationOptions, ProductReview } from '../models/product.model';
+import { Product, ProductApiRecord, ProductReview } from '../models/product.model';
+import { normalizeCustomizationOptions } from '../utils/customization-pricing';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
 
@@ -28,28 +29,6 @@ function normalizeReviews(value: unknown): ProductReview[] {
       };
     })
     .filter((review) => review.author && review.comment);
-}
-
-function normalizeCustomizationOptions(value: unknown): ProductCustomizationOptions {
-  const source = (value && typeof value === 'object' ? value : {}) as ProductCustomizationOptions;
-  const normalizeList = (items: unknown) => Array.isArray(items)
-    ? items.map((item) => {
-      if (typeof item === 'string') return { name: item.trim() };
-      const option = item as { name?: unknown; price?: unknown };
-      const price = Number(option.price ?? 0);
-      return { name: String(option.name ?? '').trim(), ...(Number.isFinite(price) && price > 0 ? { price } : {}) };
-    }).filter((item) => item.name)
-    : [];
-
-  return {
-    themes: normalizeList(source.themes),
-    colors: normalizeList(source.colors),
-    sizes: normalizeList(source.sizes),
-    flavors: normalizeList(source.flavors),
-    fillings: normalizeList(source.fillings),
-    toppings: normalizeList(source.toppings),
-    decorations: normalizeList(source.decorations)
-  };
 }
 
 function normalizeMinimumQuantity(value: unknown): number {

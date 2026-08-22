@@ -109,10 +109,17 @@ function buildOrderItemsRows(items = []) {
       const quantity = Number(item?.quantity ?? 0);
       const unitPrice = Number(item?.unitPrice ?? 0);
       const lineTotal = quantity * unitPrice;
+      const customization = Array.isArray(item?.customization) && item.customization.length
+        ? `<ul style="margin:6px 0 0;padding-left:18px;color:#707070;font-size:12px;">${item.customization.map((selection) => {
+          const modifier = Number(selection?.priceModifier ?? selection?.price ?? 0);
+          const modifierText = Number.isFinite(modifier) && modifier > 0 ? ` (+${formatCurrency(modifier)})` : "";
+          return `<li>${escapeHtml(selection?.label ?? "Opción")}: ${escapeHtml(selection?.value ?? "")}${modifierText}</li>`;
+        }).join("")}</ul>`
+        : "";
 
       return `
         <tr>
-          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;">${name}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;">${name}${customization}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:center;">${quantity}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#3d3d3d;text-align:right;">${formatCurrency(unitPrice)}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;color:#101010;text-align:right;font-weight:600;">${formatCurrency(lineTotal)}</td>

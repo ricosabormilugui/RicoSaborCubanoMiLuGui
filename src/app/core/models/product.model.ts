@@ -8,8 +8,20 @@ export interface ProductReview {
 }
 
 export interface ProductCustomizationOption {
+  id?: string;
   name: string;
+  priceModifier?: number;
+  /** Campo legado. Los nuevos datos utilizan priceModifier. */
   price?: number;
+}
+
+export type ProductCustomizationGroupKey = 'themes' | 'colors' | 'sizes' | 'flavors' | 'fillings' | 'toppings' | 'decorations';
+export type ProductCustomizationSelectionType = 'single' | 'multiple';
+
+export interface ProductCustomizationGroupSettings {
+  label?: string;
+  selectionType?: ProductCustomizationSelectionType;
+  required?: boolean;
 }
 
 export interface ProductCustomizationOptions {
@@ -20,6 +32,7 @@ export interface ProductCustomizationOptions {
   fillings?: ProductCustomizationOption[];
   toppings?: ProductCustomizationOption[];
   decorations?: ProductCustomizationOption[];
+  groupSettings?: Partial<Record<ProductCustomizationGroupKey, ProductCustomizationGroupSettings>>;
 }
 
 export interface Product {

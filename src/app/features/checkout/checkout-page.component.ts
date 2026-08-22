@@ -244,6 +244,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               <div class="summary-item" *ngFor="let item of cart.items()">
                 <div>
                   <strong>{{ item.name }}</strong>
+                  <small *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.priceModifier"> (+{{ option.priceModifier | currency:'EUR' }})</span></small>
                   <span>{{ item.quantity }} × {{ item.unitPrice | currency:'EUR' }}</span>
                 </div>
                 <strong>{{ item.unitPrice * item.quantity | currency:'EUR' }}</strong>

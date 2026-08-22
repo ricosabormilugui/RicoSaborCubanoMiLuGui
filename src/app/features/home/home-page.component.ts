@@ -82,7 +82,7 @@ export class HomePageComponent {
       return;
     }
     const quantity = this.minimumQuantity(product);
-    this.cart.add(product, [], product.price, quantity);
+    this.cart.add(product, [], quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
     this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
   }

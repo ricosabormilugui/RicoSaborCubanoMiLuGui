@@ -73,6 +73,9 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <li *ngFor="let item of order.items">
               {{ item.quantity }} x {{ item.name }}
               <small *ngIf="item.description"> — {{ item.description }}</small>
+              <ul *ngIf="item.customization?.length">
+                <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.priceModifier"> (+{{ option.priceModifier | currency:'EUR' }})</span></li>
+              </ul>
             </li>
           </ul>
           <p *ngIf="order.notes"><strong>Notas:</strong> {{ order.notes }}</p>

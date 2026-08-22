@@ -17,6 +17,7 @@ import { findCustomerForCoupon, markFirstOrderCouponUsed, upsertCustomerFromOrde
 import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
 import { validateOrderFulfillment } from "../services/order-rules.service.js";
+import { calculateCanonicalOrderItems, OrderPricingError } from "../services/order-pricing.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
@@ -241,20 +242,38 @@ export async function createOrder(req, res) {
     const customerEmailNormalized = normalizeCustomerEmail(payload, req.auth);
     const normalizedDelivery = normalizeDelivery(payload);
     const normalizedPayment = normalizePayment(payload);
-    const requiresAdvancePayment = requiresAdvancePaymentForItems(payload?.items ?? []);
     const marketingConsent = normalizeMarketingConsent(payload);
-    const normalizedShipping = normalizeShipping(payload, normalizedDelivery);
-    const requiredAdvanceNoticeHours = requiresAdvancePayment
-      ? DELIVERY_RULES.personalizedAdvanceNoticeHours
-      : DELIVERY_RULES.advanceNoticeHours;
-    const deliveryValidationError = validateOrderFulfillment(normalizedDelivery, {
-      advanceNoticeHours: requiredAdvanceNoticeHours
+    const preliminaryDeliveryError = validateOrderFulfillment(normalizedDelivery, {
+      advanceNoticeHours: DELIVERY_RULES.advanceNoticeHours
     });
 
-    if (deliveryValidationError) {
-      return res.status(400).json({ error: deliveryValidationError });
+    if (preliminaryDeliveryError) {
+      return res.status(400).json({ error: preliminaryDeliveryError });
     }
 
+    const canonicalPhone = normalizePhone(payload?.customer?.phone);
+    if (!canonicalPhone || canonicalPhone.length < 9) {
+      return res.status(400).json({ error: "Invalid customer phone" });
+    }
+
+    let canonicalItems;
+    try {
+      canonicalItems = await calculateCanonicalOrderItems(payload.items);
+    } catch (error) {
+      if (error instanceof OrderPricingError) return res.status(400).json({ error: error.message });
+      throw error;
+    }
+
+    const requiresAdvancePayment = requiresAdvancePaymentForItems(canonicalItems);
+    if (requiresAdvancePayment) {
+      const personalizedDeliveryError = validateOrderFulfillment(normalizedDelivery, {
+        advanceNoticeHours: DELIVERY_RULES.personalizedAdvanceNoticeHours
+      });
+      if (personalizedDeliveryError) return res.status(400).json({ error: personalizedDeliveryError });
+    }
+
+    const canonicalPayload = { ...payload, items: canonicalItems };
+    const normalizedShipping = normalizeShipping(canonicalPayload, normalizedDelivery);
     if (!normalizedShipping.quote.available) {
       return res.status(400).json({ error: normalizedShipping.quote.message });
     }
@@ -262,13 +281,7 @@ export async function createOrder(req, res) {
       return res.status(400).json({ error: "Este pedido requiere pago anticipado y no permite pago en efectivo." });
     }
 
-    const canonicalPhone = normalizePhone(payload?.customer?.phone);
-
-    if (!canonicalPhone || canonicalPhone.length < 9) {
-      return res.status(400).json({ error: "Invalid customer phone" });
-    }
-
-    const subtotal = calculateItemsSubtotal(payload.items);
+    const subtotal = calculateItemsSubtotal(canonicalItems);
     const requestedCouponCode = getRequestedCouponCode(payload);
     const couponValidation = await validateFirstOrderCoupon({
       code: requestedCouponCode,
@@ -297,6 +310,7 @@ export async function createOrder(req, res) {
       },
       ...orderIdentity,
       customerEmailNormalized,
+      items: canonicalItems,
       deliveryDate: normalizedDelivery.date,
       deliverySlot: normalizedDelivery.slot,
       deliveryType: normalizedDelivery.type,

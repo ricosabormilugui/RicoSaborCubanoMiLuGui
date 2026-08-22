@@ -19,7 +19,7 @@
               {{ item.unitLabel ? 'Venta por ' + item.unitLabel : '' }}<span *ngIf="item.unitLabel && (item.minimumQuantity ?? 1) > 1"> · </span><span *ngIf="(item.minimumQuantity ?? 1) > 1">Mínimo {{ item.minimumQuantity }}</span>
             </small>
             <ul class="custom-summary" *ngIf="item.customization?.length">
-              <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.price"> (+{{ option.price | currency:'EUR' }})</span></li>
+              <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.priceModifier"> (+{{ option.priceModifier | currency:'EUR' }})</span></li>
             </ul>
           </div>
 
@@ -34,7 +34,8 @@
 
           <div class="price-cell">
             <span class="mobile-label">Precio</span>
-            <strong>{{ item.unitPrice * item.quantity | currency:'USD' }}</strong>
+            <strong>{{ item.unitPrice * item.quantity | currency:'EUR' }}</strong>
+            <small *ngIf="item.quantity > 1">{{ item.unitPrice | currency:'EUR' }} por unidad</small>
           </div>
 
           <div class="remove-cell">
@@ -46,7 +47,7 @@
       <div class="cart-footer" *ngIf="cart.items().length">
         <div class="total-row">
           <span>Total</span>
-          <strong>{{ cart.subtotal() | currency:'USD' }}</strong>
+          <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
         </div>
         <a routerLink="/checkout" class="btn btn-primary btn-lg checkout-btn">
           Ir al checkout

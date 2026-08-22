@@ -3,16 +3,26 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
-import { CartCustomizationSelection } from '../../core/models/order.model';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { isProductCustomizable, Product, ProductCustomizationOption } from '../../core/models/product.model';
+import { isProductCustomizable, Product, ProductCustomizationGroupKey, ProductCustomizationOption } from '../../core/models/product.model';
 import { findProductBySlugOrId, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import {
+  buildCartCustomizationSelections,
+  calculateCustomizationExtra,
+  calculateFinalUnitPrice,
+  flattenCustomizationSelections,
+  getCustomizationGroups,
+  getPriceModifier,
+  hasAllRequiredCustomizations,
+  ProductCustomizationGroup,
+  ProductCustomizationSelectionState
+} from '../../core/utils/customization-pricing';
 
 @Component({
   standalone: true,
@@ -25,7 +35,7 @@ export class ProductDetailPageComponent {
   readonly productParam = signal('');
   readonly quantity = signal(1);
   readonly selectedImage = signal('');
-  readonly selectedCustomization = signal<Record<string, ProductCustomizationOption>>({});
+  readonly selectedCustomization = signal<ProductCustomizationSelectionState>({});
   readonly customizationError = signal('');
 
   readonly product = computed(() => findProductBySlugOrId(this.catalog.products(), this.productParam()));
@@ -42,8 +52,8 @@ export class ProductDetailPageComponent {
       this.quantity.set(this.minimumQuantity(product));
       const defaults = Object.fromEntries(
         this.customizationGroups(product)
-          .filter((group) => group.options.length === 1)
-          .map((group) => [group.key, group.options[0]])
+          .filter((group) => group.required && group.options.length === 1)
+          .map((group) => [group.key, [group.options[0]]])
       );
       this.selectedCustomization.set(defaults);
     });
@@ -61,19 +71,29 @@ export class ProductDetailPageComponent {
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
   stars(rating: number): string { const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0)))); return '★★★★★'.slice(0, value) + '☆☆☆☆☆'.slice(value); }
   isCustomCake(product: Product): boolean { return isProductCustomizable(product); }
-  customizationGroups(product: Product): Array<{ key: string; label: string; options: ProductCustomizationOption[] }> { const options = product.customizationOptions ?? {}; return [{ key: 'themes', label: 'Temática', options: options.themes ?? [] }, { key: 'colors', label: 'Color', options: options.colors ?? [] }, { key: 'sizes', label: 'Tamaño / porciones', options: options.sizes ?? [] }, { key: 'flavors', label: 'Bizcocho', options: options.flavors ?? [] }, { key: 'fillings', label: 'Relleno', options: options.fillings ?? [] }, { key: 'toppings', label: 'Cobertura', options: options.toppings ?? [] }, { key: 'decorations', label: 'Decoración', options: options.decorations ?? [] }].filter((group) => group.options.length); }
-  selectCustomization(key: string, option: ProductCustomizationOption): void { this.selectedCustomization.set({ ...this.selectedCustomization(), [key]: option }); this.customizationError.set(''); }
-  customizationExtraTotal(): number { return Object.values(this.selectedCustomization()).reduce((sum, option) => sum + Number(option.price ?? 0), 0); }
-  customizedTotal(product: Product): number { return Number((Number(product.price ?? 0) + this.customizationExtraTotal()).toFixed(2)); }
-  private selectedCustomizationItems(product: Product): CartCustomizationSelection[] { const labels = new Map(this.customizationGroups(product).map((group) => [group.key, group.label])); return Object.entries(this.selectedCustomization()).map(([key, option]) => ({ label: labels.get(key) ?? key, value: option.name, price: option.price })); }
+  customizationGroups(product: Product): ProductCustomizationGroup[] { return getCustomizationGroups(product); }
+  selectCustomization(group: ProductCustomizationGroup, option: ProductCustomizationOption): void {
+    const state = this.selectedCustomization();
+    const current = state[group.key] ?? [];
+    const isSelected = current.some((item) => this.optionId(item) === this.optionId(option));
+    const next = group.selectionType === 'multiple'
+      ? (isSelected ? current.filter((item) => this.optionId(item) !== this.optionId(option)) : [...current, option])
+      : (isSelected && !group.required ? [] : [option]);
+    this.selectedCustomization.set({ ...state, [group.key]: next });
+    this.customizationError.set('');
+  }
+  isOptionSelected(key: ProductCustomizationGroupKey, option: ProductCustomizationOption): boolean { return (this.selectedCustomization()[key] ?? []).some((item) => this.optionId(item) === this.optionId(option)); }
+  optionPriceModifier(option: ProductCustomizationOption): number { return getPriceModifier(option); }
+  selectedPricedOptions(): ProductCustomizationOption[] { return flattenCustomizationSelections(this.selectedCustomization()).filter((option) => getPriceModifier(option) > 0); }
+  customizationExtraTotal(): number { return calculateCustomizationExtra(flattenCustomizationSelections(this.selectedCustomization())); }
+  customizedTotal(product: Product): number { return calculateFinalUnitPrice(product.price, flattenCustomizationSelections(this.selectedCustomization())); }
 
   addToCart(product: Product, amount = this.quantity()): boolean {
     const groups = this.customizationGroups(product);
-    if (this.isCustomCake(product) && !this.hasRequiredCustomization(groups)) { this.customizationError.set('Selecciona todas las opciones de la tarta antes de añadirla.'); return false; }
+    if (this.isCustomCake(product) && !hasAllRequiredCustomizations(groups, this.selectedCustomization())) { this.customizationError.set('Completa las opciones obligatorias antes de añadir el producto.'); return false; }
     const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
-    const customization = this.selectedCustomizationItems(product);
-    const unitPrice = this.customizedTotal(product);
-    this.cart.add(product, customization, unitPrice, quantity);
+    const customization = buildCartCustomizationSelections(product, this.selectedCustomization());
+    this.cart.add(product, customization, quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
     this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
     return true;
@@ -95,9 +115,7 @@ export class ProductDetailPageComponent {
     return () => this.addRelated(product);
   }
 
-  private hasRequiredCustomization(groups: Array<{ key: string }>): boolean {
-    return groups.every((group) => Boolean(this.selectedCustomization()[group.key]));
-  }
+  private optionId(option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }
 
   private updateSeo(): void {
     const product = this.product();
