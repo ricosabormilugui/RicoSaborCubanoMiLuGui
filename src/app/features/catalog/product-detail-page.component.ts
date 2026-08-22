@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
@@ -8,6 +8,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product, ProductCustomizationGroupKey, ProductCustomizationOption } from '../../core/models/product.model';
 import { findProductBySlugOrId, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { ProductCategoryService } from '../../core/services/product-category.service';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
@@ -31,6 +32,7 @@ import {
   styleUrls: ['./product-detail-page.component.css']
 })
 export class ProductDetailPageComponent {
+  private readonly productCategories = inject(ProductCategoryService);
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=900';
   readonly productParam = signal('');
   readonly quantity = signal(1);
@@ -63,7 +65,7 @@ export class ProductDetailPageComponent {
   minimumQuantity(product: Product): number { const value = Math.floor(Number(product.minimumQuantity ?? 1)); return Number.isFinite(value) && value > 0 ? value : 1; }
   setQuantity(value: number | string): void { const parsed = Number(value); const minimum = this.product() ? this.minimumQuantity(this.product()!) : 1; this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.max(minimum, Math.min(99, Math.floor(parsed))) : minimum); }
   productRoute(product: Product): string[] { return getProductRoute(product); }
-  categoryLabel(value: string): string { return getProductCategoryLabel(value); }
+  categoryLabel(value: string): string { return this.productCategories.labelFor(value) || getProductCategoryLabel(value); }
   productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en Rico Sabor Cubano`; }
   productImages(product: Product): string[] { return Array.from(new Set([product.imageUrl, ...(product.images ?? [])].map((image) => String(image ?? '').trim()).filter(Boolean))); }
   productIngredients(product: Product): string[] { return Array.isArray(product.ingredients) ? product.ingredients.filter(Boolean) : []; }

@@ -1,4 +1,5 @@
 import { PRODUCT_CATEGORIES } from '../config/product-categories.config';
+import { normalizeCategorySlug } from '../config/product-categories.config';
 
 export interface HomeContent {
   heroImageUrl: string;
@@ -30,10 +31,9 @@ export function normalizeHomeContent(value: Partial<HomeContent> | null | undefi
     cakesImageUrl: String(value?.cakesImageUrl ?? '').trim(),
     spanishImageUrl: String(value?.spanishImageUrl ?? '').trim(),
     categoryImages: Object.fromEntries(
-      PRODUCT_CATEGORIES.map((category) => [
-        category.slug,
-        String(categoryImages[category.slug] ?? fallback.categoryImages[category.slug] ?? '').trim()
-      ])
+      Object.entries({ ...fallback.categoryImages, ...categoryImages })
+        .map(([key, url]) => [normalizeCategorySlug(key), String(url ?? '').trim()])
+        .filter(([key]) => Boolean(key))
     )
   };
 }

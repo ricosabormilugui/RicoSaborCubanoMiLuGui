@@ -20,6 +20,12 @@ import {
 import { listCustomersForAdmin } from "../controllers/admin-customers.controller.js";
 import { getDashboardForAdmin } from "../controllers/admin-dashboard.controller.js";
 import { getHomeContentForAdmin, updateHomeContentForAdmin } from "../controllers/home.controller.js";
+import {
+  createCategoryForAdmin,
+  deleteCategoryForAdmin,
+  getCategoriesForAdmin,
+  updateCategoryForAdmin
+} from "../controllers/categories.controller.js";
 
 const router = Router();
 
@@ -36,6 +42,10 @@ router.get("/products", getProductsForAdmin);
 router.post("/products", createProductForAdmin);
 router.put("/products/:id", updateProductForAdmin);
 router.delete("/products/:id", deleteProductForAdmin);
+router.get("/categories", getCategoriesForAdmin);
+router.post("/categories", createCategoryForAdmin);
+router.put("/categories/:id", updateCategoryForAdmin);
+router.delete("/categories/:id", deleteCategoryForAdmin);
 router.get("/contacts", listContactsForAdmin);
 router.get("/customers", listCustomersForAdmin);
 router.get("/contacts/:id", getContactForAdmin);

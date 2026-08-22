@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { PRODUCT_CATEGORIES } from '../../core/config/product-categories.config';
 import { emptyHomeContent, HomeContent } from '../../core/models/home-content.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminHomeService } from '../../core/services/admin-home.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
+import { ProductCategoryService } from '../../core/services/product-category.service';
 
 @Component({
   standalone: true,
@@ -15,6 +15,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
   styleUrls: ['./admin-home-page.component.css']
 })
 export class AdminHomePageComponent {
+  private readonly productCategories = inject(ProductCategoryService);
   email = '';
   password = '';
   form: HomeContent = emptyHomeContent();
@@ -22,7 +23,7 @@ export class AdminHomePageComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
-  readonly categories = PRODUCT_CATEGORIES;
+  readonly categories = this.productCategories.categories;
   readonly brickSlots: Array<{ key: keyof Omit<HomeContent, 'categoryImages'>; label: string; hint: string }> = [
     { key: 'heroImageUrl', label: 'Hero', hint: 'Bloque principal: comida cubana casera y tartas por encargo' },
     { key: 'cubanImageUrl', label: 'Comida cubana', hint: 'Sabor de casa, para pedir cuando quieras' },
@@ -67,7 +68,11 @@ export class AdminHomePageComponent {
     this.error.set('');
 
     try {
-      this.form = await this.adminHome.getHomeContent();
+      const [home] = await Promise.all([
+        this.adminHome.getHomeContent(),
+        this.productCategories.loadAdminCategories()
+      ]);
+      this.form = home;
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'No se pudo cargar la portada.');
     } finally {

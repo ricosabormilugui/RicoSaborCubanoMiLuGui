@@ -9,6 +9,7 @@ import {
 } from "../repositories/products.repository.js";
 import { normalizeCategorySlug } from "../config/product-categories.config.js";
 import { normalizeProductCustomizationOptions } from "../services/product-customization.service.js";
+import { categoryExists } from "../repositories/categories.repository.js";
 
 
 function normalizeImages(value, imageUrl = "") {
@@ -122,6 +123,9 @@ export async function createProductForAdmin(req, res) {
     const payload = buildPayload(req.body);
     const validationError = validateProduct(payload);
     if (validationError) return res.status(400).json({ error: validationError });
+    if (!(await categoryExists(payload.category))) {
+      return res.status(400).json({ error: "La categoría seleccionada no existe." });
+    }
 
     const product = await createProduct(payload);
     return res.status(201).json({ product });
@@ -135,6 +139,9 @@ export async function updateProductForAdmin(req, res) {
     const payload = buildPayload(req.body, { partial: true });
     const validationError = validateProduct(payload, { partial: true });
     if (validationError) return res.status(400).json({ error: validationError });
+    if (payload.category !== undefined && !(await categoryExists(payload.category))) {
+      return res.status(400).json({ error: "La categoría seleccionada no existe." });
+    }
 
     const product = await updateProduct(req.params.id, payload);
     if (!product) return res.status(404).json({ error: "Product not found" });

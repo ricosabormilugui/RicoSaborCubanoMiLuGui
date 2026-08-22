@@ -7,12 +7,13 @@ import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
-import { PRODUCT_CATEGORIES, getProductCategoryLabel } from '../../core/config/product-categories.config';
+import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
 import { HomeContentService } from '../../core/services/home-content.service';
 import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { IconComponent } from '../../shared/ui/icon.component';
+import { ProductCategoryService } from '../../core/services/product-category.service';
 
 @Component({
   standalone: true,
@@ -27,6 +28,7 @@ export class HomePageComponent {
   private readonly notifications = inject(NotificationService);
   private readonly seo = inject(SeoService);
   private readonly router = inject(Router);
+  private readonly productCategories = inject(ProductCategoryService);
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=1200';
@@ -42,7 +44,7 @@ export class HomePageComponent {
   readonly cakesImage = computed(() => this.homeContent.content().cakesImageUrl);
   readonly spanishImage = computed(() => this.homeContent.content().spanishImageUrl);
   readonly collections = computed(() =>
-    PRODUCT_CATEGORIES.map((category) => ({
+    this.productCategories.categories().map((category) => ({
       ...category,
       imageUrl: this.homeContent.content().categoryImages[category.slug] || ''
     }))
@@ -60,6 +62,7 @@ export class HomePageComponent {
   constructor() {
     void this.catalog.loadProducts();
     void this.homeContent.load();
+    void this.productCategories.loadPublicCategories().catch(() => undefined);
     effect(() => this.updateSeo());
   }
 
@@ -68,7 +71,7 @@ export class HomePageComponent {
   }
 
   categoryLabel(value: string): string {
-    return getProductCategoryLabel(value);
+    return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
   }
 
   productImageAlt(product: Product): string {

@@ -7,9 +7,10 @@ import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
-import { getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { ProductCategoryService } from '../../core/services/product-category.service';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
@@ -43,7 +44,9 @@ export class CatalogPageComponent {
   ));
 
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
-  readonly categoryOptions = computed(() => mergeCategoryOptions(this.catalog.products().map((product) => product.category)));
+  readonly categoryOptions = computed(() => {
+    return this.productCategories.categories().map(({ slug, label }) => ({ slug, label }));
+  });
 
   constructor(
     public readonly cart: CartService,
@@ -51,9 +54,11 @@ export class CatalogPageComponent {
     private readonly notifications: NotificationService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
-    private readonly seo: SeoService
+    private readonly seo: SeoService,
+    private readonly productCategories: ProductCategoryService
   ) {
     void this.catalog.loadProducts();
+    void this.productCategories.loadPublicCategories().catch(() => undefined);
     this.route.paramMap.subscribe((params) => {
       const routeCategory = normalizeCategorySlug(params.get('category'));
       if (routeCategory) {
@@ -110,7 +115,7 @@ export class CatalogPageComponent {
   }
 
   categoryLabel(value: string): string {
-    return getProductCategoryLabel(value);
+    return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
   }
 
   productImageAlt(product: Product): string {

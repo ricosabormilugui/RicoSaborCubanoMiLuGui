@@ -54,7 +54,7 @@
       <section class="slot-group" aria-labelledby="categories-title">
         <h2 id="categories-title">Elige por categoría</h2>
         <div class="slot-grid">
-          <article class="slot" *ngFor="let category of categories">
+          <article class="slot" *ngFor="let category of categories()">
             <label class="field">
               <span>{{ category.label }}</span>
               <small>Tarjeta de categoría en la home</small>

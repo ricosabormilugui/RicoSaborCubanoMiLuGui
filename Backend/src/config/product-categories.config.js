@@ -20,3 +20,18 @@ export function normalizeCategorySlug(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+export function getProductCategoryLabel(value) {
+  const raw = String(value ?? "").trim();
+  const slug = normalizeCategorySlug(raw);
+  const category = PRODUCT_CATEGORIES.find((item) => item.slug === slug);
+
+  if (category) return category.label;
+  if (!raw) return "";
+
+  return raw
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(" ");
+}

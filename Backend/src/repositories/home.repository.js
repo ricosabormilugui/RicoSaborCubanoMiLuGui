@@ -1,5 +1,4 @@
 import { getCollection } from "../lib/mongo.js";
-import { PRODUCT_CATEGORIES } from "../config/product-categories.config.js";
 
 const HOME_SETTINGS_ID = "home";
 
@@ -22,10 +21,7 @@ export function toHomeContent(document) {
     cakesImageUrl: String(document?.cakesImageUrl ?? "").trim(),
     spanishImageUrl: String(document?.spanishImageUrl ?? "").trim(),
     categoryImages: Object.fromEntries(
-      PRODUCT_CATEGORIES.map((category) => [
-        category.slug,
-        String(categoryImages[category.slug] ?? "").trim()
-      ])
+      Object.entries(categoryImages).map(([slug, value]) => [slug, String(value ?? "").trim()])
     )
   };
 }

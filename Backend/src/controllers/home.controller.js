@@ -1,6 +1,6 @@
 import { logger } from "../lib/logger.js";
 import { getHomeContent, saveHomeContent } from "../repositories/home.repository.js";
-import { PRODUCT_CATEGORIES } from "../config/product-categories.config.js";
+import { normalizeCategorySlug } from "../config/product-categories.config.js";
 
 const IMAGE_FIELDS = ["heroImageUrl", "cubanImageUrl", "cakesImageUrl", "spanishImageUrl"];
 const MAX_IMAGE_URL_LENGTH = 2000;
@@ -28,10 +28,12 @@ function buildPayload(body = {}) {
     : {};
   const categoryImages = {};
 
-  for (const category of PRODUCT_CATEGORIES) {
-    const url = normalizeImageUrl(categorySource[category.slug]);
-    if (url === null) invalidFields.push(`categoryImages.${category.slug}`);
-    else categoryImages[category.slug] = url;
+  for (const [key, value] of Object.entries(categorySource)) {
+    const slug = normalizeCategorySlug(key);
+    if (!slug) continue;
+    const url = normalizeImageUrl(value);
+    if (url === null) invalidFields.push(`categoryImages.${slug}`);
+    else categoryImages[slug] = url;
   }
 
   payload.categoryImages = categoryImages;

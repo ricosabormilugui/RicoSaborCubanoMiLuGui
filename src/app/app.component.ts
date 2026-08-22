@@ -18,6 +18,7 @@ import { CookieConsentService } from './core/services/cookie-consent.service';
 import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
 import { IconComponent } from './shared/ui/icon.component';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
+import { ProductCategoryService } from './core/services/product-category.service';
 import { SeoService } from './core/services/seo.service';
 import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
 
@@ -300,6 +301,7 @@ export class AppComponent {
   private readonly notifications = inject(NotificationService);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly themeService = inject(ThemeService);
+  private readonly productCategories = inject(ProductCategoryService);
 
   readonly theme = this.themeService.mode;
   readonly menuOpen = signal(false);
@@ -321,7 +323,7 @@ export class AppComponent {
   });
 
   categoryLabel(value: string | null | undefined): string {
-    return getProductCategoryLabel(value);
+    return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
   }
 
   constructor(
@@ -335,6 +337,7 @@ export class AppComponent {
   ) {
     this.seo.setOrganizationAndWebsiteSchema();
     void this.customerAuth.restoreSession();
+    void this.productCategories.loadPublicCategories().catch(() => undefined);
   }
 
   @HostListener('document:click', ['$event'])

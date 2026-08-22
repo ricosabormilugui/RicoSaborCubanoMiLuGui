@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { ensureIndexes, getCollection } from "../lib/mongo.js";
 
-function getProductsCollectionName() {
+export function getProductsCollectionName() {
   return process.env.MONGODB_PRODUCTS_COLLECTION ?? process.env.PRODUCTS_COLLECTION ?? "products";
 }
 

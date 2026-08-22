@@ -34,9 +34,55 @@
     <nav class="workspace-switcher" aria-label="Secciones de productos">
       <button type="button" class="active" (click)="showProductEditor()"><span aria-hidden="true">＋</span>{{ editId() ? 'Edición actual' : 'Crear producto' }}</button>
       <button type="button" (click)="showProductManagement()">Gestionar productos <span class="count-badge">{{ products().length }}</span></button>
+      <button type="button" (click)="showCategoryManagement()">Categorías <span class="count-badge">{{ categories().length }}</span></button>
     </nav>
 
     <p class="api-error" role="alert" *ngIf="error()">{{ error() }}</p>
+
+    <section id="category-management" class="category-management" aria-labelledby="category-management-title">
+      <header class="management-header">
+        <div><span class="page-kicker">Organización del catálogo</span><h2 id="category-management-title">Categorías</h2><p>Los productos se relacionan mediante un slug estable. Solo pueden eliminarse categorías vacías.</p></div>
+        <span>{{ categories().length }} categorías</span>
+      </header>
+
+      <form class="category-create" (ngSubmit)="createCategory()">
+        <label class="field"><span>Nueva categoría</span><input [(ngModel)]="newCategoryName" name="newCategoryName" maxlength="80" placeholder="Ej. Postres especiales" /></label>
+        <button class="action-button secondary" type="submit">Crear categoría</button>
+      </form>
+
+      <p class="category-message success" role="status" *ngIf="categoryNotice()">{{ categoryNotice() }}</p>
+      <p class="category-message error" role="alert" *ngIf="categoryManagementError()">{{ categoryManagementError() }}</p>
+
+      <div class="category-list" aria-label="Categorías existentes">
+        <article class="category-row" *ngFor="let category of categories()">
+          <div class="category-main" *ngIf="editingCategoryId() !== category._id; else categoryEditor">
+            <strong>{{ category.label }}</strong>
+            <span>{{ category.productCount ?? 0 }} {{ (category.productCount ?? 0) === 1 ? 'producto' : 'productos' }} · <code>{{ category.slug }}</code></span>
+          </div>
+          <ng-template #categoryEditor>
+            <label class="field category-edit"><span>Nombre visible</span><input [(ngModel)]="editingCategoryLabel" [name]="'category-' + category._id" maxlength="80" /></label>
+          </ng-template>
+          <div class="category-actions" *ngIf="editingCategoryId() !== category._id; else editActions">
+            <button type="button" (click)="startCategoryEdit(category)">Editar</button>
+            <button
+              class="category-delete"
+              type="button"
+              (click)="requestCategoryDeletion(category)"
+              [attr.title]="(category.productCount ?? 0) > 0 ? 'No se puede eliminar: ' + category.productCount + ' productos asociados' : 'Eliminar categoría'"
+              [attr.aria-label]="'Eliminar categoría ' + category.label">
+              Eliminar
+            </button>
+          </div>
+          <ng-template #editActions>
+            <div class="category-actions">
+              <button type="button" (click)="cancelCategoryEdit()">Cancelar</button>
+              <button class="save-category" type="button" (click)="saveCategoryEdit(category)">Guardar</button>
+            </div>
+          </ng-template>
+        </article>
+        <p class="empty" *ngIf="!categories().length">No hay categorías disponibles.</p>
+      </div>
+    </section>
 
     <form id="product-editor" class="product-wizard" (ngSubmit)="saveProduct()" novalidate>
       <div class="wizard-titlebar">
@@ -237,4 +283,18 @@
       </div>
     </section>
   </main>
+
+  <section class="destructive-dialog" *ngIf="pendingDeleteCategory() as category" role="dialog" aria-modal="true" aria-labelledby="delete-category-title" aria-describedby="delete-category-description">
+    <button class="dialog-backdrop" type="button" aria-label="Cancelar eliminación" (click)="cancelCategoryDeletion()"></button>
+    <div class="dialog-card">
+      <span class="dialog-kicker">Acción destructiva</span>
+      <h2 id="delete-category-title">¿Eliminar la categoría “{{ category.label }}”?</h2>
+      <p id="delete-category-description">Esta acción eliminará la categoría de la lista disponible. No se eliminará ni reasignará ningún producto.</p>
+      <p class="category-message error" role="alert" *ngIf="categoryManagementError()">{{ categoryManagementError() }}</p>
+      <div class="dialog-actions">
+        <button type="button" (click)="cancelCategoryDeletion()" [disabled]="deletingCategory()">Cancelar</button>
+        <button class="confirm-delete" type="button" (click)="confirmCategoryDeletion()" [disabled]="deletingCategory()">{{ deletingCategory() ? 'Eliminando…' : 'Eliminar categoría' }}</button>
+      </div>
+    </div>
+  </section>
 </ng-template>

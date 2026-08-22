@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord, ProductCustomizationGroupKey, ProductCustomizationGroupSettings } from '../../core/models/product.model';
 import { matchesProductSearch } from '../../core/models/product-filter';
 import { PRODUCT_CREATION_PRESETS } from '../../core/config/product-creation-presets.config';
-import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, mergeCategoryOptions, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
+import { ProductCategoryRecord } from '../../core/models/product-category.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
 import {
@@ -13,6 +14,8 @@ import {
   AdminProductService
 } from '../../core/services/admin-product.service';
 import { defaultGroupSettings, readGroupSettings } from '../../core/utils/customization-pricing';
+import { ProductCategoryApiError, ProductCategoryService } from '../../core/services/product-category.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   standalone: true,
@@ -21,6 +24,7 @@ import { defaultGroupSettings, readGroupSettings } from '../../core/utils/custom
   styleUrls: ['./admin-products-page.component.css']
 })
 export class AdminProductsPageComponent {
+  private readonly productCategories = inject(ProductCategoryService);
   email = '';
   password = '';
   readonly search = signal('');
@@ -48,6 +52,14 @@ export class AdminProductsPageComponent {
   readonly attemptedSteps = signal<ReadonlySet<number>>(new Set<number>());
   readonly customizationEditorOpen = signal(false);
   readonly products = signal<ProductApiRecord[]>([]);
+  readonly categories = this.productCategories.categories;
+  readonly categoryNotice = signal('');
+  readonly categoryManagementError = signal('');
+  readonly pendingDeleteCategory = signal<ProductCategoryRecord | null>(null);
+  readonly deletingCategory = signal(false);
+  readonly editingCategoryId = signal('');
+  newCategoryName = '';
+  editingCategoryLabel = '';
   readonly formSteps = [
     { number: 1, label: 'Datos básicos' },
     { number: 2, label: 'Presentación' },
@@ -56,7 +68,9 @@ export class AdminProductsPageComponent {
     { number: 5, label: 'Revisar' }
   ];
   readonly wizardProgress = computed(() => (this.formStep() / this.formSteps.length) * 100);
-  readonly categoryOptions = computed(() => mergeCategoryOptions(this.products().map((product) => product.category)));
+  readonly categoryOptions = computed(() => {
+    return this.categories().map(({ slug, label }) => ({ slug, label }));
+  });
 
   readonly filteredProducts = computed(() => {
     const query = this.search();
@@ -90,7 +104,8 @@ export class AdminProductsPageComponent {
   constructor(
     public readonly auth: AdminAuthService,
     private readonly adminOrders: AdminOrderService,
-    private readonly adminProducts: AdminProductService
+    private readonly adminProducts: AdminProductService,
+    private readonly notifications: NotificationService
   ) {
     if (this.auth.isAuthenticated()) {
       void this.loadProducts();
@@ -118,17 +133,118 @@ export class AdminProductsPageComponent {
   async loadProducts(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    try {
-      this.products.set(await this.adminProducts.listProducts());
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudieron cargar productos.');
-    } finally {
-      this.loading.set(false);
+    this.categoryManagementError.set('');
+    const [productsResult, categoriesResult] = await Promise.allSettled([
+      this.adminProducts.listProducts(),
+      this.productCategories.loadAdminCategories()
+    ]);
+
+    if (productsResult.status === 'fulfilled') this.products.set(productsResult.value);
+    else this.error.set(productsResult.reason instanceof Error ? productsResult.reason.message : 'No se pudieron cargar productos.');
+
+    if (categoriesResult.status === 'rejected') {
+      this.categoryManagementError.set(categoriesResult.reason instanceof Error ? categoriesResult.reason.message : 'No se pudieron cargar categorías.');
+    } else if (!this.editId() && !this.categoryOptions().some((category) => category.slug === normalizeCategorySlug(this.form.category))) {
+      this.form.category = this.availableDefaultCategory();
     }
+    this.loading.set(false);
   }
 
   categoryLabel(value: string | null | undefined): string {
-    return getProductCategoryLabel(value);
+    return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
+  }
+
+  async createCategory(): Promise<void> {
+    const label = this.newCategoryName.trim();
+    if (label.length < 2) {
+      this.categoryManagementError.set('El nombre debe tener al menos 2 caracteres.');
+      return;
+    }
+
+    this.categoryManagementError.set('');
+    this.categoryNotice.set('');
+    try {
+      await this.productCategories.createCategory({ label });
+      this.newCategoryName = '';
+      this.categoryNotice.set(`Categoría "${label}" creada.`);
+      this.notifications.success('Categoría creada', label);
+    } catch (error) {
+      this.categoryManagementError.set(error instanceof Error ? error.message : 'No se pudo crear la categoría.');
+    }
+  }
+
+  startCategoryEdit(category: ProductCategoryRecord): void {
+    this.editingCategoryId.set(category._id);
+    this.editingCategoryLabel = category.label;
+    this.categoryManagementError.set('');
+    this.categoryNotice.set('');
+  }
+
+  cancelCategoryEdit(): void {
+    this.editingCategoryId.set('');
+    this.editingCategoryLabel = '';
+  }
+
+  async saveCategoryEdit(category: ProductCategoryRecord): Promise<void> {
+    const label = this.editingCategoryLabel.trim();
+    if (label.length < 2) {
+      this.categoryManagementError.set('El nombre debe tener al menos 2 caracteres.');
+      return;
+    }
+
+    try {
+      await this.productCategories.updateCategory(category._id, { label });
+      this.cancelCategoryEdit();
+      this.categoryNotice.set(`Categoría actualizada a "${label}".`);
+      this.notifications.success('Categoría actualizada', label);
+    } catch (error) {
+      this.categoryManagementError.set(error instanceof Error ? error.message : 'No se pudo actualizar la categoría.');
+    }
+  }
+
+  requestCategoryDeletion(category: ProductCategoryRecord): void {
+    this.categoryNotice.set('');
+    if (Number(category.productCount ?? 0) > 0) {
+      const message = `No puedes eliminar esta categoría porque tiene ${category.productCount} ${category.productCount === 1 ? 'producto asociado' : 'productos asociados'}.`;
+      this.categoryManagementError.set(message);
+      this.notifications.warning('Categoría protegida', message);
+      return;
+    }
+    this.categoryManagementError.set('');
+    this.pendingDeleteCategory.set(category);
+  }
+
+  cancelCategoryDeletion(): void {
+    if (this.deletingCategory()) return;
+    this.pendingDeleteCategory.set(null);
+  }
+
+  async confirmCategoryDeletion(): Promise<void> {
+    const category = this.pendingDeleteCategory();
+    if (!category || this.deletingCategory()) return;
+
+    this.deletingCategory.set(true);
+    this.categoryManagementError.set('');
+    try {
+      await this.productCategories.deleteCategory(category._id);
+      this.pendingDeleteCategory.set(null);
+      if (this.form.category === category.slug) this.form.category = '';
+      if (this.categoryFilter() === category.slug) this.categoryFilter.set('');
+      this.categoryNotice.set(`Categoría "${category.label}" eliminada.`);
+      this.notifications.success('Categoría eliminada', category.label);
+    } catch (error) {
+      const message = error instanceof ProductCategoryApiError && error.status === 409 && error.productCount !== undefined
+        ? `No puedes eliminar esta categoría porque tiene ${error.productCount} ${error.productCount === 1 ? 'producto asociado' : 'productos asociados'}.`
+        : error instanceof Error ? error.message : 'No se pudo eliminar la categoría.';
+      this.categoryManagementError.set(message);
+      this.notifications.error('No se eliminó la categoría', message);
+      if (error instanceof ProductCategoryApiError && (error.status === 404 || error.status === 409)) {
+        await this.productCategories.loadAdminCategories().catch(() => undefined);
+        if (error.status === 404) this.pendingDeleteCategory.set(null);
+      }
+    } finally {
+      this.deletingCategory.set(false);
+    }
   }
 
   goToStep(step: number): void {
@@ -364,7 +480,7 @@ export class AdminProductsPageComponent {
       name: '',
       description: '',
       price: 0,
-      category: DEFAULT_PRODUCT_CATEGORY,
+      category: this.availableDefaultCategory(),
       imageUrl: '',
       available: true,
       published: true,
@@ -401,6 +517,10 @@ export class AdminProductsPageComponent {
       ...preset.product,
       customizationOptions: preset.product.customizationOptions ?? {}
     };
+    const presetCategory = normalizeCategorySlug(this.form.category);
+    if (!this.categoryOptions().some((category) => category.slug === presetCategory)) {
+      this.form.category = this.availableDefaultCategory();
+    }
 
     const options = preset.product.customizationOptions;
     this.customizationThemesText = this.stringifyOptions(options?.themes);
@@ -428,6 +548,12 @@ export class AdminProductsPageComponent {
       const price = Number(priceValue ?? 0);
       return name ? { name, ...(Number.isFinite(price) && price > 0 ? { priceModifier: price } : {}) } : null;
     }).filter((item): item is { name: string; priceModifier?: number } => Boolean(item));
+  }
+
+  private availableDefaultCategory(): string {
+    return this.categoryOptions().find((category) => category.slug === DEFAULT_PRODUCT_CATEGORY)?.slug
+      ?? this.categoryOptions()[0]?.slug
+      ?? '';
   }
 
   private stringifyOptions(values: Array<{ name?: string; priceModifier?: number; price?: number }> = []): string {
@@ -511,6 +637,10 @@ export class AdminProductsPageComponent {
 
   showProductManagement(): void {
     this.scrollToSection('product-management');
+  }
+
+  showCategoryManagement(): void {
+    this.scrollToSection('category-management');
   }
 
   private scrollToSection(id: string): void {
