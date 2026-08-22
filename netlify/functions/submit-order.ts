@@ -1,3 +1,5 @@
+import orderRules from '../../Backend/src/config/order-rules.json';
+
 interface OrderPayload {
   customer?: {
     fullName?: string;
@@ -40,11 +42,14 @@ interface OrderPayload {
     description?: string;
     unitPrice: number;
     quantity: number;
+    requiresAdvancePayment?: boolean;
+    customization?: unknown[];
   }>;
   subtotal?: number;
   taxAmount?: number;
   taxRate?: number;
   total?: number;
+  requiresAdvancePayment?: boolean;
 }
 
 type NotificationResult = {
@@ -291,6 +296,13 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const payload = (await request.json()) as OrderPayload;
+  const fulfillmentError = validateFulfillment(payload);
+  if (fulfillmentError) {
+    return new Response(JSON.stringify({ error: fulfillmentError }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   const orderId = `RS-${Date.now()}`;
 
@@ -307,3 +319,70 @@ export default async (request: Request): Promise<Response> => {
     { status: 200 }
   );
 };
+
+type RuntimeDeliveryType = 'delivery' | 'pickup';
+
+function getMadridParts(value: Date): { year: number; month: number; day: number; hour: number; minute: number; second: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: orderRules.timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(value);
+  const numberPart = (type: Intl.DateTimeFormatPartTypes): number => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return {
+    year: numberPart('year'),
+    month: numberPart('month'),
+    day: numberPart('day'),
+    hour: numberPart('hour'),
+    minute: numberPart('minute'),
+    second: numberPart('second')
+  };
+}
+
+function validateFulfillment(payload: OrderPayload, now = new Date()): string | null {
+  const type = payload.delivery?.type ?? payload.delivery?.mode ?? payload.deliveryType;
+  const date = payload.delivery?.date ?? payload.deliveryDate ?? '';
+  const slot = payload.delivery?.slot ?? payload.deliverySlot ?? '';
+  if (type !== 'delivery' && type !== 'pickup') return 'El tipo de entrega debe ser delivery o pickup.';
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!dateMatch) return 'La fecha seleccionada no es válida.';
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+  const dateCheck = new Date(Date.UTC(year, month - 1, day));
+  if (dateCheck.getUTCFullYear() !== year || dateCheck.getUTCMonth() !== month - 1 || dateCheck.getUTCDate() !== day) {
+    return 'La fecha seleccionada no es válida.';
+  }
+  if (orderRules.closedWeekdays.includes(dateCheck.getUTCDay())) return 'No hay servicio en la fecha seleccionada.';
+  const allowedSlots = orderRules.slots[type as RuntimeDeliveryType];
+  if (!allowedSlots.includes(slot)) {
+    return type === 'delivery'
+      ? `Para entrega a domicilio la única franja válida es ${orderRules.slots.delivery[0]}.`
+      : 'La franja seleccionada no está disponible para recogida en tienda.';
+  }
+  const nowParts = getMadridParts(now);
+  const today = `${nowParts.year}-${String(nowParts.month).padStart(2, '0')}-${String(nowParts.day).padStart(2, '0')}`;
+  if (!orderRules.sameDayDelivery && date <= today) return 'No se admiten pedidos para el mismo día.';
+  const slotStart = /^(\d{2}):(\d{2})-/.exec(slot);
+  if (!slotStart) return 'La franja horaria no es válida.';
+  const intendedUtc = Date.UTC(year, month - 1, day, Number(slotStart[1]), Number(slotStart[2]), 0);
+  let fulfillmentAt = new Date(intendedUtc);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const actual = getMadridParts(fulfillmentAt);
+    const representedUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
+    fulfillmentAt = new Date(fulfillmentAt.getTime() + intendedUtc - representedUtc);
+  }
+  const requiresAdvancePayment = Boolean(payload.requiresAdvancePayment)
+    || Boolean(payload.items?.some((item) => item.requiresAdvancePayment || Boolean(item.customization?.length)));
+  const hours = requiresAdvancePayment
+    ? orderRules.personalizedAdvanceNoticeHours
+    : orderRules.advanceNoticeHours;
+  return fulfillmentAt.getTime() < now.getTime() + hours * 60 * 60 * 1000
+    ? `El pedido requiere al menos ${hours} horas completas de antelación.`
+    : null;
+}

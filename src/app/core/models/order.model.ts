@@ -14,6 +14,7 @@ export interface CartItem {
   unitLabel?: string;
   baseProductId?: string;
   customization?: CartCustomizationSelection[];
+  requiresAdvancePayment?: boolean;
 }
 
 export type DeliveryType = 'delivery' | 'pickup';

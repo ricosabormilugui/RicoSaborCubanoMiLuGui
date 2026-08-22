@@ -1,0 +1,11 @@
+{
+  "timeZone": "Europe/Madrid",
+  "sameDayDelivery": false,
+  "advanceNoticeHours": 24,
+  "personalizedAdvanceNoticeHours": 48,
+  "closedWeekdays": [0],
+  "slots": {
+    "delivery": ["18:00-21:00"],
+    "pickup": ["12:00-14:00", "14:00-16:00", "18:00-20:00"]
+  }
+}

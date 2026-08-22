@@ -1,0 +1,58 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createOrder } from "../src/controllers/orders.controller.js";
+
+function mockResponse() {
+  return {
+    statusCode: 200,
+    body: undefined,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    }
+  };
+}
+
+function basePayload(delivery) {
+  return {
+    customer: { fullName: "Cliente prueba", phone: "34644423790" },
+    items: [{ productId: "test", name: "Producto", unitPrice: 20, quantity: 1 }],
+    deliveryType: delivery.type,
+    deliveryDate: delivery.date,
+    deliverySlot: delivery.slot,
+    delivery,
+    postalCode: delivery.type === "delivery" ? "28922" : undefined
+  };
+}
+
+function madridDate(offsetDays = 0) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const get = (type) => Number(parts.find((part) => part.type === type)?.value);
+  const value = new Date(Date.UTC(get("year"), get("month") - 1, get("day") + offsetDays));
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
+}
+
+test("POST /orders responde 400 para un pedido del mismo día", async () => {
+  const delivery = { type: "delivery", date: madridDate(), slot: "18:00-21:00", postalCode: "28922" };
+  const response = mockResponse();
+  await createOrder({ body: basePayload(delivery), auth: null }, response);
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.error, /mismo día/);
+});
+
+test("POST /orders responde 400 para una franja de domicilio no permitida", async () => {
+  const delivery = { type: "delivery", date: madridDate(14), slot: "12:00-14:00", postalCode: "28922" };
+  const response = mockResponse();
+  await createOrder({ body: basePayload(delivery), auth: null }, response);
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.error, /18:00-21:00/);
+});

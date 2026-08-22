@@ -10,7 +10,15 @@ import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
 import { MANUAL_PAYMENT_DETAILS } from '../../core/config/payment.config';
-import { DELIVERY_RULES, ShippingQuote, calculateShippingQuote, normalizePostalCode } from '../../core/config/shipping.config';
+import {
+  DELIVERY_RULES,
+  ShippingQuote,
+  calculateShippingQuote,
+  getMinimumFulfillmentDate,
+  getSlotsForDeliveryType,
+  normalizePostalCode,
+  validateFulfillmentSelection
+} from '../../core/config/shipping.config';
 import { resolveApiBaseUrl } from '../../core/config/api.config';
 
 @Component({
@@ -58,20 +66,24 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
 
               <div class="grid">
                 <label>
-                  Nombre completo
-                  <input formControlName="fullName" autocomplete="name" placeholder="Tu nombre y apellidos" />
-                  <small class="field-error" *ngIf="isInvalid('fullName')">El nombre es obligatorio.</small>
+                  <span>Nombre completo <span class="required-mark" aria-hidden="true">*</span></span>
+                  <input id="fullName" formControlName="fullName" autocomplete="name" placeholder="Tu nombre y apellidos" required
+                    [class.field-invalid]="isInvalid('fullName')" [attr.aria-invalid]="ariaInvalid('fullName')"
+                    [attr.aria-describedby]="isInvalid('fullName') ? 'fullName-error' : null" />
+                  <small id="fullName-error" class="field-error" *ngIf="isInvalid('fullName')">El nombre es obligatorio.</small>
                 </label>
 
                 <label>
                   Email
-                  <input formControlName="email" type="email" autocomplete="email" placeholder="tu@email.com (opcional)" />
-                  <small class="field-error" *ngIf="isInvalid('email')">Introduce un email válido o déjalo vacío.</small>
+                  <input id="email" formControlName="email" type="email" autocomplete="email" placeholder="tu@email.com (opcional)"
+                    [class.field-invalid]="isInvalid('email')" [attr.aria-invalid]="ariaInvalid('email')"
+                    [attr.aria-describedby]="isInvalid('email') ? 'email-error' : null" />
+                  <small id="email-error" class="field-error" *ngIf="isInvalid('email')">Introduce un email válido o déjalo vacío.</small>
                 </label>
               </div>
 
               <label>
-                Teléfono
+                <span>Teléfono <span class="required-mark" aria-hidden="true">*</span></span>
                 <div class="phone-input">
                   <select formControlName="phoneCountryCode" aria-label="Prefijo telefónico">
                     <option value="34">🇪🇸 +34</option>
@@ -84,9 +96,13 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                     inputmode="numeric"
                     autocomplete="tel-national"
                     placeholder="644423790"
+                    required
+                    [class.field-invalid]="isInvalid('phoneNumber')"
+                    [attr.aria-invalid]="ariaInvalid('phoneNumber')"
+                    [attr.aria-describedby]="isInvalid('phoneNumber') ? 'phoneNumber-error' : null"
                     (input)="sanitizePhoneDigits()" />
                 </div>
-                <small class="field-error" *ngIf="isInvalid('phoneNumber')">Escribe solo dígitos: entre 7 y 12 números.</small>
+                <small id="phoneNumber-error" class="field-error" *ngIf="isInvalid('phoneNumber')">Escribe solo dígitos: entre 7 y 12 números.</small>
               </label>
             </section>
 
@@ -108,44 +124,58 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                   </select>
                 </label>
                 <label>
-                  Fecha
-                  <input formControlName="deliveryDate" type="date" />
-                  <small class="field-error" *ngIf="isInvalid('deliveryDate')">Selecciona una fecha.</small>
+                  <span>Fecha <span class="required-mark" aria-hidden="true">*</span></span>
+                  <input id="deliveryDate" formControlName="deliveryDate" type="date" required [min]="minimumDeliveryDate()"
+                    [class.field-invalid]="isInvalid('deliveryDate')" [attr.aria-invalid]="ariaInvalid('deliveryDate')"
+                    [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'" />
+                  <small id="deliveryDate-help" class="meta">Mínimo {{ requiredAdvanceNoticeHours() }} horas completas de antelación, según la franja elegida.</small>
+                  <small id="deliveryDate-error" class="field-error" *ngIf="isInvalid('deliveryDate')">{{ deliveryDateError() }}</small>
                 </label>
               </div>
 
-              <div class="slots">
-                <p><strong>Franja horaria</strong></p>
-                <div class="slot-buttons">
+              <div class="slots" [class.field-invalid-group]="isInvalid('deliverySlot')">
+                <p><strong>Franja horaria <span class="required-mark" aria-hidden="true">*</span></strong></p>
+                <div class="slot-buttons" role="radiogroup" aria-label="Franja horaria"
+                  [attr.aria-invalid]="ariaInvalid('deliverySlot')"
+                  [attr.aria-describedby]="isInvalid('deliverySlot') ? 'deliverySlot-error' : null">
                   <button
-                    *ngFor="let slot of slots"
+                    *ngFor="let slot of availableSlots()"
                     type="button"
+                    role="radio"
                     class="slot-btn"
                     [class.active]="form.controls.deliverySlot.value === slot"
-                    (click)="form.controls.deliverySlot.setValue(slot); form.controls.deliverySlot.markAsTouched()">
+                    [disabled]="!isSlotAvailable(slot)"
+                    [attr.aria-checked]="form.controls.deliverySlot.value === slot"
+                    (click)="selectSlot(slot)">
                     {{ slot }}
                   </button>
                 </div>
-                <small class="field-error" *ngIf="isInvalid('deliverySlot')">Selecciona una franja horaria.</small>
+                <small id="deliverySlot-error" class="field-error" *ngIf="isInvalid('deliverySlot')">{{ deliverySlotError() }}</small>
               </div>
 
               <div class="grid">
                 <label>
-                  Dirección
-                  <input formControlName="address" autocomplete="street-address" placeholder="Calle, número, piso" />
-                  <small class="field-error" *ngIf="isInvalid('address')">La dirección es obligatoria para entrega a domicilio.</small>
+                  <span>Dirección <span *ngIf="form.controls.deliveryType.value === 'delivery'" class="required-mark" aria-hidden="true">*</span></span>
+                  <input id="address" formControlName="address" autocomplete="street-address" placeholder="Calle, número, piso"
+                    [attr.required]="form.controls.deliveryType.value === 'delivery' ? '' : null"
+                    [class.field-invalid]="isInvalid('address')" [attr.aria-invalid]="ariaInvalid('address')"
+                    [attr.aria-describedby]="isInvalid('address') ? 'address-error' : null" />
+                  <small id="address-error" class="field-error" *ngIf="isInvalid('address')">La dirección es obligatoria para entrega a domicilio.</small>
                 </label>
                 <label>
-                  Código postal
-                  <input formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922" (input)="sanitizePostalCode()" />
-                  <small class="field-error" *ngIf="isInvalid('postalCode')">Introduce un código postal válido.</small>
+                  <span>Código postal <span *ngIf="form.controls.deliveryType.value === 'delivery'" class="required-mark" aria-hidden="true">*</span></span>
+                  <input id="postalCode" formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922"
+                    [attr.required]="form.controls.deliveryType.value === 'delivery' ? '' : null"
+                    [class.field-invalid]="isInvalid('postalCode')" [attr.aria-invalid]="ariaInvalid('postalCode')"
+                    [attr.aria-describedby]="isInvalid('postalCode') ? 'postalCode-error' : null" (input)="sanitizePostalCode()" />
+                  <small id="postalCode-error" class="field-error" *ngIf="isInvalid('postalCode')">Introduce un código postal válido.</small>
                 </label>
               </div>
 
               <div class="shipping-quote" [class.blocked]="!shippingQuote().available">
                 <strong>Zona y coste de envío</strong>
                 <p>{{ shippingQuote().message }}</p>
-                <p class="meta">Antelación recomendada: {{ requiredAdvanceNoticeHours() }} horas.</p>
+                <p class="meta">Antelación mínima: {{ requiredAdvanceNoticeHours() }} horas completas.</p>
               </div>
 
               <div class="grid">
@@ -166,10 +196,11 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               </label>
 
               <label class="consent-check">
-                <input type="checkbox" formControlName="legalConsent" />
+                <input type="checkbox" formControlName="legalConsent" required [attr.aria-invalid]="ariaInvalid('legalConsent')"
+                  [attr.aria-describedby]="isInvalid('legalConsent') ? 'legalConsent-error' : null" />
                 <span>He leído y acepto las <a routerLink="/legal/condiciones-compra">condiciones de compra</a>, la <a routerLink="/legal/privacidad">política de privacidad</a>, la <a routerLink="/legal/envios">política de envíos</a> y la <a routerLink="/legal/devoluciones-cancelaciones">política de devoluciones/cancelaciones</a>.</span>
               </label>
-              <small class="field-error" *ngIf="isInvalid('legalConsent')">Debes aceptar las condiciones legales para crear el pedido.</small>
+              <small id="legalConsent-error" class="field-error" *ngIf="isInvalid('legalConsent')">Debes aceptar las condiciones legales para crear el pedido.</small>
             </section>
 
             <section class="form-section">
@@ -200,7 +231,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
 
             <div class="form-actions">
               <div class="pending-note">Estado inicial: <strong>pendiente de pago</strong></div>
-              <button class="btn btn-primary submit-btn" type="submit" [disabled]="form.invalid || loading() || !cart.items().length || !canSubmitOrder()" [attr.aria-busy]="loading()">
+              <button class="btn btn-primary submit-btn" type="submit" [disabled]="loading() || !cart.items().length" [attr.aria-busy]="loading()">
                 <span class="spinner" *ngIf="loading()" aria-hidden="true"></span>
                 {{ loading() ? 'Creando pedido...' : 'Confirmar pedido pendiente de pago' }}
               </button>
@@ -294,8 +325,13 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
     `.slot-btn:hover,.slot-btn:focus-visible,.payment-card:hover,.payment-card:focus-within{outline:2px solid color-mix(in srgb,var(--accent-green) 42%,transparent);outline-offset:2px}`,
     `textarea{min-height:96px;resize:vertical}`,
     `.field-error{color:var(--error-text);font-weight:700;line-height:1.35;overflow-wrap:anywhere}`,
+    `.required-mark{display:inline;color:var(--error-text);font-weight:900}`,
+    `input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:var(--error-text);box-shadow:0 0 0 1px var(--error-text)}`,
+    `.field-invalid-group .slot-buttons{border:1px solid var(--error-text);border-radius:12px;padding:.45rem}`,
+    `.slot-btn:disabled{cursor:not-allowed;opacity:.5}`,
     `.consent-check{display:flex;align-items:flex-start;gap:.55rem;min-width:0;font-weight:700;color:var(--text-soft)}`,
     `.consent-check input{flex:0 0 18px;margin-top:.2rem;width:18px;height:18px}`,
+    `.consent-check input[aria-invalid="true"]{outline:2px solid var(--error-text);outline-offset:2px}`,
     `.consent-check span{min-width:0;line-height:1.45;overflow-wrap:anywhere}`,
     `.consent-check a{color:var(--accent-green);font-weight:900}`,
     `.payment-options{display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;min-width:0}`,
@@ -349,7 +385,6 @@ export class CheckoutPageComponent {
   readonly couponPreviewMessage = signal('');
   readonly couponPreviewValid = signal(false);
   readonly emailAlreadyRegistered = signal(false);
-  readonly slots = ['12:00-14:00', '14:00-16:00', '18:00-20:00'];
   readonly paymentMethods: Array<{ value: PaymentMethod; label: string; description: string }> = [
     { value: 'bizum', label: 'Bizum', description: `Enviar al ${MANUAL_PAYMENT_DETAILS.bizumPhone}` },
     { value: 'bank_transfer', label: 'Transferencia', description: 'Pago por IBAN / cuenta bancaria' },
@@ -394,12 +429,22 @@ export class CheckoutPageComponent {
     this.form.controls.email.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((email) => void this.checkEmailRegistered(email ?? ""));
     this.form.controls.deliveryType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((type) => this.updateAddressValidation(type));
+      .subscribe((type) => {
+        this.updateAddressValidation(type);
+        this.reconcileDeliverySlot();
+      });
+    this.form.controls.deliveryDate.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.reconcileDeliverySlot());
+    this.form.controls.deliverySlot.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.validateDeliverySelection());
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === 'cash') {
         this.form.controls.paymentMethod.setValue('bizum');
       }
     });
+    this.reconcileDeliverySlot();
   }
 
 
@@ -436,13 +481,8 @@ export class CheckoutPageComponent {
     return Number((this.cart.subtotal() - this.couponDiscountPreview() + this.shippingQuote().cost).toFixed(2));
   }
 
-  canSubmitOrder(): boolean {
-    if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === "cash") return false;
-    return this.shippingQuote().available;
-  }
-
   requiresAdvancePayment(): boolean {
-    return this.cart.items().some((item) => Boolean((item as any).requiresAdvancePayment) || Boolean((item as any).customization?.length));
+    return this.cart.items().some((item) => Boolean(item.requiresAdvancePayment) || Boolean(item.customization?.length));
   }
 
   showExistingEmailHint(): boolean {
@@ -460,6 +500,50 @@ export class CheckoutPageComponent {
   isInvalid(controlName: keyof typeof this.form.controls): boolean {
     const control = this.form.controls[controlName];
     return control.invalid && (control.touched || control.dirty);
+  }
+
+  ariaInvalid(controlName: keyof typeof this.form.controls): 'true' | null {
+    return this.isInvalid(controlName) ? 'true' : null;
+  }
+
+  availableSlots(): readonly string[] {
+    return getSlotsForDeliveryType(this.form.controls.deliveryType.value);
+  }
+
+  minimumDeliveryDate(): string {
+    return getMinimumFulfillmentDate(
+      this.form.controls.deliveryType.value,
+      this.requiredAdvanceNoticeHours()
+    );
+  }
+
+  isSlotAvailable(slot: string): boolean {
+    const date = this.form.controls.deliveryDate.value;
+    if (!date) return true;
+    return validateFulfillmentSelection(
+      date,
+      slot,
+      this.form.controls.deliveryType.value,
+      this.requiredAdvanceNoticeHours()
+    ).valid;
+  }
+
+  selectSlot(slot: string): void {
+    if (!this.isSlotAvailable(slot)) return;
+    this.form.controls.deliverySlot.setValue(slot);
+    this.form.controls.deliverySlot.markAsTouched();
+  }
+
+  deliveryDateError(): string {
+    const control = this.form.controls.deliveryDate;
+    if (control.hasError('required')) return 'Selecciona una fecha.';
+    return String(control.getError('fulfillment') ?? 'Selecciona una fecha válida.');
+  }
+
+  deliverySlotError(): string {
+    const control = this.form.controls.deliverySlot;
+    if (control.hasError('required')) return 'Selecciona una franja horaria.';
+    return String(control.getError('fulfillment') ?? 'Selecciona una franja horaria válida.');
   }
 
   sanitizePhoneDigits(): void {
@@ -529,8 +613,8 @@ export class CheckoutPageComponent {
     const postalCodeControl = this.form.controls.postalCode;
 
     if (deliveryType === 'delivery') {
-      addressControl.addValidators([Validators.required, Validators.minLength(5)]);
-      postalCodeControl.addValidators([Validators.required, Validators.pattern(/^[0-9]{5}$/)]);
+      addressControl.setValidators([Validators.required, Validators.minLength(5)]);
+      postalCodeControl.setValidators([Validators.required, Validators.pattern(/^[0-9]{5}$/)]);
     } else {
       addressControl.clearValidators();
       postalCodeControl.clearValidators();
@@ -538,6 +622,56 @@ export class CheckoutPageComponent {
 
     addressControl.updateValueAndValidity({ emitEvent: false });
     postalCodeControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private reconcileDeliverySlot(): void {
+    const slotControl = this.form.controls.deliverySlot;
+    const slots = this.availableSlots();
+    const currentSlot = slotControl.value;
+    const currentIsValid = slots.includes(currentSlot) && this.isSlotAvailable(currentSlot);
+
+    if (currentIsValid) {
+      this.validateDeliverySelection();
+      return;
+    }
+
+    const onlySlot = slots.length === 1 ? slots[0] : undefined;
+    const nextSlot = onlySlot && this.isSlotAvailable(onlySlot) ? onlySlot : '';
+    if (nextSlot !== currentSlot) slotControl.setValue(nextSlot, { emitEvent: false });
+    this.validateDeliverySelection();
+  }
+
+  private validateDeliverySelection(): void {
+    const dateControl = this.form.controls.deliveryDate;
+    const slotControl = this.form.controls.deliverySlot;
+    this.setFulfillmentError(dateControl, null);
+    this.setFulfillmentError(slotControl, null);
+    if (!dateControl.value) return;
+
+    const slot = slotControl.value || this.availableSlots()[0] || '';
+    const result = validateFulfillmentSelection(
+      dateControl.value,
+      slot,
+      this.form.controls.deliveryType.value,
+      this.requiredAdvanceNoticeHours()
+    );
+    if (result.valid) return;
+
+    if (result.error === 'invalid-slot') {
+      this.setFulfillmentError(slotControl, result.message);
+    } else {
+      this.setFulfillmentError(dateControl, result.message);
+    }
+  }
+
+  private setFulfillmentError(
+    control: typeof this.form.controls.deliveryDate | typeof this.form.controls.deliverySlot,
+    message: string | null
+  ): void {
+    const errors = { ...(control.errors ?? {}) };
+    if (message) errors['fulfillment'] = message;
+    else delete errors['fulfillment'];
+    control.setErrors(Object.keys(errors).length ? errors : null, { emitEvent: false });
   }
 
   async submit(): Promise<void> {
@@ -551,6 +685,8 @@ export class CheckoutPageComponent {
     }
 
     this.updateAddressValidation(this.form.controls.deliveryType.value);
+    this.reconcileDeliverySlot();
+    this.validateDeliverySelection();
 
     if (!this.form.value.deliveryDate || !this.form.value.deliverySlot) {
       this.notifications.warning('Datos incompletos', 'Selecciona fecha y horario');

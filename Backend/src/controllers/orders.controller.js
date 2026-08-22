@@ -16,12 +16,10 @@ import { applyOrderStockAdjustments } from "../repositories/products.repository.
 import { findCustomerForCoupon, markFirstOrderCouponUsed, upsertCustomerFromOrder } from "../repositories/customers.repository.js";
 import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
+import { validateOrderFulfillment } from "../services/order-rules.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
-const SLOTS = ["12:00-14:00", "14:00-16:00", "18:00-20:00"];
-const CLOSED_DAYS = [0];
-const CUT_OFF_HOUR = 16;
 
 const FIRST_ORDER_COUPON = {
   code: "PRIMER10",
@@ -116,43 +114,9 @@ function normalizeDelivery(payload) {
   return {
     date,
     slot,
-    type: type === "pickup" ? "pickup" : "delivery",
+    type,
     postalCode: normalizePostalCode(payload?.delivery?.postalCode ?? payload?.postalCode)
   };
-}
-
-function validateDelivery(delivery) {
-  if (!delivery?.date || !delivery?.slot) {
-    return "Delivery date and slot required";
-  }
-
-  if (!SLOTS.includes(delivery.slot)) {
-    return "Horario inválido";
-  }
-
-  const selected = new Date(delivery.date);
-  if (Number.isNaN(selected.getTime())) {
-    return "Fecha inválida";
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  selected.setHours(0, 0, 0, 0);
-
-  if (selected < today) {
-    return "Fecha inválida";
-  }
-
-  if (CLOSED_DAYS.includes(selected.getDay())) {
-    return "No hay servicio ese día";
-  }
-
-  const now = new Date();
-  if (selected.toDateString() === now.toDateString() && now.getHours() >= CUT_OFF_HOUR) {
-    return "Ya no puedes pedir para hoy";
-  }
-
-  return null;
 }
 
 function calculateItemsSubtotal(items = []) {
@@ -280,7 +244,12 @@ export async function createOrder(req, res) {
     const requiresAdvancePayment = requiresAdvancePaymentForItems(payload?.items ?? []);
     const marketingConsent = normalizeMarketingConsent(payload);
     const normalizedShipping = normalizeShipping(payload, normalizedDelivery);
-    const deliveryValidationError = validateDelivery(normalizedDelivery);
+    const requiredAdvanceNoticeHours = requiresAdvancePayment
+      ? DELIVERY_RULES.personalizedAdvanceNoticeHours
+      : DELIVERY_RULES.advanceNoticeHours;
+    const deliveryValidationError = validateOrderFulfillment(normalizedDelivery, {
+      advanceNoticeHours: requiredAdvanceNoticeHours
+    });
 
     if (deliveryValidationError) {
       return res.status(400).json({ error: deliveryValidationError });

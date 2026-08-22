@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs";
+
+const ORDER_RULES = JSON.parse(
+  readFileSync(new URL("./order-rules.json", import.meta.url), "utf8")
+);
+
 export const DELIVERY_RULES = {
   originPostalCode: "28922",
-  sameDayDelivery: false,
-  advanceNoticeHours: 24,
-  personalizedAdvanceNoticeHours: 48,
+  timeZone: ORDER_RULES.timeZone,
+  sameDayDelivery: ORDER_RULES.sameDayDelivery,
+  advanceNoticeHours: ORDER_RULES.advanceNoticeHours,
+  personalizedAdvanceNoticeHours: ORDER_RULES.personalizedAdvanceNoticeHours,
+  closedWeekdays: ORDER_RULES.closedWeekdays,
+  slots: ORDER_RULES.slots,
   cashAllowedForAdvancePaymentOrders: false,
   notes:
     "Los pedidos personalizados o bajo encargo pueden requerir pago anticipado y confirmación previa de disponibilidad."
