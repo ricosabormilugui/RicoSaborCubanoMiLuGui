@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/config/password-policy.config';
 
 @Component({
   standalone: true,
@@ -22,6 +23,7 @@ import { NotificationService } from '../../core/services/notification.service';
           </button>
         </div>
       </div>
+      <p class="password-hint">{{ passwordPolicyMessage }}</p>
       <button class="btn btn-primary" (click)="register()" [disabled]="loading()">{{ loading() ? 'Creando...' : 'Crear cuenta' }}</button>
       <p class="ok" *ngIf="success()">{{ success() }}</p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
@@ -36,6 +38,7 @@ import { NotificationService } from '../../core/services/notification.service';
     `.password-toggle{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:transparent;color:var(--text-main);cursor:pointer}`,
     `.password-toggle:hover,.password-toggle:focus-visible{background:var(--surface-2);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:1px}`,
     `.auth-help{color:var(--text-soft)}`,
+    `.password-hint{margin:-.25rem 0 .8rem;color:var(--text-soft);font-size:.9rem}`,
     `.auth-help a{color:var(--accent-green);font-weight:700;text-underline-offset:3px}`,
     `.auth-help a:hover,.auth-help a:focus-visible{color:var(--text-main);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:3px;border-radius:4px}`,
     `.err{color:var(--error-text)}`,
@@ -48,6 +51,7 @@ export class RegisterPageComponent {
   email = '';
   password = '';
   readonly showPassword = signal(false);
+  readonly passwordPolicyMessage = PASSWORD_POLICY_MESSAGE;
 
   readonly loading = signal(false);
   readonly error = signal('');
@@ -64,6 +68,12 @@ export class RegisterPageComponent {
   }
 
   async register(): Promise<void> {
+    const policyError = getPasswordPolicyError(this.password);
+    if (policyError) {
+      this.error.set(policyError);
+      return;
+    }
+
     this.loading.set(true);
     this.error.set('');
     this.success.set('');

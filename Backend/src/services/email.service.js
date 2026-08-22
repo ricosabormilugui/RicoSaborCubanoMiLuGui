@@ -205,7 +205,7 @@ function buildCustomerOrderEmail(order) {
 }
 
 async function sendEmail(apiKey, payload) {
-  await fetch("https://api.resend.com/emails", {
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -213,6 +213,10 @@ async function sendEmail(apiKey, payload) {
     },
     body: JSON.stringify(payload)
   });
+
+  if (!response.ok) {
+    throw new Error(`Email provider rejected request (${response.status})`);
+  }
 }
 
 
@@ -378,6 +382,45 @@ export async function sendDirectEmail({ to, subject, text, html } = {}) {
     subject: subject || "Mensaje · Rico Sabor Cubano",
     text: String(text ?? ""),
     html: html || undefined
+  });
+}
+
+export async function sendPasswordResetEmail({ to, fullName, resetUrl, expiresInMinutes } = {}) {
+  const recipientName = String(fullName ?? "cliente").trim() || "cliente";
+  const safeName = escapeHtml(recipientName);
+  const safeUrl = escapeHtml(resetUrl);
+  const minutes = Number(expiresInMinutes);
+
+  await sendDirectEmail({
+    to,
+    subject: "Restablece tu contraseña · Rico Sabor Cubano",
+    text: [
+      `Hola ${recipientName},`,
+      "",
+      "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.",
+      `Abre este enlace para definir una nueva contraseña: ${resetUrl}`,
+      `El enlace caduca en ${minutes} minutos y solo puede utilizarse una vez.`,
+      "",
+      "Si no solicitaste este cambio, puedes ignorar este mensaje."
+    ].join("\n"),
+    html: `
+      <div style="background:#f7f3ea;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#2f2f2f;">
+        <div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #f0e6d4;border-radius:12px;overflow:hidden;">
+          <div style="background:#4e2f1f;color:#fff;padding:20px 24px;">
+            <h1 style="margin:0;font-size:24px;">Rico Sabor Cubano</h1>
+          </div>
+          <div style="padding:24px;">
+            <p>Hola <strong>${safeName}</strong>,</p>
+            <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.</p>
+            <p style="margin:24px 0;">
+              <a href="${safeUrl}" style="display:inline-block;background:#2f7d32;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;">Restablecer contraseña</a>
+            </p>
+            <p>Este enlace caduca en <strong>${minutes} minutos</strong> y solo puede utilizarse una vez.</p>
+            <p style="color:#666;font-size:14px;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+          </div>
+        </div>
+      </div>
+    `
   });
 }
 

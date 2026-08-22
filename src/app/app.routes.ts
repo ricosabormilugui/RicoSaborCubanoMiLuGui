@@ -83,6 +83,14 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./features/auth/register-page.component').then((m) => m.RegisterPageComponent)
   },
   {
+    path: 'recuperar-contrasena',
+    loadComponent: () => import('./features/auth/forgot-password-page.component').then((m) => m.ForgotPasswordPageComponent)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/reset-password-page.component').then((m) => m.ResetPasswordPageComponent)
+  },
+  {
     path: 'mis-pedidos',
     loadComponent: () => import('./features/account/my-orders-page.component').then((m) => m.MyOrdersPageComponent)
   },

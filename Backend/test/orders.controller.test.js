@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createOrder } from "../src/controllers/orders.controller.js";
+import { DELIVERY_RULES } from "../src/config/shipping.config.js";
 
 function mockResponse() {
   return {
@@ -41,16 +42,27 @@ function madridDate(offsetDays = 0) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 }
 
+function nextOpenMadridDate(offsetDays = 14) {
+  for (let offset = offsetDays; offset < offsetDays + 7; offset += 1) {
+    const date = madridDate(offset);
+    const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+    if (!DELIVERY_RULES.closedWeekdays.includes(weekday)) return date;
+  }
+  throw new Error("No open fulfillment day configured");
+}
+
 test("POST /orders responde 400 para un pedido del mismo día", async () => {
   const delivery = { type: "delivery", date: madridDate(), slot: "18:00-21:00", postalCode: "28922" };
   const response = mockResponse();
   await createOrder({ body: basePayload(delivery), auth: null }, response);
   assert.equal(response.statusCode, 400);
-  assert.match(response.body.error, /mismo día/);
+  const weekday = new Date(`${delivery.date}T00:00:00.000Z`).getUTCDay();
+  const expectedMessage = DELIVERY_RULES.closedWeekdays.includes(weekday) ? /No hay servicio/ : /mismo día/;
+  assert.match(response.body.error, expectedMessage);
 });
 
 test("POST /orders responde 400 para una franja de domicilio no permitida", async () => {
-  const delivery = { type: "delivery", date: madridDate(14), slot: "12:00-14:00", postalCode: "28922" };
+  const delivery = { type: "delivery", date: nextOpenMadridDate(), slot: "12:00-14:00", postalCode: "28922" };
   const response = mockResponse();
   await createOrder({ body: basePayload(delivery), auth: null }, response);
   assert.equal(response.statusCode, 400);

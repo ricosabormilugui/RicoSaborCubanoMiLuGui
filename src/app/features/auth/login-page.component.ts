@@ -20,6 +20,7 @@ import { NotificationService } from '../../core/services/notification.service';
           </button>
         </div>
       </div>
+      <a class="forgot-link" routerLink="/recuperar-contrasena">¿Has olvidado tu contraseña?</a>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
@@ -33,6 +34,8 @@ import { NotificationService } from '../../core/services/notification.service';
     `.password-field input{width:100%;padding-right:3rem}`,
     `.password-toggle{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:transparent;color:var(--text-main);cursor:pointer}`,
     `.password-toggle:hover,.password-toggle:focus-visible{background:var(--surface-2);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:1px}`,
+    `.forgot-link{display:block;width:max-content;max-width:100%;margin:-.2rem 0 .85rem;color:var(--text-soft);font-weight:650;text-underline-offset:3px}`,
+    `.forgot-link:hover,.forgot-link:focus-visible{color:var(--accent-green);outline:2px solid color-mix(in srgb,var(--accent-green) 55%,transparent);outline-offset:3px;border-radius:4px}`,
     `.auth-help{color:var(--text-soft)}`,
     `.auth-help a{color:var(--accent-green);font-weight:700;text-underline-offset:3px}`,
     `.auth-help a:hover,.auth-help a:focus-visible{color:var(--text-main);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:3px;border-radius:4px}`,

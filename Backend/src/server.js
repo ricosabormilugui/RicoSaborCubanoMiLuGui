@@ -30,7 +30,8 @@ app.use((req, res, next) => {
   if (!req.path.startsWith("/api")) return next();
 
   const startedAt = Date.now();
-  const path = req.originalUrl ?? req.url;
+  // Deliberately omit query strings so reset tokens, emails and other PII cannot enter request logs.
+  const path = req.path;
   logger.info("api.request", { method: req.method, path });
   res.on("finish", () => {
     logger.info("api.response", {

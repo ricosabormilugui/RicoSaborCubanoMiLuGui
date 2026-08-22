@@ -1,17 +1,30 @@
 import { hashPassword, signToken, verifyPassword } from "../lib/auth.js";
 import { getRequiredEnv } from "../lib/env.js";
+import { validatePassword } from "../lib/password-policy.js";
+import {
+  PASSWORD_RECOVERY_GENERIC_MESSAGE,
+  PASSWORD_RESET_INVALID_MESSAGE
+} from "../config/password-recovery.config.js";
+import { logger } from "../lib/logger.js";
 import {
   createUser,
   findUserByEmail,
   promoteUserToAdmin
 } from "../repositories/users.repository.js";
 import { linkGuestOrdersByEmailToUser } from "../repositories/orders.repository.js";
+import { passwordRecoveryService } from "../services/password-recovery.service.js";
+import { authenticateCredentials } from "../services/authentication.service.js";
 
 export async function registerCustomer(req, res) {
   try {
     const { fullName, email, password } = req.body ?? {};
     if (!fullName || !email || !password) {
       return res.status(400).json({ error: "fullName, email and password are required" });
+    }
+
+    const passwordPolicy = validatePassword(password);
+    if (!passwordPolicy.valid) {
+      return res.status(400).json({ error: "PASSWORD_POLICY", message: passwordPolicy.message });
     }
 
     const existing = await findUserByEmail(email);
@@ -41,8 +54,8 @@ export async function loginCustomer(req, res) {
       return res.status(400).json({ error: "email and password are required" });
     }
 
-    const user = await findUserByEmail(email);
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    const user = await authenticateCredentials(email, password);
+    if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -134,3 +147,45 @@ export async function checkEmailRegistered(req, res) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
+
+export function createPasswordRecoveryHandlers(service = passwordRecoveryService) {
+  return {
+    async forgotPassword(req, res) {
+      try {
+        await service.requestReset(req.body?.email);
+      } catch (error) {
+        // Never attach the submitted email, reset URL or token to logs.
+        logger.error("auth.password_reset.request_failed", {
+          error: error.message ?? "Unexpected error"
+        });
+      }
+
+      return res.status(202).json({ message: PASSWORD_RECOVERY_GENERIC_MESSAGE });
+    },
+
+    async resetPassword(req, res) {
+      try {
+        const result = await service.resetPassword(req.body?.token, req.body?.password);
+
+        if (result.reason === "password_policy") {
+          return res.status(400).json({ error: "PASSWORD_POLICY", message: result.message });
+        }
+
+        if (!result.updated) {
+          return res.status(400).json({ error: "INVALID_OR_EXPIRED_TOKEN", message: PASSWORD_RESET_INVALID_MESSAGE });
+        }
+
+        return res.status(200).json({ message: "Contraseña actualizada correctamente." });
+      } catch (error) {
+        logger.error("auth.password_reset.update_failed", {
+          error: error.message ?? "Unexpected error"
+        });
+        return res.status(400).json({ error: "INVALID_OR_EXPIRED_TOKEN", message: PASSWORD_RESET_INVALID_MESSAGE });
+      }
+    }
+  };
+}
+
+const passwordRecoveryHandlers = createPasswordRecoveryHandlers();
+export const forgotPassword = passwordRecoveryHandlers.forgotPassword;
+export const resetPassword = passwordRecoveryHandlers.resetPassword;

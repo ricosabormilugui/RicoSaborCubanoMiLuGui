@@ -113,27 +113,34 @@ export class CustomerAuthService {
   }
 
   async register(fullName: string, email: string, password: string): Promise<{ linkedOrders: number }> {
+    const normalizedEmail = email.trim().toLowerCase();
     const response = await fetch(`${this.apiBase}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, email, password })
+      body: JSON.stringify({ fullName, email: normalizedEmail, password })
     });
 
     if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || 'No se pudo registrar la cuenta.');
+      let detail: { message?: string; error?: string } = {};
+      try {
+        detail = await response.json() as { message?: string; error?: string };
+      } catch {
+        // Keep the stable public fallback for non-JSON errors.
+      }
+      throw new Error(detail.message || detail.error || 'No se pudo registrar la cuenta.');
     }
 
     const data = (await response.json()) as { linkedOrders?: number };
-    await this.login(email, password);
+    await this.login(normalizedEmail, password);
     return { linkedOrders: data.linkedOrders ?? 0 };
   }
 
   async login(email: string, password: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
     const response = await fetch(`${this.apiBase}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: normalizedEmail, password })
     });
 
     if (!response.ok) {
@@ -144,7 +151,7 @@ export class CustomerAuthService {
     this.token.set(data.token ?? '');
     this.profile.set({
       userId: data.userId,
-      email,
+      email: normalizedEmail,
       role: data.role === 'admin' ? 'admin' : 'customer'
     });
     this.persist();

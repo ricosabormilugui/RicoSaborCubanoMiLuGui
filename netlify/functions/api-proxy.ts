@@ -74,8 +74,8 @@ export default async (request: Request): Promise<Response> => {
       status: response.status,
       headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json' }
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Proxy error', target }), {
+  } catch {
+    return new Response(JSON.stringify({ error: 'Backend unavailable' }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' }
     });
