@@ -9,6 +9,7 @@ import {
   LucidePhone,
   LucideSearch,
   LucideShoppingBag,
+  LucideSlidersHorizontal,
   LucideStore,
   LucideSun,
   LucideTruck,
@@ -27,6 +28,7 @@ export type AppIconName =
   | 'moon'
   | 'phone'
   | 'search'
+  | 'filters'
   | 'store'
   | 'sun'
   | 'truck'
@@ -48,6 +50,7 @@ export type AppIconName =
     LucidePhone,
     LucideSearch,
     LucideShoppingBag,
+    LucideSlidersHorizontal,
     LucideStore,
     LucideSun,
     LucideTruck,
@@ -66,6 +69,7 @@ export type AppIconName =
       @case ('moon') { <svg lucideMoon [size]="size()" /> }
       @case ('phone') { <svg lucidePhone [size]="size()" /> }
       @case ('search') { <svg lucideSearch [size]="size()" /> }
+      @case ('filters') { <svg lucideSlidersHorizontal [size]="size()" /> }
       @case ('store') { <svg lucideStore [size]="size()" /> }
       @case ('sun') { <svg lucideSun [size]="size()" /> }
       @case ('truck') { <svg lucideTruck [size]="size()" /> }

@@ -1,69 +1,100 @@
 <div class="catalog-page">
-    <section class="hero">
+    <section class="hero" aria-labelledby="catalog-title">
       <span class="hero-eyebrow">Productos</span>
-      <h1>Catálogo de sabores cubanos</h1>
-      <p>Comida casera y tartas personalizadas, preparadas para cada ocasión.</p>
-      <div class="quick-categories" aria-label="Categorías rápidas">
-        <button class="cat-pill" type="button" [class.active]="category() === ''" [attr.aria-pressed]="category() === ''" (click)="setCategory('')">Todos</button>
-        <button
-          class="cat-pill"
-          type="button"
-          *ngFor="let option of categoryOptions()"
-          [class.active]="category() === option.slug"
-          [attr.aria-pressed]="category() === option.slug"
-          (click)="setCategory(option.slug)">
-          {{ option.label }}
-        </button>
-      </div>
+      <h1 id="catalog-title">Catálogo de sabores cubanos</h1>
+      <p>Encuentra tu favorito y añádelo al pedido en pocos pasos.</p>
 
-      <div class="filters" aria-label="Filtros del catálogo">
-        <label class="filter-field filter-search">
-          <span>Buscar</span>
+      <div class="catalog-toolbar">
+        <label class="search-control">
+          <span class="visually-hidden">Buscar productos por nombre</span>
+          <app-icon name="search" [size]="19" />
           <input [ngModel]="query()" (ngModelChange)="setQuery($event)" placeholder="Buscar por nombre..." aria-label="Buscar productos por nombre" />
         </label>
 
-        <label class="filter-field">
-          <span>Categoría</span>
-          <select [ngModel]="category()" (ngModelChange)="setCategory($event)" aria-label="Filtrar por categoría">
-            <option value="">Todas las categorías</option>
-            <option *ngFor="let option of categoryOptions()" [value]="option.slug">{{ option.label }}</option>
-          </select>
-        </label>
-
-        <label class="filter-field compact-field">
-          <span>Precio mín.</span>
-          <input type="number" min="0" step="0.5" inputmode="decimal" [ngModel]="minPrice()" (ngModelChange)="setMinPrice($event)" placeholder="0" aria-label="Precio mínimo" />
-        </label>
-
-        <label class="filter-field compact-field">
-          <span>Precio máx.</span>
-          <input type="number" min="0" step="0.5" inputmode="decimal" [ngModel]="maxPrice()" (ngModelChange)="setMaxPrice($event)" placeholder="50" aria-label="Precio máximo" />
-        </label>
-
-        <label class="filter-field">
-          <span>Ordenar</span>
-          <select [ngModel]="sortBy()" (ngModelChange)="setSortBy($event)" aria-label="Ordenar productos">
-            <option value="featured">Destacados</option>
-            <option value="price-asc">Precio: menor a mayor</option>
-            <option value="price-desc">Precio: mayor a menor</option>
-            <option value="name-asc">Nombre A-Z</option>
-          </select>
-        </label>
-
-        <button class="filter-reset" type="button" (click)="clearFilters()" [disabled]="!hasActiveFilters()">Limpiar</button>
+        <button
+          id="catalog-filter-trigger"
+          class="filter-trigger"
+          type="button"
+          (click)="openFilters()"
+          [class.has-active-filters]="hasActiveDrawerFilters()"
+          [attr.aria-expanded]="filtersOpen()"
+          aria-controls="catalog-filter-drawer"
+          aria-label="Abrir filtros">
+          <app-icon name="filters" [size]="20" />
+        </button>
       </div>
     </section>
 
+    <div class="filter-drawer-layer" *ngIf="filtersOpen()">
+      <button class="filter-backdrop" type="button" tabindex="-1" aria-label="Cerrar filtros" (click)="closeFilters()"></button>
+      <section id="catalog-filter-drawer" class="filter-drawer" role="dialog" aria-modal="true" aria-labelledby="catalog-filter-title">
+        <header class="filter-drawer-header">
+          <h2 id="catalog-filter-title">Filtros</h2>
+          <button id="catalog-filter-close" class="sheet-close" type="button" (click)="closeFilters()" aria-label="Cerrar filtros">
+            <app-icon name="close" [size]="24" />
+          </button>
+        </header>
+
+        <div class="filter-drawer-content">
+          <section class="drawer-filter-group" aria-labelledby="catalog-category-title">
+            <h3 id="catalog-category-title">Categoría</h3>
+            <div class="drawer-category-grid">
+              <button class="category-option" type="button" [class.active]="category() === ''" [attr.aria-pressed]="category() === ''" (click)="setCategory('')">Todos</button>
+              <button
+                class="category-option"
+                type="button"
+                *ngFor="let option of categoryOptions()"
+                [class.active]="category() === option.slug"
+                [attr.aria-pressed]="category() === option.slug"
+                (click)="setCategory(option.slug)">
+                {{ option.label }}
+              </button>
+            </div>
+          </section>
+
+          <section class="drawer-filter-group" aria-labelledby="catalog-price-title">
+            <h3 id="catalog-price-title">Precio</h3>
+            <div class="drawer-price-grid">
+            <label class="filter-field">
+              <span>Desde</span>
+              <div class="price-input"><span aria-hidden="true">€</span><input type="number" min="0" step="0.5" inputmode="decimal" [ngModel]="minPrice()" (ngModelChange)="setMinPrice($event)" placeholder="0" aria-label="Precio mínimo" /></div>
+            </label>
+            <label class="filter-field">
+              <span>Hasta</span>
+              <div class="price-input"><span aria-hidden="true">€</span><input type="number" min="0" step="0.5" inputmode="decimal" [ngModel]="maxPrice()" (ngModelChange)="setMaxPrice($event)" placeholder="50" aria-label="Precio máximo" /></div>
+            </label>
+          </div>
+          </section>
+
+          <section class="drawer-filter-group" aria-labelledby="catalog-sort-title">
+            <h3 id="catalog-sort-title">Ordenar por</h3>
+            <label class="drawer-sort-control">
+              <span class="visually-hidden">Ordenar productos</span>
+              <select [ngModel]="sortBy()" (ngModelChange)="setSortBy($event)" aria-label="Ordenar productos">
+                <option value="featured">Destacados</option>
+                <option value="price-asc">Precio: menor a mayor</option>
+                <option value="price-desc">Precio: mayor a menor</option>
+                <option value="name-asc">Nombre A-Z</option>
+              </select>
+            </label>
+          </section>
+
+          <button class="filter-reset drawer-reset" type="button" (click)="clearFilters()" [disabled]="!hasActiveFilters()">Limpiar filtros</button>
+        </div>
+
+        <footer class="filter-drawer-actions">
+          <button class="btn btn-primary" type="button" (click)="closeFilters()">Aplicar filtros</button>
+          <span aria-live="polite">{{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'producto' : 'productos' }}</span>
+        </footer>
+      </section>
+    </div>
+
     <section class="products-wrap" [attr.aria-busy]="isInitialLoading()">
       <div class="section-head">
-        <div>
-          <span class="section-eyebrow">Nuestra selección</span>
-          <h2 class="section-title">Catálogo completo</h2>
-          <p class="results-count" *ngIf="filteredProducts().length">
-            {{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'producto disponible' : 'productos disponibles' }}
-          </p>
-        </div>
-        <span class="section-note">Consulta ingredientes, opciones y descripción completa en cada producto.</span>
+        <h2 class="section-title">Catálogo completo</h2>
+        <p class="results-count">
+          {{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'producto' : 'productos' }}
+        </p>
       </div>
 
       <div class="empty-state" *ngIf="!isInitialLoading() && !filteredProducts().length">

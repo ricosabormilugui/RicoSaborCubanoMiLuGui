@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed, effect, signal } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, HostListener, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
@@ -11,21 +11,26 @@ import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/confi
 import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent, IconComponent],
   templateUrl: './catalog-page.component.html',
   styleUrls: ['./catalog-page.component.css']
 })
-export class CatalogPageComponent {
+export class CatalogPageComponent implements OnDestroy {
+  private readonly document = inject(DOCUMENT);
+  private previousBodyOverflow = '';
+
   readonly query = signal('');
   readonly category = signal('');
   readonly minPrice = signal('');
   readonly maxPrice = signal('');
   readonly sortBy = signal<CatalogSort>('featured');
+  readonly filtersOpen = signal(false);
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=700';
   readonly skeletonCards = Array.from({ length: 6 });
 
@@ -41,6 +46,10 @@ export class CatalogPageComponent {
 
   readonly hasActiveFilters = computed(() => Boolean(
     this.query().trim() || this.category() || this.minPrice() || this.maxPrice() || this.sortBy() !== 'featured'
+  ));
+
+  readonly hasActiveDrawerFilters = computed(() => Boolean(
+    this.category() || this.minPrice() || this.maxPrice() || this.sortBy() !== 'featured'
   ));
 
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
@@ -112,6 +121,58 @@ export class CatalogPageComponent {
     this.maxPrice.set('');
     this.sortBy.set('featured');
     this.updateCatalogParams();
+  }
+
+  openFilters(): void {
+    if (this.filtersOpen()) return;
+    this.previousBodyOverflow = this.document.body.style.overflow;
+    this.document.body.style.overflow = 'hidden';
+    this.filtersOpen.set(true);
+    globalThis.setTimeout(() => this.document.getElementById('catalog-filter-close')?.focus());
+  }
+
+  closeFilters(restoreFocus = true): void {
+    if (!this.filtersOpen()) return;
+    this.filtersOpen.set(false);
+    this.document.body.style.overflow = this.previousBodyOverflow;
+    if (restoreFocus) {
+      globalThis.setTimeout(() => this.document.getElementById('catalog-filter-trigger')?.focus());
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleFilterKeyboard(event: KeyboardEvent): void {
+    if (!this.filtersOpen()) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeFilters();
+      return;
+    }
+
+    if (event.key !== 'Tab') return;
+    const drawer = this.document.getElementById('catalog-filter-drawer');
+    if (!drawer) return;
+    const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ));
+    if (!focusable.length) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && this.document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && this.document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.filtersOpen()) {
+      this.document.body.style.overflow = this.previousBodyOverflow;
+    }
   }
 
   categoryLabel(value: string): string {
