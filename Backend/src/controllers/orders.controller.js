@@ -18,6 +18,7 @@ import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../
 import { sendOrderStatusEmail } from "../services/email.service.js";
 import { validateOrderFulfillment } from "../services/order-rules.service.js";
 import { calculateCanonicalOrderItems, OrderPricingError } from "../services/order-pricing.service.js";
+import { logger } from "../lib/logger.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
@@ -230,6 +231,39 @@ function buildOrderIdentity(payload, auth) {
   };
 }
 
+export async function persistOrderAndNotify(order, {
+  persist = saveOrder,
+  afterPersist = async () => undefined,
+  emailSender = sendOrderEmail,
+  notificationAppender = appendOrderNotifications,
+  requestId
+} = {}) {
+  await persist(order);
+  await afterPersist(order);
+
+  let emailSent = false;
+  try {
+    await emailSender(order);
+    emailSent = true;
+  } catch (error) {
+    logger.exception("order.notification.email_failed", error, { requestId, orderId: order.orderId });
+  }
+
+  const notifications = {
+    email: { sent: emailSent, warning: emailSent ? null : "email-not-sent" }
+  };
+  try {
+    await notificationAppender(order.orderId, buildNotificationHistory(notifications));
+  } catch (error) {
+    logger.exception("order.notification.audit_failed", error, { requestId, orderId: order.orderId });
+  }
+
+  return {
+    notifications,
+    warnings: emailSent ? [] : ["email-not-sent"]
+  };
+}
+
 export async function createOrder(req, res) {
   try {
     const payload = req.body;
@@ -364,32 +398,19 @@ export async function createOrder(req, res) {
       order.customerId = String(linkedCustomer._id);
     }
 
-    await saveOrder(order);
-
-    if (couponValidation.valid && order.customerId) {
-      await markFirstOrderCouponUsed(order.customerId, {
-        orderId: order.orderId,
-        code: FIRST_ORDER_COUPON.code,
-        percent: FIRST_ORDER_COUPON.percent
-      });
-    }
-
-    await applyOrderStockAdjustments(order.items);
-
-    const warnings = [];
-    let emailSent = false;
-
-    try {
-      await sendOrderEmail(order);
-      emailSent = true;
-    } catch (error) {
-      warnings.push(`email: ${error.message ?? "failed"}`);
-    }
-
-    const notifications = {
-      email: { sent: emailSent, warning: emailSent ? null : "email-not-sent" }
-    };
-    await appendOrderNotifications(order.orderId, buildNotificationHistory(notifications));
+    const { notifications, warnings } = await persistOrderAndNotify(order, {
+      requestId: req.requestId,
+      afterPersist: async () => {
+        if (couponValidation.valid && order.customerId) {
+          await markFirstOrderCouponUsed(order.customerId, {
+            orderId: order.orderId,
+            code: FIRST_ORDER_COUPON.code,
+            percent: FIRST_ORDER_COUPON.percent
+          });
+        }
+        await applyOrderStockAdjustments(order.items);
+      }
+    });
 
     return res.status(201).json({
       ok: true,
@@ -413,6 +434,7 @@ export async function createOrder(req, res) {
     });
 
   } catch (error) {
+    logger.exception("order.create.failed", error, { requestId: req.requestId });
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }

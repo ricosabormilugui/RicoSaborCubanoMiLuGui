@@ -90,6 +90,10 @@
     </div>
 
     <section class="products-wrap" [attr.aria-busy]="isInitialLoading()">
+      <div class="app-alert app-alert-warning" role="status" *ngIf="catalog.loadError()">
+        <span>{{ catalog.loadError() }} Mostramos los datos disponibles en este dispositivo.</span>
+        <button class="btn btn-secondary" type="button" (click)="retryProducts()">Reintentar</button>
+      </div>
       <div class="section-head">
         <h2 class="section-title">Catálogo completo</h2>
         <p class="results-count">

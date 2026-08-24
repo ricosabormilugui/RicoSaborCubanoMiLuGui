@@ -1,4 +1,5 @@
 import { BRAND_CONFIG } from "../config/brand.config.js";
+import { fetchWithTimeout } from "../lib/fetch-with-timeout.js";
 
 function getRequiredEnv(name) {
   const value = process.env[name];
@@ -208,14 +209,14 @@ function buildCustomerOrderEmail(order) {
 }
 
 async function sendEmail(apiKey, payload) {
-  const response = await fetch("https://api.resend.com/emails", {
+  const response = await fetchWithTimeout("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
-  });
+  }, { timeoutMs: Number(process.env.RESEND_TIMEOUT_MS ?? process.env.EXTERNAL_HTTP_TIMEOUT_MS ?? 8_000) });
 
   if (!response.ok) {
     throw new Error(`Email provider rejected request (${response.status})`);

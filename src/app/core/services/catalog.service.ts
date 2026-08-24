@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { Product, ProductApiRecord, ProductReview } from '../models/product.model';
 import { normalizeCustomizationOptions } from '../utils/customization-pricing';
+import { requestJson } from '../utils/api-client';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
 const PRODUCTS_REQUEST_CACHE_MS = 5 * 60_000;
@@ -173,14 +174,17 @@ export class CatalogService {
 
   readonly products = signal<Product[]>(this.readCachedProducts());
   readonly loading = signal(false);
+  readonly loadError = signal('');
 
   async loadProducts({ force = false } = {}): Promise<void> {
     if (this.loadingRequest) return this.loadingRequest;
     if (!force && this.lastLoadAt && Date.now() - this.lastLoadAt < PRODUCTS_REQUEST_CACHE_MS) return;
 
     this.loading.set(true);
+    this.loadError.set('');
     this.loadingRequest = this.fetchProducts()
-      .catch(() => {
+      .catch((error) => {
+        this.loadError.set(error instanceof Error ? error.message : 'No podemos actualizar el catálogo en este momento.');
         if (!this.products().length) {
           this.products.set(fallbackProducts);
         }
@@ -195,10 +199,7 @@ export class CatalogService {
   }
 
   private async fetchProducts(): Promise<void> {
-    const response = await fetch(this.endpoint);
-    if (!response.ok) throw new Error('No se pudieron cargar los productos.');
-
-    const data = (await response.json()) as { products?: ProductApiRecord[] };
+    const data = await requestJson<{ products?: ProductApiRecord[] }>(this.endpoint, {}, 'No se pudieron cargar los productos.');
     const normalized = (data.products ?? []).map(toProduct);
     this.products.set(normalized);
     this.writeCachedProducts(normalized);

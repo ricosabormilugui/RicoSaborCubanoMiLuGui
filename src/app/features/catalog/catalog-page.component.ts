@@ -61,7 +61,7 @@ export class CatalogPageComponent implements OnDestroy {
 
   constructor(
     public readonly cart: CartService,
-    private readonly catalog: CatalogService,
+    public readonly catalog: CatalogService,
     private readonly notifications: NotificationService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
@@ -184,6 +184,10 @@ export class CatalogPageComponent implements OnDestroy {
   productImageAlt(product: Product): string {
     const category = this.categoryLabel(product.category);
     return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`;
+  }
+
+  retryProducts(): void {
+    void this.catalog.loadProducts({ force: true });
   }
 
   imageUrl(source: string, width: number): string {

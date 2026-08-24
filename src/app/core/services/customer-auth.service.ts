@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminAuthService } from './admin-auth.service';
+import { ApiRequestError, requestJson } from '../utils/api-client';
 
 export interface CustomerProfile {
   userId: string;
@@ -83,16 +84,9 @@ export class CustomerAuthService {
     if (!this.token()) return;
 
     try {
-      const response = await fetch(`${this.apiBase}/me`, {
+      const data = await requestJson<CustomerProfile>(`${this.apiBase}/me`, {
         headers: { Authorization: `Bearer ${this.token()}` }
-      });
-
-      if (!response.ok) {
-        this.logout();
-        return;
-      }
-
-      const data = (await response.json()) as CustomerProfile;
+      }, 'No se pudo restaurar la sesión.');
       this.profile.set({
         userId: data.userId,
         email: data.email,
@@ -100,8 +94,9 @@ export class CustomerAuthService {
       });
       this.persist();
       this.syncAdminSession();
-    } catch {
-      // Keep local session if backend isn't reachable from frontend environment
+    } catch (error) {
+      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) this.logout();
+      // Network and 5xx errors keep the local session; they are not proof that it expired.
     }
   }
 
@@ -114,40 +109,28 @@ export class CustomerAuthService {
 
   async register(fullName: string, email: string, password: string): Promise<{ linkedOrders: number }> {
     const normalizedEmail = email.trim().toLowerCase();
-    const response = await fetch(`${this.apiBase}/register`, {
+    const data = await requestJson<{ linkedOrders?: number }>(`${this.apiBase}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fullName, email: normalizedEmail, password })
-    });
-
-    if (!response.ok) {
-      let detail: { message?: string; error?: string } = {};
-      try {
-        detail = await response.json() as { message?: string; error?: string };
-      } catch {
-        // Keep the stable public fallback for non-JSON errors.
-      }
-      throw new Error(detail.message || detail.error || 'No se pudo registrar la cuenta.');
-    }
-
-    const data = (await response.json()) as { linkedOrders?: number };
+    }, 'No se pudo registrar la cuenta.');
     await this.login(normalizedEmail, password);
     return { linkedOrders: data.linkedOrders ?? 0 };
   }
 
   async login(email: string, password: string): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
-    const response = await fetch(`${this.apiBase}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: normalizedEmail, password })
-    });
-
-    if (!response.ok) {
-      throw new Error('Credenciales inválidas.');
+    let data: { token: string; userId: string; role: 'customer' | 'admin' };
+    try {
+      data = await requestJson<typeof data>(`${this.apiBase}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, password })
+      }, 'No se pudo iniciar sesión.');
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) throw new Error('Credenciales inválidas.');
+      throw error;
     }
-
-    const data = (await response.json()) as { token: string; userId: string; role: 'customer' | 'admin' };
     this.token.set(data.token ?? '');
     this.profile.set({
       userId: data.userId,

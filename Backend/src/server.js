@@ -1,66 +1,55 @@
 import "dotenv/config";
-import express from "express";
-import ordersRouter from "./routes/orders.routes.js";
-import authRouter from "./routes/auth.routes.js";
-import adminRouter from "./routes/admin.routes.js";
-import productsRouter from "./routes/products.routes.js";
-import homeRouter from "./routes/home.routes.js";
-import contactRouter from "./routes/contact.routes.js";
-import newsletterRouter from "./routes/newsletter.routes.js";
-import sitemapRouter from "./routes/sitemap.routes.js";
+import { createApp } from "./app.js";
+import { validateRuntimeEnv } from "./lib/env.js";
+import { closeMongoConnection } from "./lib/mongo.js";
 import { logger } from "./lib/logger.js";
 
-const app = express();
-const corsOrigin = process.env.CORS_ORIGIN || "*";
+let server;
+let shuttingDown = false;
 
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", corsOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+async function shutdown(reason, exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.warn("service.shutdown.started", { reason });
+  const forceTimer = setTimeout(() => {
+    logger.error("service.shutdown.forced", { reason });
+    process.exit(1);
+  }, Number(process.env.SHUTDOWN_TIMEOUT_MS ?? 10_000));
+  forceTimer.unref();
+  if (server) await new Promise((resolve) => server.close(resolve));
+  await closeMongoConnection().catch((error) => logger.exception("mongo.close.failed", error));
+  clearTimeout(forceTimer);
+  logger.info("service.shutdown.completed", { reason });
+  process.exit(exitCode);
+}
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  return next();
-});
-
-app.use(express.json());
-
-app.use((req, res, next) => {
-  if (!req.path.startsWith("/api")) return next();
-
-  const startedAt = Date.now();
-  // Deliberately omit query strings so reset tokens, emails and other PII cannot enter request logs.
-  const path = req.path;
-  logger.info("api.request", { method: req.method, path });
-  res.on("finish", () => {
-    logger.info("api.response", {
-      method: req.method,
-      path,
-      status: res.statusCode,
-      durationMs: Date.now() - startedAt
+try {
+  const runtime = validateRuntimeEnv();
+  const app = createApp({ environment: runtime.environment });
+  server = app.listen(runtime.port, () => {
+    logger.info("service.started", {
+      environment: runtime.environment,
+      port: runtime.port,
+      database: runtime.database,
+      emailEnabled: runtime.emailEnabled,
+      bodyLimit: runtime.bodyLimit,
+      corsConfigured: runtime.corsOrigin !== "development-only"
     });
   });
+  server.requestTimeout = runtime.httpRequestTimeoutMs;
+  server.headersTimeout = runtime.httpHeadersTimeoutMs;
+} catch (error) {
+  logger.exception("service.startup.failed", error);
+  process.exitCode = 1;
+}
 
-  return next();
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("unhandledRejection", (error) => {
+  logger.exception("process.unhandled_rejection", error);
+  void shutdown("unhandledRejection", 1);
 });
-
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
-app.use("/api", ordersRouter);
-app.use("/api", productsRouter);
-app.use("/api", homeRouter);
-app.use("/api", contactRouter);
-app.use("/api", newsletterRouter);
-app.use("/api", sitemapRouter);
-app.use("/api/auth", authRouter);
-app.use("/api/admin", adminRouter);
-
-const PORT = process.env.PORT || 3001;
-
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+process.on("uncaughtException", (error) => {
+  logger.exception("process.uncaught_exception", error);
+  void shutdown("uncaughtException", 1);
 });

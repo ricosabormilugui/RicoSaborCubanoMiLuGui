@@ -111,3 +111,33 @@ test("el endpoint sirve application/xml y reutiliza la caché durante diez minut
   assert.equal(response.headers["Content-Type"], "application/xml; charset=utf-8");
   assert.match(response.headers["Cache-Control"], /max-age=600/);
 });
+
+test("sirve sitemap stale si Mongo falla después de llenar la caché", async () => {
+  let timestamp = 1_000;
+  let fail = false;
+  const handler = createSitemapHandler({
+    siteUrl,
+    now: () => timestamp,
+    loadProducts: async () => {
+      if (fail) throw new Error("mongo unavailable");
+      return [];
+    },
+    loadCategories: async () => []
+  });
+  const response = {
+    statusCode: 0, headers: {}, body: "",
+    set(name, value) { this.headers[name] = value; return this; },
+    status(code) { this.statusCode = code; return this; },
+    type(value) { this.headers["Content-Type"] = value; return this; },
+    send(value) { this.body = value; return this; }
+  };
+  await handler({}, response);
+  const cached = response.body;
+  timestamp += SITEMAP_CACHE_TTL_MS;
+  fail = true;
+  await handler({}, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body, cached);
+  assert.match(response.headers.Warning, /stale/i);
+  assert.match(response.headers["Cache-Control"], /stale-if-error=3600/);
+});

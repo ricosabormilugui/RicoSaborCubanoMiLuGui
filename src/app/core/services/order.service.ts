@@ -7,6 +7,7 @@ import { CustomerAuthService } from './customer-auth.service';
 import { DeliveryStateService } from './delivery-state.service';
 import { MANUAL_PAYMENT_DETAILS } from '../config/payment.config';
 import { calculateShippingQuote } from '../config/shipping.config';
+import { requestJson } from '../utils/api-client';
 
 export function getPaymentMethodLabel(method: PaymentMethod): string {
   const labels: Record<PaymentMethod, string> = {
@@ -149,17 +150,7 @@ export class OrderService {
     payload: OrderPayload
   ): Promise<SubmitOrderResponse> {
     try {
-      const response = await fetch(this.netlifyEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('No se pudo enviar el pedido por Netlify Function.');
-      }
-
-      const data = (await response.json()) as {
+      const data = await requestJson<{
         orderId: string;
         warning?: string;
         notifications?: Array<{
@@ -167,7 +158,11 @@ export class OrderService {
           sent: boolean;
           detail?: string;
         }> | Record<string, unknown>;
-      };
+      }>(this.netlifyEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, 'No se pudo enviar el pedido por Netlify Function.', 15_000);
 
       const notificationErrors = (Array.isArray(data.notifications) ? data.notifications : [])
         .filter((item) => !item.sent && item.detail)
@@ -183,12 +178,11 @@ export class OrderService {
         destination: 'Netlify Function (submit-order)',
         warning
       };
-    } catch {
+    } catch (error) {
       if (this.isLocalEnvironment()) {
         return this.saveOrderLocally(payload);
       }
-
-      throw new Error('No se pudo enviar el pedido por Netlify Function.');
+      throw error;
     }
   }
 
@@ -196,7 +190,16 @@ export class OrderService {
     payload: OrderPayload
   ): Promise<SubmitOrderResponse | null> {
     try {
-      const response = await fetch(this.backendEndpoint, {
+      const data = await requestJson<{
+        orderId: string;
+        accountMode?: string;
+        warnings?: string[];
+        notifications?: {
+          email?: { sent?: boolean; warning?: string | null };
+        };
+        coupon?: { valid?: boolean; discountAmount?: number; code?: string | null };
+        totals?: { total?: number };
+      }>(this.backendEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -205,27 +208,7 @@ export class OrderService {
             : {})
         },
         body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        let message = 'No se pudo enviar el pedido.';
-        try {
-          const errorData = (await response.json()) as { error?: string };
-          message = errorData.error || message;
-        } catch {}
-        throw new Error(message);
-      }
-
-      const data = (await response.json()) as {
-        orderId: string;
-        accountMode?: string;
-        warnings?: string[];
-        notifications?: {
-          email?: { sent?: boolean; warning?: string | null };
-        };
-        coupon?: { valid?: boolean; discountAmount?: number; code?: string | null };
-        total?: number;
-      };
+      }, 'No se pudo enviar el pedido.', 15_000);
 
       const warningParts: string[] = [];
 

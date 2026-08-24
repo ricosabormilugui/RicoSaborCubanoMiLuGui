@@ -1,5 +1,15 @@
 import orderRules from '../../Backend/src/config/order-rules.json';
 
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = Number(process.env.EXTERNAL_HTTP_TIMEOUT_MS ?? 10_000)): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 interface OrderPayload {
   customer?: {
     fullName?: string;
@@ -75,6 +85,13 @@ function formatCurrency(value: number | undefined): string {
 function getEnv(name: string): string | undefined {
   const value = process.env[name];
   return value && value.trim().length > 0 ? value : undefined;
+}
+
+function jsonResponse(body: Record<string, unknown>, status: number, requestId: string): Response {
+  return new Response(JSON.stringify({ ...body, requestId }), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'X-Request-Id': requestId }
+  });
 }
 
 function getDeliveryModeLabel(mode: 'delivery' | 'pickup' | undefined): string {
@@ -250,7 +267,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
   }
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetchWithTimeout('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -269,7 +286,7 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
     }
 
     if (customerEmail) {
-      await fetch('https://api.resend.com/emails', {
+      await fetchWithTimeout('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -291,47 +308,48 @@ async function sendEmailNotification(orderId: string, payload: OrderPayload): Pr
 }
 
 export default async (request: Request): Promise<Response> => {
+  const incomingRequestId = request.headers.get('x-request-id')?.trim() ?? '';
+  const requestId = /^[A-Za-z0-9._:-]{8,128}$/.test(incomingRequestId) ? incomingRequestId : crypto.randomUUID();
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return jsonResponse({ message: 'Method not allowed' }, 405, requestId);
   }
 
-  const payload = (await request.json()) as OrderPayload;
+  let payload: OrderPayload;
+  try {
+    payload = (await request.json()) as OrderPayload;
+  } catch {
+    return jsonResponse({ message: 'La solicitud no es válida.' }, 400, requestId);
+  }
   const fulfillmentError = validateFulfillment(payload);
   if (fulfillmentError) {
-    return new Response(JSON.stringify({ error: fulfillmentError }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse({ message: fulfillmentError }, 400, requestId);
   }
 
   const backendBase = getEnv('BACKEND_API_URL');
   if (!backendBase) {
-    return new Response(JSON.stringify({ error: 'La creación segura de pedidos requiere BACKEND_API_URL.' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse({ message: 'El servicio de pedidos no está configurado.' }, 503, requestId);
   }
   const apiBase = backendBase.replace(/\/$/, '').endsWith('/api')
     ? backendBase.replace(/\/$/, '')
     : `${backendBase.replace(/\/$/, '')}/api`;
   try {
-    const response = await fetch(`${apiBase}/orders`, {
+    const response = await fetchWithTimeout(`${apiBase}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Request-Id': requestId,
+        ...(request.headers.get('idempotency-key') ? { 'Idempotency-Key': request.headers.get('idempotency-key')! } : {}),
         ...(request.headers.get('authorization') ? { Authorization: request.headers.get('authorization')! } : {})
       },
       body: JSON.stringify(payload)
     });
     return new Response(await response.text(), {
       status: response.status,
-      headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json' }
+      headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json', 'X-Request-Id': response.headers.get('x-request-id') ?? requestId }
     });
-  } catch {
-    return new Response(JSON.stringify({ error: 'No se pudo validar el pedido con el backend.' }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' }
-    });
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === 'AbortError';
+    return jsonResponse({ message: timedOut ? 'El backend superó el tiempo de espera.' : 'No se pudo validar el pedido con el backend.' }, timedOut ? 504 : 502, requestId);
   }
 };
 

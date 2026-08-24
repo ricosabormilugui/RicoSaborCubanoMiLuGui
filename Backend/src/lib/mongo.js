@@ -3,6 +3,7 @@ import { getRequiredEnv } from "./env.js";
 import { logger } from "./logger.js";
 
 let mongoClient;
+let mongoClientPromise;
 let loggedDbConfig = false;
 const loggedCollections = new Set();
 
@@ -40,11 +41,26 @@ function isIndexConflict(error) {
 
 export async function getMongoClient() {
   if (mongoClient) return mongoClient;
-
-  mongoClient = new MongoClient(getMongoUri());
-  await mongoClient.connect();
-  logger.info("mongo.connected", { database: getConfiguredDbName() });
-  return mongoClient;
+  if (!mongoClientPromise) {
+    const candidate = new MongoClient(getMongoUri(), {
+      serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS ?? 5_000),
+      connectTimeoutMS: Number(process.env.MONGODB_CONNECT_TIMEOUT_MS ?? 10_000),
+      maxPoolSize: Number(process.env.MONGODB_MAX_POOL_SIZE ?? 20)
+    });
+    mongoClientPromise = candidate.connect()
+      .then(() => {
+        mongoClient = candidate;
+        logger.info("mongo.connected", { database: getConfiguredDbName() });
+        return candidate;
+      })
+      .catch(async (error) => {
+        mongoClientPromise = undefined;
+        await candidate.close().catch(() => undefined);
+        logger.exception("mongo.connection.failed", error, { database: getConfiguredDbName() });
+        throw error;
+      });
+  }
+  return mongoClientPromise;
 }
 
 export async function getDb() {
@@ -93,5 +109,35 @@ export async function ensureIndexes(collection, indexes = [], { collectionName }
       logger.error("mongo.index.failed", payload);
       throw error;
     }
+  }
+}
+
+export async function checkMongoHealth({ timeoutMs = 2_000 } = {}) {
+  let timeout;
+  try {
+    await Promise.race([
+      (async () => {
+        const db = await getDb();
+        await db.command({ ping: 1 }, { maxTimeMS: timeoutMs });
+      })(),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error("Mongo readiness timeout")), timeoutMs);
+      })
+    ]);
+    return true;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function closeMongoConnection() {
+  const client = mongoClient ?? await mongoClientPromise?.catch(() => undefined);
+  mongoClient = undefined;
+  mongoClientPromise = undefined;
+  loggedDbConfig = false;
+  loggedCollections.clear();
+  if (client) {
+    await client.close();
+    logger.info("mongo.closed");
   }
 }
