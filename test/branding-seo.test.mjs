@@ -21,6 +21,11 @@ test('caso 3: el tema oscuro selecciona el logo para fondo oscuro', () => {
   assert.notEqual(brand.logos.dark, brand.logos.light);
 });
 
+test('caso 3.1: la pestaña del navegador utiliza el logo dark como favicon', () => {
+  const index = read('src/index.html');
+  assert.match(index, /<link rel="icon" type="image\/png" sizes="232x232" href="\/assets\/branding\/favicon_mixsabor_dark\.png" \/>/);
+});
+
 test('caso 4: Home genera el title de MIXSABOR con el slogan', () => {
   const source = read('src/app/features/home/home-page.component.ts');
   assert.match(source, /title: `\$\{this\.brand\.name\} \| \$\{this\.brand\.slogan\}`/);

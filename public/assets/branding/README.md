@@ -14,5 +14,7 @@ wordmark de texto `MIXSABOR` únicamente como fallback ante un error real de car
 La variante oscura conserva el fondo azul integrado del original; no se corrige
 mediante filtros ni hacks visuales.
 
-También siguen pendientes un favicon legible, `apple-touch-icon` y una imagen
-social de marca. No se generan automáticamente a partir del logo complejo.
+`favicon_mixsabor_dark.png` es una variante derivada del logo dark, recortada sin
+redibujar ni recolorear la marca para que ocupe mejor el espacio de la pestaña.
+El original permanece intacto. Siguen pendientes un `apple-touch-icon` específico
+y una imagen social de marca.
