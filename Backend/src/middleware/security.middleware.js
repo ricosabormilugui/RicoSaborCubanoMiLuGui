@@ -30,7 +30,7 @@ export function cors({ origin: configuredOrigin, environment = process.env.NODE_
     }
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-Id, Idempotency-Key");
-    res.setHeader("Access-Control-Expose-Headers", "X-Request-Id, Retry-After");
+    res.setHeader("Access-Control-Expose-Headers", "X-Request-Id, Retry-After, Idempotent-Replay");
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   };

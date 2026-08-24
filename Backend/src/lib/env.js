@@ -34,6 +34,18 @@ function validateHttpUrl(name, value) {
 
 export function validateRuntimeEnv(env = process.env) {
   const environment = getOptionalEnv("NODE_ENV", "development", env);
+  const appEnvironment = getOptionalEnv(
+    "APP_ENV",
+    environment === "production" ? "production" : "development",
+    env
+  ).toLowerCase();
+  if (!["development", "test", "staging", "production"].includes(appEnvironment)) {
+    throw new Error("APP_ENV must be development, test, staging or production");
+  }
+  if (appEnvironment === "staging" && environment !== "production") {
+    throw new Error("Staging must run with NODE_ENV=production");
+  }
+
   const mongoUri = getOptionalEnv("MONGODB_URI", getOptionalEnv("MONGO_URI", undefined, env), env);
   if (!mongoUri) throw new Error("Missing required environment variable: MONGODB_URI");
   if (/[<>]/.test(mongoUri)) throw new Error("MONGODB_URI contains template placeholders");
@@ -59,13 +71,39 @@ export function validateRuntimeEnv(env = process.env) {
     throw new Error("Email configuration is incomplete: RESEND_API_KEY, NOTIFY_EMAIL_FROM and NOTIFY_EMAIL_TO must be set together");
   }
 
+  const stagingEmailTo = getOptionalEnv("STAGING_EMAIL_TO", undefined, env);
+  const database = getOptionalEnv("MONGODB_DB_NAME", getOptionalEnv("MONGO_DB_NAME", "from-uri", env), env);
+  if (appEnvironment === "staging") {
+    if (!/(?:staging|stage|qa)/i.test(database)) {
+      throw new Error("Staging MONGODB_DB_NAME must explicitly contain staging, stage or qa");
+    }
+    if (configuredEmailValues.length !== resend.length || !stagingEmailTo) {
+      throw new Error("Staging requires complete Resend configuration and STAGING_EMAIL_TO");
+    }
+  }
+  if (appEnvironment === "production" && stagingEmailTo) {
+    throw new Error("STAGING_EMAIL_TO cannot be configured when APP_ENV=production");
+  }
+
+  const payment = [
+    "PAYMENT_BIZUM_PHONE",
+    "PAYMENT_BANK_IBAN",
+    "PAYMENT_BANK_HOLDER",
+    "PAYMENT_CASH_INSTRUCTIONS"
+  ];
+  const missingPaymentValues = payment.filter((name) => !getOptionalEnv(name, undefined, env));
+  if (environment === "production" && missingPaymentValues.length > 0) {
+    throw new Error(`Payment configuration is incomplete: ${missingPaymentValues.join(", ")}`);
+  }
+
   const bodyLimit = getOptionalEnv("JSON_BODY_LIMIT", "1mb", env);
   if (!/^\d+(?:kb|mb)$/i.test(bodyLimit)) throw new Error("JSON_BODY_LIMIT must use kb or mb");
 
   return {
     environment,
+    appEnvironment,
     port: getIntegerEnv("PORT", 3001, { min: 1, max: 65_535, env }),
-    database: getOptionalEnv("MONGODB_DB_NAME", getOptionalEnv("MONGO_DB_NAME", "from-uri", env), env),
+    database,
     corsOrigin: corsOrigin ?? "development-only",
     bodyLimit,
     emailEnabled: configuredEmailValues.length === resend.length,

@@ -38,7 +38,7 @@ Se persiste `statusHistory` para auditoría básica.
    - cálculo de IVA por línea en backend
    - snapshots de impuestos en cada pedido (tipo/tasa/base/cuota)
 5. **Operación**
-   - idempotencia en creación de pedido
+   - idempotencia en creación de pedido: implementada con índice único, fingerprint y transacción Mongo; pendiente validación E2E en staging
    - colas para notificaciones por email y reintentos
 
 

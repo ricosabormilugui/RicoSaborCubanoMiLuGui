@@ -740,6 +740,7 @@ export class CheckoutPageComponent {
         this.notifications.warning('Aviso de notificación', result.warning);
       }
       this.cart.clear();
+      this.orderService.completeOrderIntent();
 
       const accountEmail = this.customerAuth.profile()?.email ?? '';
       this.form.reset({

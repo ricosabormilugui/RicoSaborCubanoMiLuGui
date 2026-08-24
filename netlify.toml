@@ -11,6 +11,12 @@
   NPM_CONFIG_FETCH_RETRY_MINTIMEOUT = "20000"
   NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT = "120000"
 
+# Un branch deploy llamado `staging` genera un artefacto no indexable y marcado.
+# En un sitio Netlify separado cuya rama principal sea staging, configure este
+# mismo comando manualmente porque ese despliegue usa el contexto `production`.
+[context.staging]
+  command = "npm run build:staging"
+
 [functions]
   directory = "netlify/functions"
 

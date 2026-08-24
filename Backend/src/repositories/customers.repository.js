@@ -63,7 +63,7 @@ function buildAddress(delivery = {}) {
   };
 }
 
-export async function findCustomerForCoupon({ email, phone, customerId } = {}) {
+export async function findCustomerForCoupon({ email, phone, customerId } = {}, { session } = {}) {
   const collection = await getCustomersCollection();
   const normalizedEmail = normalizeCustomerEmail(email);
   const normalizedPhone = normalizeCustomerPhone(phone);
@@ -76,17 +76,21 @@ export async function findCustomerForCoupon({ email, phone, customerId } = {}) {
   if (normalizedPhone) clauses.push({ phone: normalizedPhone });
 
   if (!clauses.length) return null;
-  return collection.findOne({ $or: clauses });
+  return collection.findOne({ $or: clauses }, { session });
 }
 
-export async function markFirstOrderCouponUsed(customerId, { orderId, code = "PRIMER10", percent = 10 } = {}) {
+export async function markFirstOrderCouponUsed(customerId, { orderId, code = "PRIMER10", percent = 10 } = {}, { session } = {}) {
   if (!customerId || !ObjectId.isValid(String(customerId))) return null;
 
   const collection = await getCustomersCollection();
   const now = new Date().toISOString();
 
   return collection.findOneAndUpdate(
-    { _id: new ObjectId(String(customerId)) },
+    {
+      _id: new ObjectId(String(customerId)),
+      "firstOrderDiscount.status": { $ne: "used" },
+      "firstOrderCoupon.status": { $ne: "used" }
+    },
     {
       $set: {
         firstOrderDiscount: {
@@ -106,11 +110,11 @@ export async function markFirstOrderCouponUsed(customerId, { orderId, code = "PR
         updatedAt: now
       }
     },
-    { returnDocument: "after" }
+    { returnDocument: "after", session }
   );
 }
 
-export async function upsertCustomerFromOrder(order, { marketingConsent = false } = {}) {
+export async function upsertCustomerFromOrder(order, { marketingConsent = false, session } = {}) {
   const collection = await getCustomersCollection();
   const now = new Date().toISOString();
   const email = normalizeCustomerEmail(order?.customer?.email ?? order?.customerEmailNormalized);
@@ -119,7 +123,7 @@ export async function upsertCustomerFromOrder(order, { marketingConsent = false 
 
   if (!lookup) return null;
 
-  const existing = await collection.findOne(lookup);
+  const existing = await collection.findOne(lookup, { session });
   const address = buildAddress(order?.delivery);
   const consentAccepted = Boolean(marketingConsent || existing?.marketingConsent);
   const set = {
@@ -153,7 +157,7 @@ export async function upsertCustomerFromOrder(order, { marketingConsent = false 
         totalSpent: Number(order?.total ?? 0)
       }
     },
-    { upsert: true, returnDocument: "after" }
+    { upsert: true, returnDocument: "after", session }
   );
 
   return result;

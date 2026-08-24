@@ -45,10 +45,10 @@ export async function listAllProducts() {
     .toArray();
 }
 
-export async function findProductById(id) {
+export async function findProductById(id, { session } = {}) {
   const collection = await getProductsCollection();
   if (!ObjectId.isValid(id)) return null;
-  return collection.findOne({ _id: new ObjectId(id) });
+  return collection.findOne({ _id: new ObjectId(id) }, { session });
 }
 
 export async function createProduct(payload) {
@@ -126,27 +126,49 @@ export async function deleteProduct(id) {
   return result.deletedCount > 0;
 }
 
-export async function applyOrderStockAdjustments(items = []) {
-  const collection = await getProductsCollection();
+export class OrderStockError extends Error {
+  constructor(message, { productId } = {}) {
+    super(message);
+    this.name = "OrderStockError";
+    this.code = "ORDER_STOCK_CONFLICT";
+    this.status = 409;
+    this.productId = productId;
+  }
+}
 
+export function groupOrderStockRequirements(items = []) {
+  const requirements = new Map();
   for (const item of items) {
     const productId = String(item?.baseProductId ?? item?.productId ?? "").split("::")[0].trim();
     const quantity = normalizeStockNumber(item?.quantity, 0);
     if (!ObjectId.isValid(productId) || quantity <= 0) continue;
+    requirements.set(productId, (requirements.get(productId) ?? 0) + quantity);
+  }
+  return [...requirements.entries()].map(([productId, quantity]) => ({ productId, quantity }));
+}
 
-    const existing = await collection.findOne({ _id: new ObjectId(productId) });
-    if (!existing || !existing.trackStock) continue;
+export async function applyOrderStockAdjustments(items = [], { session, collection: providedCollection } = {}) {
+  const collection = providedCollection ?? await getProductsCollection();
 
-    const nextStock = Math.max(0, normalizeStockNumber(existing.stock, 0) - quantity);
-    await collection.updateOne(
-      { _id: existing._id },
-      {
-        $set: {
-          stock: nextStock,
-          available: nextStock > 0,
-          updatedAt: new Date().toISOString()
-        }
-      }
+  for (const { productId, quantity } of groupOrderStockRequirements(items)) {
+    const objectId = new ObjectId(productId);
+    const now = new Date().toISOString();
+    const updated = await collection.findOneAndUpdate(
+      { _id: objectId, trackStock: true, stock: { $gte: quantity } },
+      [
+        { $set: { stock: { $subtract: [{ $ifNull: ["$stock", 0] }, quantity] }, updatedAt: now } },
+        { $set: { available: { $gt: ["$stock", 0] } } }
+      ],
+      { returnDocument: "after", session }
     );
+
+    if (updated) continue;
+
+    const existing = await collection.findOne({ _id: objectId }, { session });
+    if (!existing) {
+      throw new OrderStockError("Uno de los productos ya no existe.", { productId });
+    }
+    if (!existing.trackStock) continue;
+    throw new OrderStockError(`No hay stock suficiente para ${existing.name ?? "uno de los productos"}.`, { productId });
   }
 }

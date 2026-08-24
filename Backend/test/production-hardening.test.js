@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createApp } from "../src/app.js";
 import { fetchWithTimeout } from "../src/lib/fetch-with-timeout.js";
+import { validateRuntimeEnv } from "../src/lib/env.js";
+import { applyStagingEmailSafety } from "../src/services/email.service.js";
 import { createRateLimit } from "../src/middleware/rate-limit.middleware.js";
 import { persistOrderAndNotify } from "../src/controllers/orders.controller.js";
 
@@ -99,4 +101,125 @@ test("el pedido permanece persistido aunque falle el email", async () => {
   assert.deepEqual(events, ["persisted", "post-persist", "email", "audit"]);
   assert.equal(result.notifications.email.sent, false);
   assert.deepEqual(result.warnings, ["email-not-sent"]);
+});
+
+test("producción rechaza instrucciones de pago incompletas", () => {
+  const environment = {
+    NODE_ENV: "production",
+    MONGODB_URI: "mongodb://database.test/mixsabor",
+    AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+    FRONTEND_URL: "https://mixsabor.test",
+    CORS_ORIGIN: "https://mixsabor.test",
+    PAYMENT_BIZUM_PHONE: "+34000000000",
+    PAYMENT_BANK_IBAN: "ES0000000000000000000000",
+    PAYMENT_BANK_HOLDER: "QA MIXSABOR"
+  };
+
+  assert.throws(
+    () => validateRuntimeEnv(environment),
+    /Payment configuration is incomplete: PAYMENT_CASH_INSTRUCTIONS/
+  );
+});
+
+test("desarrollo puede arrancar sin datos de pago de staging", () => {
+  const environment = {
+    NODE_ENV: "development",
+    MONGODB_URI: "mongodb://database.test/mixsabor",
+    AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+    FRONTEND_URL: "http://localhost:4200"
+  };
+
+  assert.equal(validateRuntimeEnv(environment).environment, "development");
+});
+
+test("producción acepta la configuración manual de pago completa", () => {
+  const environment = {
+    NODE_ENV: "production",
+    MONGODB_URI: "mongodb://database.test/mixsabor",
+    AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+    FRONTEND_URL: "https://mixsabor.test",
+    CORS_ORIGIN: "https://mixsabor.test",
+    PAYMENT_BIZUM_PHONE: "+34000000000",
+    PAYMENT_BANK_IBAN: "ES0000000000000000000000",
+    PAYMENT_BANK_HOLDER: "QA MIXSABOR",
+    PAYMENT_CASH_INSTRUCTIONS: "Pago de prueba al recoger"
+  };
+
+  assert.equal(validateRuntimeEnv(environment).environment, "production");
+});
+
+test("staging exige runtime production-like, base aislada, Resend y destinatario QA", () => {
+  const base = {
+    NODE_ENV: "production",
+    APP_ENV: "staging",
+    MONGODB_URI: "mongodb://database.test/mixsabor_staging",
+    MONGODB_DB_NAME: "mixsabor_staging",
+    AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+    FRONTEND_URL: "https://staging.mixsabor.test",
+    CORS_ORIGIN: "https://staging.mixsabor.test",
+    RESEND_API_KEY: "re_test",
+    NOTIFY_EMAIL_FROM: "qa@mixsabor.test",
+    NOTIFY_EMAIL_TO: "operaciones-qa@mixsabor.test",
+    STAGING_EMAIL_TO: "buzon-qa@mixsabor.test",
+    PAYMENT_BIZUM_PHONE: "+34000000000",
+    PAYMENT_BANK_IBAN: "ES0000000000000000000000",
+    PAYMENT_BANK_HOLDER: "QA MIXSABOR",
+    PAYMENT_CASH_INSTRUCTIONS: "Instrucciones aprobadas para QA"
+  };
+
+  assert.equal(validateRuntimeEnv(base).appEnvironment, "staging");
+  assert.throws(
+    () => validateRuntimeEnv({ ...base, NODE_ENV: "development" }),
+    /Staging must run with NODE_ENV=production/
+  );
+  assert.throws(
+    () => validateRuntimeEnv({ ...base, MONGODB_DB_NAME: "ricoSaborCubano" }),
+    /Staging MONGODB_DB_NAME/
+  );
+  assert.throws(
+    () => validateRuntimeEnv({ ...base, STAGING_EMAIL_TO: "" }),
+    /Staging requires complete Resend configuration and STAGING_EMAIL_TO/
+  );
+});
+
+test("la seguridad de email redirige staging y no altera producción", () => {
+  const payload = {
+    to: ["cliente-real@example.com"],
+    cc: ["copia@example.com"],
+    bcc: ["oculta@example.com"],
+    reply_to: "cliente-real@example.com",
+    subject: "Pedido recibido"
+  };
+
+  const safe = applyStagingEmailSafety(payload, {
+    APP_ENV: "staging",
+    STAGING_EMAIL_TO: "qa-controlado@example.test"
+  });
+  assert.deepEqual(safe.to, ["qa-controlado@example.test"]);
+  assert.equal(safe.cc, undefined);
+  assert.equal(safe.bcc, undefined);
+  assert.equal(safe.reply_to, "qa-controlado@example.test");
+  assert.equal(safe.subject, "[STAGING] Pedido recibido");
+  assert.strictEqual(applyStagingEmailSafety(payload, { APP_ENV: "production" }), payload);
+});
+
+test("producción rechaza por seguridad un destinatario de redirección staging", () => {
+  const environment = {
+    NODE_ENV: "production",
+    APP_ENV: "production",
+    MONGODB_URI: "mongodb://database.test/mixsabor",
+    AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+    FRONTEND_URL: "https://mixsabor.test",
+    CORS_ORIGIN: "https://mixsabor.test",
+    STAGING_EMAIL_TO: "qa@example.test",
+    PAYMENT_BIZUM_PHONE: "+34000000000",
+    PAYMENT_BANK_IBAN: "ES0000000000000000000000",
+    PAYMENT_BANK_HOLDER: "MIXSABOR",
+    PAYMENT_CASH_INSTRUCTIONS: "Instrucciones configuradas"
+  };
+
+  assert.throws(
+    () => validateRuntimeEnv(environment),
+    /STAGING_EMAIL_TO cannot be configured when APP_ENV=production/
+  );
 });

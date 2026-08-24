@@ -87,6 +87,24 @@ export async function getCollection(collectionName) {
   return db.collection(collectionName);
 }
 
+export async function runMongoTransaction(operation, {
+  readConcern = { level: "snapshot" },
+  writeConcern = { w: "majority" },
+  readPreference = "primary"
+} = {}) {
+  const client = await getMongoClient();
+  const session = client.startSession();
+
+  try {
+    return await session.withTransaction(
+      () => operation(session),
+      { readConcern, writeConcern, readPreference }
+    );
+  } finally {
+    await session.endSession();
+  }
+}
+
 export async function ensureIndexes(collection, indexes = [], { collectionName } = {}) {
   for (const index of indexes) {
     try {

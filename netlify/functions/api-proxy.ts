@@ -96,6 +96,8 @@ export default async (request: Request): Promise<Response> => {
       'Content-Type': response.headers.get('content-type') ?? 'application/json'
     };
     responseHeaders['X-Request-Id'] = response.headers.get('x-request-id') ?? requestId;
+    const idempotentReplay = response.headers.get('idempotent-replay');
+    if (idempotentReplay) responseHeaders['Idempotent-Replay'] = idempotentReplay;
     const cacheControl = response.headers.get('cache-control');
     if (cacheControl) responseHeaders['Cache-Control'] = cacheControl;
     const retryAfter = response.headers.get('retry-after');

@@ -43,3 +43,44 @@ test('el proxy aplica timeout y propaga requestId sin exponer backend interno', 
   assert.match(proxy, /Idempotency-Key/);
   assert.doesNotMatch(proxy, /your-render-app\.onrender\.com/);
 });
+
+test('ninguna utilidad de autenticación conserva secretos fijos de respaldo', () => {
+  const token = read('Backend/src/utils/auth-token.js');
+  assert.match(token, /getRequiredEnv\("AUTH_TOKEN_SECRET"\)/);
+  assert.doesNotMatch(token, /change-me-in-production|DEFAULT_SECRET/);
+});
+
+test('Render exige origen público y comprueba el endpoint real de salud', () => {
+  const render = read('render.yaml');
+  assert.match(render, /healthCheckPath: \/api\/health/);
+  assert.match(render, /key: FRONTEND_URL/);
+  assert.match(render, /key: CORS_ORIGIN/);
+});
+
+test('los ejemplos de entorno permanecen versionables sin exponer archivos reales', () => {
+  const gitignore = read('.gitignore');
+  assert.match(gitignore, /^\.env\*$/m);
+  assert.match(gitignore, /^!\.env\.example$/m);
+  assert.match(gitignore, /^!Backend\/\.env\.example$/m);
+});
+
+test('staging usa backend aislado, pagos no reales y un artefacto no indexable', () => {
+  const angular = JSON.parse(read('angular.json'));
+  const staging = angular.projects['ricosabor-tienda'].architect.build.configurations.staging;
+  const replacements = staging.fileReplacements.map(({ replace, with: target }) => `${replace}:${target}`);
+  assert.ok(replacements.includes('src/app/core/config/payment.config.ts:src/app/core/config/payment.config.staging.ts'));
+
+  const payments = read('src/app/core/config/payment.config.staging.ts');
+  assert.match(payments, /NO REALIZAR PAGOS/);
+  assert.doesNotMatch(payments, /\bES\d{22}\b|\+34\d{9}/);
+
+  const render = read('render.yaml');
+  assert.match(render, /name: mixsabor-backend-staging/);
+  assert.match(render, /key: APP_ENV\s+value: staging/);
+  assert.match(render, /key: STAGING_EMAIL_TO/);
+
+  const outputScript = read('scripts/prepare-staging-output.mjs');
+  assert.match(outputScript, /noindex,nofollow,noarchive/);
+  assert.match(outputScript, /User-agent: \*\\nDisallow: \/\\n/);
+  assert.match(outputScript, /X-Robots-Tag: noindex, nofollow, noarchive/);
+});

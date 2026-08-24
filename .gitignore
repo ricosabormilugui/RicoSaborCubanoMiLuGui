@@ -7,10 +7,11 @@ out-tsc/
 
 # environment variables
 .env*
+!.env.example
+!Backend/.env.example
 .env
 .env.local
 .env.*.local
-Backend/.env.example
 
 # misc
 .DS_Store

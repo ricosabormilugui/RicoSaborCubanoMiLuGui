@@ -5,6 +5,7 @@ import {
   deleteOrderById,
   findCouponRedemption,
   findOrderById,
+  findOrderByIdempotencyKey,
   findPreviousValidOrderForCustomer,
   listOrders,
   listOrdersForCustomer,
@@ -12,13 +13,23 @@ import {
   updateOrderPayment,
   updateOrderStatus
 } from "../repositories/orders.repository.js";
-import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
-import { findCustomerForCoupon, markFirstOrderCouponUsed, upsertCustomerFromOrder } from "../repositories/customers.repository.js";
+import { findProductById, OrderStockError } from "../repositories/products.repository.js";
+import { findCustomerForCoupon } from "../repositories/customers.repository.js";
 import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
 import { validateOrderFulfillment } from "../services/order-rules.service.js";
 import { calculateCanonicalOrderItems, OrderPricingError } from "../services/order-pricing.service.js";
 import { logger } from "../lib/logger.js";
+import { runMongoTransaction } from "../lib/mongo.js";
+import {
+  buildOrderRequestFingerprint,
+  executeIdempotentOrderCreation,
+  IdempotencyConflictError,
+  InvalidIdempotencyKeyError,
+  safeIdempotencyReference,
+  validateIdempotencyKey
+} from "../services/order-idempotency.service.js";
+import { commitOrderUnitOfWork, CouponConsumptionError } from "../services/order-unit-of-work.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
@@ -62,7 +73,7 @@ function customerCouponAlreadyUsed(customer) {
   );
 }
 
-async function validateFirstOrderCoupon({ code, email, phone, customerId }) {
+async function validateFirstOrderCoupon({ code, email, phone, customerId }, { session } = {}) {
   if (!code) {
     return { requested: false, valid: false, reason: null, discountAmount: 0 };
   }
@@ -75,7 +86,7 @@ async function validateFirstOrderCoupon({ code, email, phone, customerId }) {
     return { requested: true, valid: false, reason: "coupon-requires-customer", discountAmount: 0 };
   }
 
-  const existingCustomer = await findCustomerForCoupon({ email, phone, customerId });
+  const existingCustomer = await findCustomerForCoupon({ email, phone, customerId }, { session });
   if (customerCouponAlreadyUsed(existingCustomer)) {
     return { requested: true, valid: false, reason: "coupon-already-used", customer: existingCustomer, discountAmount: 0 };
   }
@@ -84,12 +95,18 @@ async function validateFirstOrderCoupon({ code, email, phone, customerId }) {
     return { requested: true, valid: false, reason: "coupon-first-order-only", customer: existingCustomer, discountAmount: 0 };
   }
 
-  const previousOrder = await findPreviousValidOrderForCustomer({ email, phone, customerId: customerId ?? existingCustomer?._id });
+  const previousOrder = await findPreviousValidOrderForCustomer(
+    { email, phone, customerId: customerId ?? existingCustomer?._id },
+    { session }
+  );
   if (previousOrder) {
     return { requested: true, valid: false, reason: "coupon-first-order-only", customer: existingCustomer, discountAmount: 0 };
   }
 
-  const redeemedOrder = await findCouponRedemption({ code, email, phone, customerId: customerId ?? existingCustomer?._id });
+  const redeemedOrder = await findCouponRedemption(
+    { code, email, phone, customerId: customerId ?? existingCustomer?._id },
+    { session }
+  );
   if (redeemedOrder) {
     return { requested: true, valid: false, reason: "coupon-already-used", customer: existingCustomer, discountAmount: 0 };
   }
@@ -240,7 +257,14 @@ export async function persistOrderAndNotify(order, {
 } = {}) {
   await persist(order);
   await afterPersist(order);
+  return notifyPersistedOrder(order, { emailSender, notificationAppender, requestId });
+}
 
+export async function notifyPersistedOrder(order, {
+  emailSender = sendOrderEmail,
+  notificationAppender = appendOrderNotifications,
+  requestId
+} = {}) {
   let emailSent = false;
   try {
     await emailSender(order);
@@ -264,178 +288,267 @@ export async function persistOrderAndNotify(order, {
   };
 }
 
-export async function createOrder(req, res) {
-  try {
-    const payload = req.body;
+class OrderCreationBusinessError extends Error {
+  constructor(message, status = 400, details = undefined) {
+    super(message);
+    this.name = "OrderCreationBusinessError";
+    this.status = status;
+    this.details = details;
+  }
+}
 
-    if (!payload?.customer?.fullName || !payload?.customer?.phone || !payload?.items?.length) {
-      return res.status(400).json({ error: "Invalid order payload" });
+function getStoredNotifications(order) {
+  const history = Array.isArray(order?.notifications) ? order.notifications : [];
+  const email = [...history].reverse().find((entry) => entry?.type === "email");
+  if (!email) return { email: { sent: false, warning: "notification-pending" } };
+  return {
+    email: {
+      sent: email.status === "sent",
+      warning: email.status === "sent" ? null : (email.error ?? "email-not-sent")
     }
+  };
+}
 
-    const orderIdentity = buildOrderIdentity(payload, req.auth);
-    const customerEmailNormalized = normalizeCustomerEmail(payload, req.auth);
-    const normalizedDelivery = normalizeDelivery(payload);
-    const normalizedPayment = normalizePayment(payload);
-    const marketingConsent = normalizeMarketingConsent(payload);
-    const preliminaryDeliveryError = validateOrderFulfillment(normalizedDelivery, {
-      advanceNoticeHours: DELIVERY_RULES.advanceNoticeHours
+function buildCreateOrderResponse(order, { notifications, warnings = [], replay = false } = {}) {
+  return {
+    ok: true,
+    orderId: order.orderId,
+    accountMode: order.accountMode,
+    idempotentReplay: replay,
+    notifications,
+    coupon: {
+      code: order.couponCode,
+      valid: Boolean(order.couponCode),
+      discountAmount: order.discountAmount,
+      discountPercent: order.discountPercent,
+      reason: null
+    },
+    totals: {
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      shippingCost: order.shippingCost,
+      total: order.total
+    },
+    warnings: warnings.length ? warnings : undefined
+  };
+}
+
+async function createOrderWithinTransaction({ payload, auth, idempotencyKey, requestFingerprint, session }) {
+  const orderIdentity = buildOrderIdentity(payload, auth);
+  const customerEmailNormalized = normalizeCustomerEmail(payload, auth);
+  const normalizedDelivery = normalizeDelivery(payload);
+  const normalizedPayment = normalizePayment(payload);
+  const marketingConsent = normalizeMarketingConsent(payload);
+  const preliminaryDeliveryError = validateOrderFulfillment(normalizedDelivery, {
+    advanceNoticeHours: DELIVERY_RULES.advanceNoticeHours
+  });
+  if (preliminaryDeliveryError) throw new OrderCreationBusinessError(preliminaryDeliveryError);
+
+  const canonicalPhone = normalizePhone(payload?.customer?.phone);
+  if (!canonicalPhone || canonicalPhone.length < 9) {
+    throw new OrderCreationBusinessError("Invalid customer phone");
+  }
+
+  const canonicalItems = await calculateCanonicalOrderItems(payload.items, {
+    productFinder: (id) => findProductById(id, { session })
+  });
+  const requiresAdvancePayment = requiresAdvancePaymentForItems(canonicalItems);
+  if (requiresAdvancePayment) {
+    const personalizedDeliveryError = validateOrderFulfillment(normalizedDelivery, {
+      advanceNoticeHours: DELIVERY_RULES.personalizedAdvanceNoticeHours
     });
+    if (personalizedDeliveryError) throw new OrderCreationBusinessError(personalizedDeliveryError);
+  }
 
-    if (preliminaryDeliveryError) {
-      return res.status(400).json({ error: preliminaryDeliveryError });
-    }
+  const canonicalPayload = { ...payload, items: canonicalItems };
+  const normalizedShipping = normalizeShipping(canonicalPayload, normalizedDelivery);
+  if (!normalizedShipping.quote.available) {
+    throw new OrderCreationBusinessError(normalizedShipping.quote.message);
+  }
+  if (requiresAdvancePayment && normalizedPayment.method === "cash" && !DELIVERY_RULES.cashAllowedForAdvancePaymentOrders) {
+    throw new OrderCreationBusinessError("Este pedido requiere pago anticipado y no permite pago en efectivo.");
+  }
 
-    const canonicalPhone = normalizePhone(payload?.customer?.phone);
-    if (!canonicalPhone || canonicalPhone.length < 9) {
-      return res.status(400).json({ error: "Invalid customer phone" });
-    }
-
-    let canonicalItems;
-    try {
-      canonicalItems = await calculateCanonicalOrderItems(payload.items);
-    } catch (error) {
-      if (error instanceof OrderPricingError) return res.status(400).json({ error: error.message });
-      throw error;
-    }
-
-    const requiresAdvancePayment = requiresAdvancePaymentForItems(canonicalItems);
-    if (requiresAdvancePayment) {
-      const personalizedDeliveryError = validateOrderFulfillment(normalizedDelivery, {
-        advanceNoticeHours: DELIVERY_RULES.personalizedAdvanceNoticeHours
-      });
-      if (personalizedDeliveryError) return res.status(400).json({ error: personalizedDeliveryError });
-    }
-
-    const canonicalPayload = { ...payload, items: canonicalItems };
-    const normalizedShipping = normalizeShipping(canonicalPayload, normalizedDelivery);
-    if (!normalizedShipping.quote.available) {
-      return res.status(400).json({ error: normalizedShipping.quote.message });
-    }
-    if (requiresAdvancePayment && normalizedPayment.method === "cash" && !DELIVERY_RULES.cashAllowedForAdvancePaymentOrders) {
-      return res.status(400).json({ error: "Este pedido requiere pago anticipado y no permite pago en efectivo." });
-    }
-
-    const subtotal = calculateItemsSubtotal(canonicalItems);
-    const requestedCouponCode = getRequestedCouponCode(payload);
-    const couponValidation = await validateFirstOrderCoupon({
-      code: requestedCouponCode,
-      email: customerEmailNormalized,
-      phone: canonicalPhone,
-      customerId: payload?.customerId
+  const subtotal = calculateItemsSubtotal(canonicalItems);
+  const requestedCouponCode = getRequestedCouponCode(payload);
+  const couponValidation = await validateFirstOrderCoupon({
+    code: requestedCouponCode,
+    email: customerEmailNormalized,
+    phone: canonicalPhone,
+    customerId: payload?.customerId
+  }, { session });
+  if (couponValidation.requested && !couponValidation.valid) {
+    throw new OrderCreationBusinessError(buildCouponError(couponValidation.reason), 400, {
+      coupon: { code: requestedCouponCode, valid: false, reason: couponValidation.reason }
     });
+  }
 
-    if (couponValidation.requested && !couponValidation.valid) {
-      return res.status(400).json({
-        error: buildCouponError(couponValidation.reason),
-        coupon: { code: requestedCouponCode, valid: false, reason: couponValidation.reason }
-      });
-    }
-
-    const discountAmount = couponValidation.valid ? calculateFirstOrderDiscount(subtotal) : 0;
-    const total = Number((subtotal - discountAmount + normalizedShipping.details.cost).toFixed(2));
-    const orderId = `MLG-${randomUUID().slice(0, 8).toUpperCase()}`;
-    const createdAt = new Date().toISOString();
-
-    const order = {
-      ...payload,
-      customer: {
-        ...(payload.customer ?? {}),
-        phone: canonicalPhone
-      },
-      ...orderIdentity,
-      customerEmailNormalized,
-      items: canonicalItems,
-      deliveryDate: normalizedDelivery.date,
-      deliverySlot: normalizedDelivery.slot,
-      deliveryType: normalizedDelivery.type,
-      delivery: {
-        ...(payload.delivery ?? {}),
-        date: normalizedDelivery.date,
-        slot: normalizedDelivery.slot,
-        type: normalizedDelivery.type,
-        postalCode: normalizedShipping.details.postalCode
-      },
-      payment: normalizedPayment,
-      paymentMethod: normalizedPayment.method,
-      paymentStatus: normalizedPayment.status,
-      requiresAdvancePayment,
-      shipping: normalizedShipping.details,
-      shippingCost: normalizedShipping.details.cost,
-      subtotal,
-      couponCode: couponValidation.valid ? FIRST_ORDER_COUPON.code : null,
-      discountAmount,
-      discountType: couponValidation.valid ? FIRST_ORDER_COUPON.discountType : null,
-      discountPercent: couponValidation.valid ? FIRST_ORDER_COUPON.percent : 0,
-      total,
-      marketingConsent,
-      promotions: {
-        ...(payload.promotions ?? {}),
-        firstOrderDiscount: {
-          code: FIRST_ORDER_COUPON.code,
-          percent: FIRST_ORDER_COUPON.percent,
-          status: couponValidation.valid ? "used" : "not_requested",
-          discountAmount,
-          appliesTo: FIRST_ORDER_COUPON.appliesTo,
-          ...(couponValidation.valid ? { usedAt: createdAt, orderId } : {})
-        }
-      },
-      orderId,
-      createdAt,
-      status: "nuevo",
-      notifications: [],
-      statusHistory: [
-        {
-          status: "nuevo",
-          at: new Date().toISOString(),
-          note: null,
-          signature: null
-        }
-      ]
-    };
-
-    const linkedCustomer = await upsertCustomerFromOrder(order, { marketingConsent });
-    if (linkedCustomer?._id) {
-      order.customerId = String(linkedCustomer._id);
-    }
-
-    const { notifications, warnings } = await persistOrderAndNotify(order, {
-      requestId: req.requestId,
-      afterPersist: async () => {
-        if (couponValidation.valid && order.customerId) {
-          await markFirstOrderCouponUsed(order.customerId, {
-            orderId: order.orderId,
-            code: FIRST_ORDER_COUPON.code,
-            percent: FIRST_ORDER_COUPON.percent
-          });
-        }
-        await applyOrderStockAdjustments(order.items);
+  const discountAmount = couponValidation.valid ? calculateFirstOrderDiscount(subtotal) : 0;
+  const total = Number((subtotal - discountAmount + normalizedShipping.details.cost).toFixed(2));
+  const orderId = `MLG-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const createdAt = new Date().toISOString();
+  const order = {
+    ...payload,
+    customer: { ...(payload.customer ?? {}), phone: canonicalPhone },
+    ...orderIdentity,
+    customerEmailNormalized,
+    items: canonicalItems,
+    deliveryDate: normalizedDelivery.date,
+    deliverySlot: normalizedDelivery.slot,
+    deliveryType: normalizedDelivery.type,
+    delivery: {
+      ...(payload.delivery ?? {}),
+      date: normalizedDelivery.date,
+      slot: normalizedDelivery.slot,
+      type: normalizedDelivery.type,
+      postalCode: normalizedShipping.details.postalCode
+    },
+    payment: normalizedPayment,
+    paymentMethod: normalizedPayment.method,
+    paymentStatus: normalizedPayment.status,
+    requiresAdvancePayment,
+    shipping: normalizedShipping.details,
+    shippingCost: normalizedShipping.details.cost,
+    subtotal,
+    couponCode: couponValidation.valid ? FIRST_ORDER_COUPON.code : null,
+    discountAmount,
+    discountType: couponValidation.valid ? FIRST_ORDER_COUPON.discountType : null,
+    discountPercent: couponValidation.valid ? FIRST_ORDER_COUPON.percent : 0,
+    total,
+    marketingConsent,
+    promotions: {
+      ...(payload.promotions ?? {}),
+      firstOrderDiscount: {
+        code: FIRST_ORDER_COUPON.code,
+        percent: FIRST_ORDER_COUPON.percent,
+        status: couponValidation.valid ? "used" : "not_requested",
+        discountAmount,
+        appliesTo: FIRST_ORDER_COUPON.appliesTo,
+        ...(couponValidation.valid ? { usedAt: createdAt, orderId } : {})
       }
+    },
+    orderId,
+    idempotencyKey,
+    requestFingerprint,
+    createdAt,
+    status: "nuevo",
+    notifications: [],
+    statusHistory: [{ status: "nuevo", at: createdAt, note: null, signature: null }]
+  };
+
+  return commitOrderUnitOfWork(order, {
+    session,
+    marketingConsent,
+    coupon: {
+      valid: couponValidation.valid,
+      code: FIRST_ORDER_COUPON.code,
+      percent: FIRST_ORDER_COUPON.percent
+    }
+  });
+}
+
+export async function createOrder(req, res) {
+  const payload = req.body;
+  if (!payload?.customer?.fullName || !payload?.customer?.phone || !payload?.items?.length) {
+    return res.status(400).json({ error: "Invalid order payload" });
+  }
+
+  const preliminaryDeliveryError = validateOrderFulfillment(normalizeDelivery(payload), {
+    advanceNoticeHours: DELIVERY_RULES.advanceNoticeHours
+  });
+  if (preliminaryDeliveryError) {
+    return res.status(400).json({ error: preliminaryDeliveryError });
+  }
+
+  let idempotencyKey;
+  let requestFingerprint;
+  let idempotencyRef;
+  try {
+    idempotencyKey = validateIdempotencyKey(
+      req.get?.("Idempotency-Key") ?? req.headers?.["idempotency-key"]
+    );
+    requestFingerprint = buildOrderRequestFingerprint(payload, req.auth);
+    idempotencyRef = safeIdempotencyReference(idempotencyKey);
+
+    const result = await executeIdempotentOrderCreation({
+      idempotencyKey,
+      requestFingerprint,
+      findExisting: findOrderByIdempotencyKey,
+      runInTransaction: runMongoTransaction,
+      createWithinTransaction: (session) => createOrderWithinTransaction({
+        payload,
+        auth: req.auth,
+        idempotencyKey,
+        requestFingerprint,
+        session
+      })
     });
 
-    return res.status(201).json({
-      ok: true,
-      orderId: order.orderId,
-      accountMode: order.accountMode,
+    if (result.replay) {
+      res.setHeader?.("Idempotent-Replay", "true");
+      const storedNotifications = getStoredNotifications(result.order);
+      const storedWarning = storedNotifications.email.warning;
+      logger.info("order_idempotent_replay", {
+        requestId: req.requestId,
+        idempotencyRef,
+        orderId: result.order.orderId,
+        replay: true
+      });
+      return res.status(200).json(buildCreateOrderResponse(result.order, {
+        notifications: storedNotifications,
+        warnings: storedWarning && storedWarning !== "notification-pending" ? [storedWarning] : [],
+        replay: true
+      }));
+    }
+
+    logger.info("order_created", {
+      requestId: req.requestId,
+      idempotencyRef,
+      orderId: result.order.orderId,
+      replay: false
+    });
+    const { notifications, warnings } = await notifyPersistedOrder(result.order, {
+      requestId: req.requestId
+    });
+    return res.status(201).json(buildCreateOrderResponse(result.order, {
       notifications,
-      coupon: {
-        code: order.couponCode,
-        valid: Boolean(order.couponCode),
-        discountAmount: order.discountAmount,
-        discountPercent: order.discountPercent,
-        reason: couponValidation.reason
-      },
-      totals: {
-        subtotal: order.subtotal,
-        discountAmount: order.discountAmount,
-        shippingCost: order.shippingCost,
-        total: order.total
-      },
-      warnings: warnings.length ? warnings : undefined
-    });
-
+      warnings,
+      replay: false
+    }));
   } catch (error) {
-    logger.exception("order.create.failed", error, { requestId: req.requestId });
-    return res.status(500).json({ error: error.message ?? "Unexpected error" });
+    if (error instanceof InvalidIdempotencyKeyError) {
+      return res.status(400).json({ message: error.message, code: error.code });
+    }
+    if (error instanceof IdempotencyConflictError) {
+      logger.warn("order_idempotency_conflict", {
+        requestId: req.requestId,
+        idempotencyRef,
+        replay: false
+      });
+      return res.status(409).json({ message: error.message, code: error.code });
+    }
+    if (error instanceof OrderPricingError || error instanceof OrderStockError || error instanceof CouponConsumptionError || error instanceof OrderCreationBusinessError) {
+      const status = Number(error.status ?? (error instanceof OrderStockError ? 409 : 400));
+      logger.warn("order_transaction_aborted", {
+        requestId: req.requestId,
+        idempotencyRef,
+        reason: error.code ?? error.name,
+        statusCode: status,
+        replay: false
+      });
+      return res.status(status).json({
+        message: error.message,
+        code: error.code,
+        ...(error.details ?? {})
+      });
+    }
+
+    logger.exception("order_transaction_aborted", error, {
+      requestId: req.requestId,
+      idempotencyRef,
+      replay: false
+    });
+    return res.status(503).json({ message: "No se pudo confirmar el pedido de forma atómica. Inténtalo de nuevo." });
   }
 }
 

@@ -343,9 +343,15 @@ export default async (request: Request): Promise<Response> => {
       },
       body: JSON.stringify(payload)
     });
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': response.headers.get('content-type') ?? 'application/json',
+      'X-Request-Id': response.headers.get('x-request-id') ?? requestId
+    };
+    const idempotentReplay = response.headers.get('idempotent-replay');
+    if (idempotentReplay) responseHeaders['Idempotent-Replay'] = idempotentReplay;
     return new Response(await response.text(), {
       status: response.status,
-      headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json', 'X-Request-Id': response.headers.get('x-request-id') ?? requestId }
+      headers: responseHeaders
     });
   } catch (error) {
     const timedOut = error instanceof Error && error.name === 'AbortError';

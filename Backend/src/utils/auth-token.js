@@ -1,10 +1,14 @@
 import crypto from "node:crypto";
+import { getRequiredEnv } from "../lib/env.js";
 
-const DEFAULT_SECRET = "change-me-in-production";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 12;
 
 function getSecret() {
-  return process.env.AUTH_JWT_SECRET || DEFAULT_SECRET;
+  return (
+    process.env.AUTH_TOKEN_SECRET ||
+    process.env.AUTH_JWT_SECRET ||
+    getRequiredEnv("AUTH_TOKEN_SECRET")
+  );
 }
 
 function toBase64Url(value) {

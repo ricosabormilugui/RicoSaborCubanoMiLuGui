@@ -54,7 +54,7 @@ El log de startup muestra entorno, puerto, nombre lógico de base, email habilit
 
 ## CORS y headers
 
-En producción solo se aceptan los orígenes separados por coma de `CORS_ORIGIN` (o `FRONTEND_URL`). Desarrollo puede usar wildcard. Se permiten `Authorization`, `X-Request-Id` e `Idempotency-Key`; se exponen `X-Request-Id` y `Retry-After`.
+En producción solo se aceptan los orígenes separados por coma de `CORS_ORIGIN` (o `FRONTEND_URL`). Desarrollo puede usar wildcard. Se permiten `Authorization`, `X-Request-Id` e `Idempotency-Key`; se exponen `X-Request-Id`, `Retry-After` e `Idempotent-Replay`.
 
 Headers aplicados:
 
@@ -93,7 +93,7 @@ El flujo efectivo es:
 
 Un fallo de Resend no borra el pedido ni produce un falso fallo de creación. Password reset conserva la política distinta: si falla su email, elimina el token pendiente.
 
-El checkout solo vacía carrito después de una respuesta de éxito. En red, timeout o 5xx conserva carrito/formulario y permite reintento. El riesgo de doble pedido continúa: el botón se deshabilita durante la petición y no hay retry automático, pero no existe todavía idempotencia transaccional. Añadir `Idempotency-Key` de forma correcta requiere coordinar inserción, cupón y stock en una transacción o un estado de operación; el proxy ya está preparado para propagar el header, pero el backend no lo consume aún.
+El checkout solo vacía carrito después de una respuesta de éxito. En red, timeout o 5xx conserva carrito/formulario y permite reintento con la misma intención. La idempotencia transaccional se implementó posteriormente: el frontend conserva `Idempotency-Key`, el proxy la propaga y el backend coordina cliente, cupón, stock y pedido en una transacción Mongo. Véase `docs/order-idempotency-transactions.md`.
 
 ## Frontend y estados de error
 
@@ -133,7 +133,7 @@ Para investigar una incidencia: copiar `X-Request-Id` de la respuesta, buscarlo 
 
 ## Deuda pendiente
 
-- Idempotencia transaccional de pedidos y consistencia atómica de pedido/cupón/stock.
+- Validación E2E de idempotencia transaccional y carrera concurrente en Mongo staging real.
 - Rate limiting compartido si se ejecutan varias réplicas o el volumen crece.
 - CSP tras inventariar todos los orígenes efectivos en producción.
 - Monitor externo de `/api/health` y `/api/ready`; no se incorpora proveedor desde el código.

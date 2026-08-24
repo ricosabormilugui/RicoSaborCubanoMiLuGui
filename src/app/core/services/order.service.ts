@@ -8,6 +8,7 @@ import { DeliveryStateService } from './delivery-state.service';
 import { MANUAL_PAYMENT_DETAILS } from '../config/payment.config';
 import { calculateShippingQuote } from '../config/shipping.config';
 import { requestJson } from '../utils/api-client';
+import { OrderIdempotencyIntent } from '../utils/order-idempotency';
 
 export function getPaymentMethodLabel(method: PaymentMethod): string {
   const labels: Record<PaymentMethod, string> = {
@@ -44,6 +45,7 @@ export interface SubmitOrderResponse {
 export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
   private readonly backendEndpoint = `${resolveApiBaseUrl()}/orders`;
+  private readonly orderIntent = new OrderIdempotencyIntent();
 
   constructor(
     private readonly cartService: CartService,
@@ -130,15 +132,16 @@ export class OrderService {
   }
 
   async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
+    const idempotencyKey = this.orderIntent.keyFor(payload);
     if (ORDER_SUBMISSION_MODE === 'local') {
       return this.saveOrderLocally(payload);
     }
 
     if (ORDER_SUBMISSION_MODE === 'netlify') {
-      return this.submitToNetlify(payload);
+      return this.submitToNetlify(payload, idempotencyKey);
     }
 
-    const backendResult = await this.submitToBackend(payload);
+    const backendResult = await this.submitToBackend(payload, idempotencyKey);
     if (backendResult) {
       return backendResult;
     }
@@ -146,8 +149,13 @@ export class OrderService {
     throw new Error('No se pudo guardar el pedido en el backend.');
   }
 
+  completeOrderIntent(): void {
+    this.orderIntent.complete();
+  }
+
   private async submitToNetlify(
-    payload: OrderPayload
+    payload: OrderPayload,
+    idempotencyKey: string
   ): Promise<SubmitOrderResponse> {
     try {
       const data = await requestJson<{
@@ -160,7 +168,7 @@ export class OrderService {
         }> | Record<string, unknown>;
       }>(this.netlifyEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload)
       }, 'No se pudo enviar el pedido por Netlify Function.', 15_000);
 
@@ -187,7 +195,8 @@ export class OrderService {
   }
 
   private async submitToBackend(
-    payload: OrderPayload
+    payload: OrderPayload,
+    idempotencyKey: string
   ): Promise<SubmitOrderResponse | null> {
     try {
       const data = await requestJson<{
@@ -203,6 +212,7 @@ export class OrderService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
           ...(this.customerAuth.token()
             ? { Authorization: `Bearer ${this.customerAuth.token()}` }
             : {})

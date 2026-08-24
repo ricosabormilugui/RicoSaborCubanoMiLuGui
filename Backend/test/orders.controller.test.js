@@ -30,6 +30,17 @@ function basePayload(delivery) {
   };
 }
 
+function orderRequest(body) {
+  return {
+    body,
+    auth: null,
+    requestId: "request-order-validation",
+    get(name) {
+      return name.toLowerCase() === "idempotency-key" ? "order_validation_123" : undefined;
+    }
+  };
+}
+
 function madridDate(offsetDays = 0) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Madrid",
@@ -54,7 +65,7 @@ function nextOpenMadridDate(offsetDays = 14) {
 test("POST /orders responde 400 para un pedido del mismo día", async () => {
   const delivery = { type: "delivery", date: madridDate(), slot: "18:00-21:00", postalCode: "28922" };
   const response = mockResponse();
-  await createOrder({ body: basePayload(delivery), auth: null }, response);
+  await createOrder(orderRequest(basePayload(delivery)), response);
   assert.equal(response.statusCode, 400);
   const weekday = new Date(`${delivery.date}T00:00:00.000Z`).getUTCDay();
   const expectedMessage = DELIVERY_RULES.closedWeekdays.includes(weekday) ? /No hay servicio/ : /mismo día/;
@@ -64,7 +75,7 @@ test("POST /orders responde 400 para un pedido del mismo día", async () => {
 test("POST /orders responde 400 para una franja de domicilio no permitida", async () => {
   const delivery = { type: "delivery", date: nextOpenMadridDate(), slot: "12:00-14:00", postalCode: "28922" };
   const response = mockResponse();
-  await createOrder({ body: basePayload(delivery), auth: null }, response);
+  await createOrder(orderRequest(basePayload(delivery)), response);
   assert.equal(response.statusCode, 400);
   assert.match(response.body.error, /18:00-21:00/);
 });

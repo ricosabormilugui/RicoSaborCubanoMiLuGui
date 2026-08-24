@@ -208,14 +208,36 @@ function buildCustomerOrderEmail(order) {
   `;
 }
 
+export function applyStagingEmailSafety(payload, env = process.env) {
+  if (String(env.APP_ENV ?? "").trim().toLowerCase() !== "staging") {
+    return payload;
+  }
+
+  const qaRecipient = String(env.STAGING_EMAIL_TO ?? "").trim();
+  if (!qaRecipient) {
+    throw new Error("Missing environment variable: STAGING_EMAIL_TO");
+  }
+
+  const subject = String(payload?.subject ?? "Mensaje");
+  return {
+    ...payload,
+    to: [qaRecipient],
+    cc: undefined,
+    bcc: undefined,
+    reply_to: qaRecipient,
+    subject: subject.startsWith("[STAGING]") ? subject : `[STAGING] ${subject}`
+  };
+}
+
 async function sendEmail(apiKey, payload) {
+  const safePayload = applyStagingEmailSafety(payload);
   const response = await fetchWithTimeout("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(safePayload)
   }, { timeoutMs: Number(process.env.RESEND_TIMEOUT_MS ?? process.env.EXTERNAL_HTTP_TIMEOUT_MS ?? 8_000) });
 
   if (!response.ok) {

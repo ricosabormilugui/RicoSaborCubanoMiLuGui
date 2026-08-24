@@ -11,21 +11,46 @@ async function getOrdersCollection() {
   const collection = await getCollection(collectionName);
 
   if (!ensureOrderIndexesPromise) {
-    ensureOrderIndexesPromise = ensureIndexes(collection, [
-      { keys: { orderId: 1 }, options: { name: "orderId_unique", unique: true } },
-      { keys: { createdAt: -1 }, options: { name: "orders_createdAt" } },
-      { keys: { status: 1, createdAt: -1 }, options: { name: "orders_status_createdAt" } },
-      { keys: { paymentStatus: 1, createdAt: -1 }, options: { name: "orders_paymentStatus_createdAt" } }
-    ], { collectionName });
+    ensureOrderIndexesPromise = (async () => {
+      await ensureIndexes(collection, [
+        { keys: { orderId: 1 }, options: { name: "orderId_unique", unique: true } },
+        {
+          keys: { idempotencyKey: 1 },
+          options: {
+            name: "orders_idempotencyKey_unique",
+            unique: true,
+            partialFilterExpression: { idempotencyKey: { $type: "string" } }
+          }
+        },
+        { keys: { createdAt: -1 }, options: { name: "orders_createdAt" } },
+        { keys: { status: 1, createdAt: -1 }, options: { name: "orders_status_createdAt" } },
+        { keys: { paymentStatus: 1, createdAt: -1 }, options: { name: "orders_paymentStatus_createdAt" } }
+      ], { collectionName });
+
+      const indexes = await collection.indexes();
+      const idempotencyIndex = indexes.find((index) => index.name === "orders_idempotencyKey_unique");
+      if (
+        idempotencyIndex?.unique !== true
+        || idempotencyIndex?.key?.idempotencyKey !== 1
+        || idempotencyIndex?.partialFilterExpression?.idempotencyKey?.$type !== "string"
+      ) {
+        throw new Error("Required unique partial idempotency index is not active on orders");
+      }
+    })();
   }
 
   await ensureOrderIndexesPromise;
   return collection;
 }
 
-export async function saveOrder(order) {
+export async function saveOrder(order, { session } = {}) {
   const collection = await getOrdersCollection();
-  await collection.insertOne(order);
+  await collection.insertOne(order, { session });
+}
+
+export async function findOrderByIdempotencyKey(idempotencyKey, { session } = {}) {
+  const collection = await getOrdersCollection();
+  return collection.findOne({ idempotencyKey }, { session });
 }
 
 export async function listOrders({ status, limit = 100 } = {}) {
@@ -56,7 +81,7 @@ export async function listOrdersForCustomer({ userId, email, limit = 100 } = {})
     .toArray();
 }
 
-export async function findPreviousValidOrderForCustomer({ email, phone, customerId } = {}) {
+export async function findPreviousValidOrderForCustomer({ email, phone, customerId } = {}, { session } = {}) {
   const collection = await getOrdersCollection();
   const normalizedEmail = String(email ?? "").trim().toLowerCase();
   const normalizedPhone = String(phone ?? "").replace(/\D/g, "").trim();
@@ -72,10 +97,10 @@ export async function findPreviousValidOrderForCustomer({ email, phone, customer
   return collection.findOne({
     $or: clauses,
     status: { $nin: ["cancelado", "anulado"] }
-  });
+  }, { session });
 }
 
-export async function findCouponRedemption({ code, email, phone, customerId } = {}) {
+export async function findCouponRedemption({ code, email, phone, customerId } = {}, { session } = {}) {
   const collection = await getOrdersCollection();
   const normalizedCode = String(code ?? "").trim().toUpperCase();
   const normalizedEmail = String(email ?? "").trim().toLowerCase();
@@ -106,7 +131,7 @@ export async function findCouponRedemption({ code, email, phone, customerId } = 
       },
       { $or: clauses }
     ]
-  });
+  }, { session });
 }
 
 export async function findOrderById(orderId) {

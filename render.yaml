@@ -6,14 +6,20 @@ services:
     plan: free
     buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
+        value: production
+      - key: APP_ENV
         value: production
       - key: PORT
         value: 3001
       - key: AUTH_TOKEN_SECRET
         generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
@@ -38,3 +44,79 @@ services:
         sync: false
       - key: NOTIFY_EMAIL_TO
         sync: false
+      - key: PAYMENT_BIZUM_PHONE
+        sync: false
+      - key: PAYMENT_BANK_IBAN
+        sync: false
+      - key: PAYMENT_BANK_HOLDER
+        sync: false
+      - key: PAYMENT_CASH_INSTRUCTIONS
+        sync: false
+
+  - type: web
+    name: mixsabor-backend-staging
+    runtime: node
+    rootDir: Backend
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: staging
+      - key: PORT
+        value: 3001
+      - key: AUTH_TOKEN_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: mixsabor_staging
+      - key: MONGODB_ORDERS_COLLECTION
+        value: orders
+      - key: MONGODB_PRODUCTS_COLLECTION
+        value: products
+      - key: MONGODB_CONTACTS_COLLECTION
+        value: contacts
+      - key: MONGODB_CUSTOMERS_COLLECTION
+        value: customers
+      - key: MONGODB_USERS_COLLECTION
+        value: users
+      - key: RESEND_API_KEY
+        sync: false
+      - key: NOTIFY_EMAIL_FROM
+        sync: false
+      - key: NOTIFY_EMAIL_TO
+        sync: false
+      - key: STAGING_EMAIL_TO
+        sync: false
+      - key: PAYMENT_BIZUM_PHONE
+        sync: false
+      - key: PAYMENT_BANK_IBAN
+        sync: false
+      - key: PAYMENT_BANK_HOLDER
+        sync: false
+      - key: PAYMENT_CASH_INSTRUCTIONS
+        sync: false
+      - key: MONGODB_SERVER_SELECTION_TIMEOUT_MS
+        value: 5000
+      - key: MONGODB_CONNECT_TIMEOUT_MS
+        value: 10000
+      - key: EXTERNAL_HTTP_TIMEOUT_MS
+        value: 8000
+      - key: RESEND_TIMEOUT_MS
+        value: 8000
+      - key: HTTP_REQUEST_TIMEOUT_MS
+        value: 30000
+      - key: HTTP_HEADERS_TIMEOUT_MS
+        value: 15000
