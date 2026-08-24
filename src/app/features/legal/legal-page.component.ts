@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LEGAL_BUSINESS_CONFIG, LEGAL_DOCUMENTS, getLegalDocument } from '../../core/config/legal.config';
 import { SeoService } from '../../core/services/seo.service';
+import { BRAND_CONFIG } from '../../core/config/brand.config';
 
 @Component({
   standalone: true,
@@ -85,7 +86,7 @@ export class LegalPageComponent {
 
       this.seo.setPageMeta({
         title: documentTitle,
-        description: legalDocument?.summary ?? 'Información legal de Rico Sabor Cubano.',
+        description: legalDocument?.summary ?? `Información legal de ${BRAND_CONFIG.name}.`,
         path,
         canonicalPath: path,
         robots: legalDocument ? 'index,follow' : 'noindex,follow'

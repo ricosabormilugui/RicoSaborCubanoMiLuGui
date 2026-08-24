@@ -16,6 +16,7 @@ import {
 import { defaultGroupSettings, readGroupSettings } from '../../core/utils/customization-pricing';
 import { ProductCategoryApiError, ProductCategoryService } from '../../core/services/product-category.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { BRAND_CONFIG } from '../../core/config/brand.config';
 
 @Component({
   standalone: true,
@@ -25,6 +26,7 @@ import { NotificationService } from '../../core/services/notification.service';
 })
 export class AdminProductsPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
+  readonly brand = BRAND_CONFIG;
   email = '';
   password = '';
   readonly search = signal('');

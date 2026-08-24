@@ -7,6 +7,7 @@ import {
   markContactAsRead
 } from "../repositories/contacts.repository.js";
 import { sendDirectEmail } from "../services/email.service.js";
+import { BRAND_CONFIG } from "../config/brand.config.js";
 
 function serializeContact(contact) {
   if (!contact) return null;
@@ -92,7 +93,7 @@ export async function replyContactForAdmin(req, res) {
         try {
           await sendDirectEmail({
             to: customerEmail,
-            subject: "Respuesta a tu solicitud · Rico Sabor Cubano",
+            subject: `Respuesta a tu solicitud · ${BRAND_CONFIG.name}`,
             text: replyText
           });
           notifications.email.sent = true;

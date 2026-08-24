@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, NavigationStart, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
 import { NotificationService } from './core/services/notification.service';
@@ -19,8 +19,9 @@ import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
 import { IconComponent } from './shared/ui/icon.component';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
 import { ProductCategoryService } from './core/services/product-category.service';
-import { SeoService } from './core/services/seo.service';
+import { SeoMetaInput, SeoService } from './core/services/seo.service';
 import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
+import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
 @Component({
   selector: 'app-root',
@@ -50,7 +51,13 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
           </div>
 
           <a class="nav-center" routerLink="/">
-            <div class="logo">Rico Sabor Cubano</div>
+            <img
+              *ngIf="brandLogoAvailable(); else headerBrandFallback"
+              class="brand-logo brand-logo-header"
+              [src]="brandLogo()"
+              [alt]="brand.name"
+              (error)="markBrandLogoUnavailable()" />
+            <ng-template #headerBrandFallback><span class="brand-wordmark">{{ brand.name }}</span></ng-template>
           </a>
 
           <div class="nav-right">
@@ -177,7 +184,7 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
           <div>
             <p class="eyebrow">Newsletter</p>
             <h2>10% descuento en tu primer pedido</h2>
-            <p class="footer-copy">Suscríbete para recibir promociones de Rico Sabor Cubano. Guardaremos tu consentimiento y evitaremos duplicados por email.</p>
+            <p class="footer-copy">Suscríbete para recibir promociones de {{ brand.name }}. Guardaremos tu consentimiento y evitaremos duplicados por email.</p>
           </div>
 
           <form class="newsletter-form" (ngSubmit)="submitNewsletter()">
@@ -213,6 +220,16 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
         </div>
 
         <div class="container footer-bottom">
+          <a class="footer-identity" routerLink="/" [attr.aria-label]="brand.name">
+            <img
+              *ngIf="brandLogoAvailable(); else footerBrandFallback"
+              class="brand-logo brand-logo-footer"
+              [src]="brandLogo()"
+              [alt]="brand.name"
+              (error)="markBrandLogoUnavailable()" />
+            <ng-template #footerBrandFallback><strong>{{ brand.name }}</strong></ng-template>
+            <span>{{ brand.slogan }}</span>
+          </a>
           <nav class="legal-footer" aria-label="Enlaces legales">
             <a *ngFor="let link of legalLinks" [routerLink]="['/legal', link.slug]">{{ link.title }}</a>
             <button type="button" (click)="resetCookieConsent()">Configurar cookies</button>
@@ -236,7 +253,7 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
     `.nav-left,.nav-right{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto}`,
     `.nav-right{justify-content:flex-end}`,
     `.nav-center{text-align:center;flex:1 1 auto;min-width:0;text-decoration:none;color:var(--text-main);overflow:hidden}`,
-    `.logo{font-size:clamp(.95rem,4.2vw,1.1rem);font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+    `.brand-logo{display:block;max-width:100%;object-fit:contain}.brand-logo-header{width:auto;height:clamp(34px,5vw,46px);margin:auto}.brand-wordmark{display:block;font-size:clamp(1rem,4.5vw,1.25rem);font-weight:900;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
     `.icon-btn{background:transparent;border:none;color:var(--text-main);cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
     `.cart-box{position:relative;width:34px;height:34px;padding:0;display:inline-grid;place-items:center;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
@@ -286,6 +303,7 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
     `.newsletter-consent input{margin-top:.18rem;width:18px;height:18px}`,
     `.newsletter-consent a{color:var(--accent-green);font-weight:900}`,
     `.footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.8rem}`,
+    `.footer-identity{display:grid;gap:.05rem;flex:0 0 auto;color:var(--text-main);text-decoration:none}.footer-identity strong{font-size:.9rem;letter-spacing:.08em}.footer-identity span{color:var(--text-soft);font-size:.66rem}.brand-logo-footer{width:auto;height:52px}`,
     `.legal-footer{display:flex;gap:.35rem .7rem;justify-content:flex-start;flex-wrap:wrap}`,
     `.legal-footer a,.legal-footer button{border:0;padding:.15rem 0;background:transparent;color:var(--text-soft);font-size:.75rem;text-decoration:underline;cursor:pointer;font-weight:700}`,
     `.legal-footer a:hover,.legal-footer a:focus-visible,.legal-footer button:hover,.legal-footer button:focus-visible{color:var(--accent-green);outline:2px solid color-mix(in srgb,var(--accent-green) 35%,transparent);outline-offset:3px;border-radius:6px}`,
@@ -294,9 +312,9 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
     `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:3px 0;padding-top:max(3px,env(safe-area-inset-top))}.logo{font-size:.9rem}.icon-btn,.cart-box,.theme-btn{width:40px;height:40px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:3px 0;padding-top:max(3px,env(safe-area-inset-top))}.brand-logo-header{height:34px}.brand-wordmark{font-size:.95rem}.icon-btn,.cart-box,.theme-btn{width:40px;height:40px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.brand-logo-footer{height:44px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none}}`,
-    `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.logo{font-size:1.3rem}}`
+    `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}}`
   ]
 })
 export class AppComponent {
@@ -305,8 +323,12 @@ export class AppComponent {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly themeService = inject(ThemeService);
   private readonly productCategories = inject(ProductCategoryService);
+  private readonly activatedRoute = inject(ActivatedRoute);
 
   readonly theme = this.themeService.mode;
+  readonly brand = BRAND_CONFIG;
+  readonly brandLogo = computed(() => getBrandLogo(this.theme()));
+  readonly brandLogoAvailable = signal(BRAND_CONFIG.logos.available);
   readonly menuOpen = signal(false);
   readonly userMenuOpen = signal(false);
   readonly searchOpen = signal(false);
@@ -339,6 +361,18 @@ export class AppComponent {
     private readonly seo: SeoService
   ) {
     this.seo.setOrganizationAndWebsiteSchema();
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationStart) {
+        this.seo.clearPageMetadata();
+      }
+
+      if (event instanceof NavigationEnd) {
+        let route = this.activatedRoute;
+        while (route.firstChild) route = route.firstChild;
+        const routeMeta = route.snapshot.data['seo'] as SeoMetaInput | undefined;
+        if (routeMeta) this.seo.setPageMeta(routeMeta);
+      }
+    });
     void this.customerAuth.restoreSession();
     void this.productCategories.loadPublicCategories().catch(() => undefined);
   }
@@ -464,6 +498,10 @@ export class AppComponent {
 
   toggleTheme(): void {
     this.themeService.toggle();
+  }
+
+  markBrandLogoUnavailable(): void {
+    this.brandLogoAvailable.set(false);
   }
 
   logoutCustomer(): void {

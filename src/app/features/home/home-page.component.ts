@@ -14,6 +14,7 @@ import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
+import { BRAND_CONFIG } from '../../core/config/brand.config';
 
 @Component({
   standalone: true,
@@ -31,6 +32,7 @@ export class HomePageComponent {
   private readonly productCategories = inject(ProductCategoryService);
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
+  readonly brand = BRAND_CONFIG;
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=1200';
   readonly localZone = SHIPPING_ZONES[0];
   readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
@@ -76,7 +78,7 @@ export class HomePageComponent {
 
   productImageAlt(product: Product): string {
     const category = this.categoryLabel(product.category);
-    return `${product.name}${category ? ` de la categoría ${category}` : ''} en Rico Sabor Cubano`;
+    return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${this.brand.name}`;
   }
 
   addToCart(product: Product): void {
@@ -110,8 +112,8 @@ export class HomePageComponent {
 
   private updateSeo(): void {
     this.seo.setPageMeta({
-      title: 'Tartas personalizadas y comida casera por encargo',
-      description: 'Encarga tartas personalizadas para cumpleaños, eventos y celebraciones, comida cubana tradicional y platos españoles caseros en Rico Sabor Cubano.',
+      title: `${this.brand.name} | ${this.brand.slogan}`,
+      description: `Encarga en ${this.brand.name} tartas personalizadas, comida cubana tradicional, platos españoles caseros y propuestas para cumpleaños, eventos y celebraciones.`,
       path: '/',
       canonicalPath: '/',
       type: 'website'

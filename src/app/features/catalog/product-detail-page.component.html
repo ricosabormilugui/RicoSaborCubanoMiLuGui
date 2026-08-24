@@ -40,7 +40,7 @@
               <div class="price-breakdown" *ngIf="selectedPricedOptions().length">
                 <span *ngFor="let option of selectedPricedOptions()"><span>{{ option.name }}</span><strong>+{{ optionPriceModifier(option) | currency:'EUR' }}</strong></span>
               </div>
-              <p class="description">{{ product()!.description || 'Producto casero preparado por Rico Sabor Cubano.' }}</p>
+              <p class="description">{{ product()!.description || ('Producto casero preparado por ' + brand.name + '.') }}</p>
               <p class="sale-note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
 
               <section class="cake-config" *ngIf="isCustomCake(product()!) && customizationGroups(product()!).length">
@@ -70,7 +70,7 @@
           <section class="detail-sections">
             <article class="info-card card">
               <h2>Descripción</h2>
-              <p>{{ product()!.description || 'Producto artesanal preparado por Rico Sabor Cubano.' }}</p>
+              <p>{{ product()!.description || ('Producto artesanal preparado por ' + brand.name + '.') }}</p>
             </article>
             <article class="info-card card" *ngIf="productIngredients(product()!).length">
               <h2>Ingredientes</h2>

@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { SEO_SITE_CONFIG } from '../config/seo.config';
+import { BRAND_CONFIG } from '../config/brand.config';
 
 export interface SeoMetaInput {
   title: string;
@@ -78,12 +79,21 @@ export class SeoService {
     this.document.getElementById(`jsonld-${id}`)?.remove();
   }
 
+  clearPageMetadata(): void {
+    this.removeJsonLd('product');
+    this.removeJsonLd('breadcrumb');
+    this.meta.removeTag('property="product:price:amount"');
+    this.meta.removeTag('property="product:price:currency"');
+    this.meta.removeTag('property="product:availability"');
+  }
+
   setOrganizationAndWebsiteSchema(): void {
     this.setJsonLd('site', [
       {
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: this.site.business.name,
+        slogan: BRAND_CONFIG.slogan,
         legalName: this.site.business.legalName,
         url: this.absoluteUrl('/'),
         email: this.site.business.email,

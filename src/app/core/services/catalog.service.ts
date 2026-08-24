@@ -123,7 +123,7 @@ const fallbackProducts: Product[] = [
     imageUrl: 'https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?w=900',
     images: ['https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?w=900'],
     ingredients: ['Bizcocho', 'Tres leches', 'Merengue'],
-    reviews: [{ author: 'Cliente Rico Sabor', rating: 5, comment: 'Muy jugosa y perfecta para compartir.' }],
+    reviews: [{ author: 'Cliente verificado', rating: 5, comment: 'Muy jugosa y perfecta para compartir.' }],
     customizationOptions: {
       themes: [{ name: 'Cumpleaños' }, { name: 'Celebración familiar' }],
       colors: [{ name: 'Blanco' }, { name: 'Rojo' }],

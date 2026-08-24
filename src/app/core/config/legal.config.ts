@@ -1,4 +1,5 @@
 import { LEGAL_NAV_LINKS } from './legal-links.config';
+import { BRAND_CONFIG } from './brand.config';
 
 export interface LegalBusinessConfig {
   tradeName: string;
@@ -25,7 +26,7 @@ export interface LegalDocument {
 }
 
 export const LEGAL_BUSINESS_CONFIG: LegalBusinessConfig = {
-  tradeName: 'Rico Sabor Cubano',
+  tradeName: BRAND_CONFIG.name,
   legalName: 'PENDIENTE_CONFIGURAR_RAZON_SOCIAL',
   taxId: 'PENDIENTE_CONFIGURAR_CIF_NIF',
   fiscalAddress: 'PENDIENTE_CONFIGURAR_DIRECCION_FISCAL',

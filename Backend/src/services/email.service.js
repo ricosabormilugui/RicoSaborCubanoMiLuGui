@@ -1,3 +1,5 @@
+import { BRAND_CONFIG } from "../config/brand.config.js";
+
 function getRequiredEnv(name) {
   const value = process.env[name];
   if (!value) {
@@ -153,7 +155,8 @@ function buildCustomerOrderEmail(order) {
     <div style="background:#f7f3ea;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#2f2f2f;">
       <div style="max-width:650px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #f0e6d4;">
         <div style="background:#4e2f1f;color:#fff;padding:20px 24px;">
-          <h1 style="margin:0;font-size:24px;">Rico Sabor Cubano</h1>
+          <h1 style="margin:0;font-size:24px;">${BRAND_CONFIG.name}</h1>
+          <p style="margin:4px 0 0;font-size:13px;opacity:.9;">${BRAND_CONFIG.slogan}</p>
           <p style="margin:6px 0 0;font-size:14px;opacity:.95;">Pedido recibido · pendiente de pago</p>
         </div>
 
@@ -243,7 +246,7 @@ export async function sendOrderEmail(order) {
   await sendEmail(apiKey, {
     from,
     to: [to],
-    subject: `Nuevo pedido ${order.orderId} · pendiente de pago · Rico Sabor Cubano`,
+    subject: `Nuevo pedido ${order.orderId} · pendiente de pago · ${BRAND_CONFIG.name}`,
     html: `
       <h2>Nuevo pedido: ${escapeHtml(order.orderId)}</h2>
       <p><strong>Fecha/hora:</strong> ${formatDateTime(order.createdAt)}</p>
@@ -277,7 +280,7 @@ export async function sendOrderEmail(order) {
   await sendEmail(apiKey, {
     from,
     to: [customerEmail],
-    subject: `Pedido recibido ${order.orderId} · pendiente de pago · Rico Sabor Cubano`,
+    subject: `Pedido recibido ${order.orderId} · pendiente de pago · ${BRAND_CONFIG.name}`,
     html: buildCustomerOrderEmail(order)
   });
 }
@@ -291,7 +294,7 @@ export async function sendOrderEmail(order) {
     body: JSON.stringify({
       from,
       to: [to],
-      subject: `Nuevo pedido ${order.orderId} · MiLuGui`,
+      subject: `Nuevo pedido ${order.orderId} · ${BRAND_CONFIG.name}`,
       html: `
         <h2>Nuevo pedido: ${order.orderId}</h2>
         <p><strong>Cliente:</strong> ${order.customer?.fullName ?? "N/A"}</p>
@@ -379,7 +382,7 @@ export async function sendDirectEmail({ to, subject, text, html } = {}) {
   await sendEmail(apiKey, {
     from,
     to: [target],
-    subject: subject || "Mensaje · Rico Sabor Cubano",
+    subject: subject || `Mensaje · ${BRAND_CONFIG.name}`,
     text: String(text ?? ""),
     html: html || undefined
   });
@@ -393,7 +396,7 @@ export async function sendPasswordResetEmail({ to, fullName, resetUrl, expiresIn
 
   await sendDirectEmail({
     to,
-    subject: "Restablece tu contraseña · Rico Sabor Cubano",
+    subject: `Restablece tu contraseña · ${BRAND_CONFIG.name}`,
     text: [
       `Hola ${recipientName},`,
       "",
@@ -407,7 +410,8 @@ export async function sendPasswordResetEmail({ to, fullName, resetUrl, expiresIn
       <div style="background:#f7f3ea;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#2f2f2f;">
         <div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #f0e6d4;border-radius:12px;overflow:hidden;">
           <div style="background:#4e2f1f;color:#fff;padding:20px 24px;">
-            <h1 style="margin:0;font-size:24px;">Rico Sabor Cubano</h1>
+            <h1 style="margin:0;font-size:24px;">${BRAND_CONFIG.name}</h1>
+            <p style="margin:4px 0 0;font-size:13px;opacity:.9;">${BRAND_CONFIG.slogan}</p>
           </div>
           <div style="padding:24px;">
             <p>Hola <strong>${safeName}</strong>,</p>
@@ -440,7 +444,7 @@ export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
   await sendEmail(apiKey, {
     from,
     to: [customerEmail],
-    subject: `Actualización de tu pedido ${order?.orderId ?? ""} · MiLuGui`,
+    subject: `Actualización de tu pedido ${order?.orderId ?? ""} · ${BRAND_CONFIG.name}`,
     html: `
       <div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
         <h2 style="margin-bottom:12px;">Tu pedido ${escapeHtml(order?.orderId ?? "")} ha cambiado de estado</h2>
@@ -448,7 +452,7 @@ export async function sendOrderStatusEmail(order, { status, statusNote } = {}) {
         <p>El nuevo estado de tu pedido es: <strong>${statusLabel}</strong>.</p>
         <p><strong>Entrega:</strong> ${deliveryDate} · ${deliverySlot}</p>
         ${note}
-        <p style="margin-top:18px;">Gracias por confiar en MiLuGui.</p>
+        <p style="margin-top:18px;">Gracias por confiar en ${BRAND_CONFIG.name}.</p>
       </div>
     `
   });

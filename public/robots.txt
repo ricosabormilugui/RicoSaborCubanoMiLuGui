@@ -5,5 +5,9 @@ Disallow: /admin/
 Disallow: /checkout
 Disallow: /carrito
 Disallow: /mis-pedidos
+Disallow: /login
+Disallow: /registro
+Disallow: /recuperar-contrasena
+Disallow: /reset-password
 
 Sitemap: https://ricosaborcubano.com/sitemap.xml

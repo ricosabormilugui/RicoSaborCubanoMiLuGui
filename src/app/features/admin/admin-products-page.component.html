@@ -14,7 +14,7 @@
       <div>
         <span class="page-kicker">Catálogo</span>
         <h1>{{ editId() ? 'Editar producto' : 'Crear producto' }}</h1>
-        <p>{{ editId() ? 'Actualiza la información del producto sin cambiar su identidad.' : 'Añade un nuevo producto al catálogo de Rico Sabor Cubano.' }}</p>
+        <p>{{ editId() ? 'Actualiza la información del producto sin cambiar su identidad.' : 'Añade un nuevo producto al catálogo de ' + brand.name + '.' }}</p>
       </div>
       <div class="page-actions">
         <button class="action-button secondary" type="button" (click)="showProductManagement()">Ver productos creados</button>

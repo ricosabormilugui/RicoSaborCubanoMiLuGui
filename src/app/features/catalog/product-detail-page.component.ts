@@ -10,6 +10,7 @@ import { findProductBySlugOrId, getProductRoute, selectBestSellers } from '../..
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
+import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
@@ -33,6 +34,7 @@ import {
 })
 export class ProductDetailPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
+  readonly brand = BRAND_CONFIG;
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=900';
   readonly productParam = signal('');
   readonly quantity = signal(1);
@@ -66,7 +68,7 @@ export class ProductDetailPageComponent {
   setQuantity(value: number | string): void { const parsed = Number(value); const minimum = this.product() ? this.minimumQuantity(this.product()!) : 1; this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.max(minimum, Math.min(99, Math.floor(parsed))) : minimum); }
   productRoute(product: Product): string[] { return getProductRoute(product); }
   categoryLabel(value: string): string { return this.productCategories.labelFor(value) || getProductCategoryLabel(value); }
-  productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en Rico Sabor Cubano`; }
+  productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`; }
   productImages(product: Product): string[] { return Array.from(new Set([product.imageUrl, ...(product.images ?? [])].map((image) => String(image ?? '').trim()).filter(Boolean))); }
   productIngredients(product: Product): string[] { return Array.isArray(product.ingredients) ? product.ingredients.filter(Boolean) : []; }
   productReviews(product: Product) { return Array.isArray(product.reviews) ? product.reviews : []; }
@@ -121,14 +123,14 @@ export class ProductDetailPageComponent {
 
   private updateSeo(): void {
     const product = this.product();
-    if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: 'No encontramos el producto solicitado en el catálogo de Rico Sabor Cubano.', path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); return; }
+    if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`, path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); return; }
     const route = this.productRoute(product).join('/').replace('//', '/');
     const categoryLabel = this.categoryLabel(product.category);
-    const description = product.description || `${product.name} de Rico Sabor Cubano. Producto casero disponible para pedido manual con entrega local o recogida.`;
+    const description = product.description || `${product.name} de ${BRAND_CONFIG.name}. Producto casero disponible para pedido manual con entrega local o recogida.`;
     const images = this.productImages(product);
     const image = images[0] || SEO_SITE_CONFIG.defaultImage;
     this.seo.setPageMeta({ title: `${product.name} · ${categoryLabel}`, description, path: route, canonicalPath: route, image, type: 'product', price: Number(product.price ?? 0), currency: 'EUR', availability: product.available === false ? 'out of stock' : 'in stock' });
-    this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([{ name: 'Inicio', path: '/' }, { name: 'Productos', path: '/productos' }, { name: categoryLabel, path: `/productos?category=${encodeURIComponent(normalizeCategorySlug(product.category))}` }, { name: product.name, path: route }]));
+    this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([{ name: 'Inicio', path: '/' }, { name: 'Productos', path: '/productos' }, { name: categoryLabel, path: `/categoria/${encodeURIComponent(normalizeCategorySlug(product.category))}` }, { name: product.name, path: route }]));
     this.seo.setJsonLd('product', { '@context': 'https://schema.org', '@type': 'Product', name: product.name, description, image: images.length ? images.map((item) => this.seo.absoluteUrl(item)) : [this.seo.absoluteUrl(image)], category: categoryLabel, sku: product.id, offers: { '@type': 'Offer', price: Number(product.price ?? 0).toFixed(2), priceCurrency: 'EUR', availability: product.available === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock', url: this.seo.absoluteUrl(route), seller: { '@type': 'Organization', name: SEO_SITE_CONFIG.siteName } } });
   }
 }

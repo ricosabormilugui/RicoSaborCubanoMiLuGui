@@ -1,4 +1,4 @@
-# Rico Sabor Cubano · Tienda en Angular (sin pasarela de pago)
+# MIXSABOR · Sabores que se encuentran
 
 Proyecto base para una tienda web en **Angular + TypeScript** con backend serverless en **Netlify** y backend **Node/Express desplegado en Render**.
 
@@ -117,7 +117,7 @@ NOTIFY_EMAIL_TO
 Ejemplo:
 
 ```
-NOTIFY_EMAIL_FROM="Pedidos MiLuGui <pedidos@tudominio.com>"
+NOTIFY_EMAIL_FROM="Pedidos MIXSABOR <pedidos@tudominio.com>"
 NOTIFY_EMAIL_TO=ventas@tudominio.com
 ```
 

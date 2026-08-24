@@ -12,6 +12,7 @@ import { SeoService } from '../../core/services/seo.service';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
+import { BRAND_CONFIG } from '../../core/config/brand.config';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
@@ -181,19 +182,19 @@ export class CatalogPageComponent implements OnDestroy {
 
   productImageAlt(product: Product): string {
     const category = this.categoryLabel(product.category);
-    return `${product.name}${category ? ` de la categoría ${category}` : ''} en Rico Sabor Cubano`;
+    return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`;
   }
 
   private updateSeo(): void {
     const category = this.category();
     const categoryLabel = category ? this.categoryLabel(category) : '';
-    const path = category ? `/productos?category=${encodeURIComponent(category)}` : '/productos';
+    const path = category ? `/categoria/${encodeURIComponent(category)}` : '/productos';
     const title = category
-      ? `${categoryLabel} de comida cubana`
-      : 'Productos de comida cubana a domicilio y recogida';
+      ? `${categoryLabel} del catálogo`
+      : 'Productos, tartas y comida casera por encargo';
     const description = category
-      ? `Compra ${categoryLabel.toLowerCase()} de Rico Sabor Cubano con pedido manual, entrega local o recogida y confirmación por el equipo.`
-      : `Explora el catálogo completo de Rico Sabor Cubano con buscador, filtros por categoría y platos caseros para añadir al carrito.`;
+      ? `Compra ${categoryLabel.toLowerCase()} de ${BRAND_CONFIG.name} con pedido manual, entrega local o recogida y confirmación por el equipo.`
+      : `Explora el catálogo completo de ${BRAND_CONFIG.name}: tartas, platos cubanos y españoles, dulces y encargos con entrega o recogida.`;
 
     this.seo.setPageMeta({
       title,

@@ -1,4 +1,4 @@
-# Estrategia SSR/prerender para Rico Sabor Cubano
+# Estrategia SSR/prerender para MIXSABOR
 
 ## Estado auditado
 
