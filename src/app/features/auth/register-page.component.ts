@@ -31,7 +31,7 @@ import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/conf
     </section>
   `,
   styles: [
-    `.auth-card{width:100%;max-width:720px;margin:40px auto;padding:30px}`,
+    `.auth-card{width:100%;max-width:720px;margin:clamp(1rem,4vw,2rem) auto;padding:clamp(1rem,3vw,1.5rem)}h1{margin:.1rem 0 .5rem;font-size:var(--title-section)}`,
     `.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin-bottom:.8rem}`,
     `.password-field{position:relative}`,
     `.password-field input{width:100%;padding-right:3rem}`,
@@ -43,7 +43,7 @@ import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/conf
     `.auth-help a:hover,.auth-help a:focus-visible{color:var(--text-main);outline:2px solid color-mix(in srgb, var(--accent-green) 55%, transparent);outline-offset:3px;border-radius:4px}`,
     `.err{color:var(--error-text)}`,
     `.ok{color:var(--ok-text)}`,
-    `@media(max-width:900px){.grid{grid-template-columns:1fr}.auth-card{padding:20px}}`
+    `@media(max-width:900px){.grid{grid-template-columns:1fr}}@media(max-width:640px){.auth-card>.btn{width:100%;min-height:44px}}`
   ]
 })
 export class RegisterPageComponent {

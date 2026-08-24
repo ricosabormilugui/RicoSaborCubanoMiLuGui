@@ -172,8 +172,8 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
         </div>
       </main>
 
-      <footer class="site-footer">
-        <div class="container footer-grid">
+      <footer class="site-footer" [class.has-newsletter]="isHome()">
+        <div class="container footer-grid" *ngIf="isHome()">
           <div>
             <p class="eyebrow">Newsletter</p>
             <h2>10% descuento en tu primer pedido</h2>
@@ -181,17 +181,23 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
           </div>
 
           <form class="newsletter-form" (ngSubmit)="submitNewsletter()">
-            <label>
-              Email
-              <input
-                name="newsletterEmail"
-                type="email"
-                autocomplete="email"
-                required
-                [ngModel]="newsletterEmail()"
-                (ngModelChange)="newsletterEmail.set($event)"
-                placeholder="tu@email.com" />
-            </label>
+            <div class="newsletter-email-row">
+              <label>
+                Email
+                <input
+                  name="newsletterEmail"
+                  type="email"
+                  autocomplete="email"
+                  required
+                  [ngModel]="newsletterEmail()"
+                  (ngModelChange)="newsletterEmail.set($event)"
+                  placeholder="tu@email.com" />
+              </label>
+              <button class="btn btn-primary" type="submit" [disabled]="newsletterLoading()">
+                {{ newsletterLoading() ? 'Guardando...' : 'Activar cupón' }}
+                <app-icon *ngIf="!newsletterLoading()" name="arrow" [size]="16" />
+              </button>
+            </div>
             <label class="newsletter-consent">
               <input
                 name="newsletterConsent"
@@ -201,44 +207,36 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
                 (ngModelChange)="newsletterConsent.set($event)" />
               <span>Acepto recibir promociones y comunicaciones comerciales. He leído la <a routerLink="/legal/privacidad">política de privacidad</a> y podré solicitar la baja en cualquier momento.</span>
             </label>
-            <button class="btn btn-primary" type="submit" [disabled]="newsletterLoading()">
-              {{ newsletterLoading() ? 'Guardando...' : 'Activar cupón' }}
-              <app-icon *ngIf="!newsletterLoading()" name="arrow" [size]="16" />
-            </button>
             <p class="ok" *ngIf="newsletterNotice()">{{ newsletterNotice() }}</p>
             <p class="err" *ngIf="newsletterError()">{{ newsletterError() }}</p>
           </form>
         </div>
 
-        <nav class="legal-footer" aria-label="Enlaces legales">
-          <a *ngFor="let link of legalLinks" [routerLink]="['/legal', link.slug]">{{ link.title }}</a>
-          <button type="button" (click)="resetCookieConsent()">Configurar cookies</button>
-        </nav>
+        <div class="container footer-bottom">
+          <nav class="legal-footer" aria-label="Enlaces legales">
+            <a *ngFor="let link of legalLinks" [routerLink]="['/legal', link.slug]">{{ link.title }}</a>
+            <button type="button" (click)="resetCookieConsent()">Configurar cookies</button>
+          </nav>
+          <a class="whatsapp-link" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer">
+            <app-icon name="whatsapp" [size]="18" />
+            <span>Contactar por WhatsApp</span>
+          </a>
+        </div>
       </footer>
-
-      <a
-        class="whatsapp-float"
-        *ngIf="showWhatsAppFloat()"
-        [href]="whatsappUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Escribir por WhatsApp">
-        <app-icon name="whatsapp" [size]="26" />
-      </a>
 
       <app-cookie-banner />
       <app-notifications />
     </div>
   `,
   styles: [
-    `.top-banner{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--accent-red);text-align:center;padding:6px 12px;font-size:14px;color:var(--on-accent);font-weight:700}`,
+    `.top-banner{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--accent-red);text-align:center;padding:5px 12px;font-size:.78rem;line-height:1.2;color:var(--on-accent);font-weight:750}`,
     `.app-shell{width:100%;min-height:100vh;display:flex;flex-direction:column}`,
-    `.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0;width:100%;max-width:100%;min-width:0;overflow-x:clip;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
+    `.navbar{display:flex;align-items:center;justify-content:space-between;padding:8px 0;width:100%;max-width:100%;min-width:0;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
     `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,2vw,10px);min-width:0;max-width:100%}`,
     `.nav-left,.nav-right{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto}`,
     `.nav-right{justify-content:flex-end}`,
     `.nav-center{text-align:center;flex:1 1 auto;min-width:0;text-decoration:none;color:var(--text-main);overflow:hidden}`,
-    `.logo{font-size:clamp(15px,4.4vw,18px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+    `.logo{font-size:clamp(.95rem,4.2vw,1.1rem);font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
     `.icon-btn{background:transparent;border:none;color:var(--text-main);cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
     `.cart-box{position:relative;width:34px;height:34px;padding:0;display:inline-grid;place-items:center;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
@@ -270,30 +268,35 @@ import { buildWhatsAppContactUrl } from './core/config/whatsapp.config';
     `.result span{color:var(--text-soft);font-size:.85rem}`,
     `.result:hover,.result:focus-visible{background:var(--surface-2)}`,
     `.no-results{padding:.7rem;color:var(--text-soft);font-weight:700}`,
-    `.page-content{width:100%;max-width:none;margin:0;padding:clamp(16px,4vw,40px) 0;flex:1}`,
+    `.page-content{width:100%;max-width:none;margin:0;padding:clamp(.9rem,3vw,1.75rem) 0;flex:1}`,
     `.page-content.is-flush{padding:0}`,
     `.container.is-flush{max-width:none;padding:0}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
-    `.whatsapp-float{position:fixed;right:18px;bottom:18px;z-index:70;width:56px;height:56px;display:grid;place-items:center;border-radius:50%;background:#25d366;color:#fff;box-shadow:0 10px 24px rgba(0,0,0,.28);transition:transform .16s ease,filter .16s ease}`,
-    `.whatsapp-float:hover,.whatsapp-float:focus-visible{transform:translateY(-2px);filter:brightness(1.06);outline:3px solid color-mix(in srgb,var(--accent-green) 50%,transparent);outline-offset:3px}`,
-    `.site-footer{border-top:1px solid var(--border-soft);background:color-mix(in srgb,var(--surface-0) 88%,var(--bg-main) 12%);padding:clamp(20px,4vw,36px) 0}`,
-    `.footer-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,460px);gap:1rem;align-items:start}`,
-    `.site-footer h2{margin:.2rem 0 .45rem;color:var(--text-main)}`,
-    `.footer-copy{margin:0;color:var(--text-soft);line-height:1.5}`,
-    `.newsletter-form{display:grid;gap:.65rem;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:16px;padding:1rem;color:var(--text-main)}`,
-    `.newsletter-form label{display:grid;gap:.35rem;font-weight:800}`,
-    `.newsletter-form input[type="email"]{border:1px solid var(--border-soft);border-radius:12px;padding:.72rem;background:var(--surface-0);color:var(--text-main)}`,
-    `.newsletter-consent{display:flex!important;align-items:flex-start;gap:.55rem;color:var(--text-soft);font-weight:700!important}`,
+    `.site-footer{border-top:1px solid var(--border-soft);background:color-mix(in srgb,var(--surface-0) 88%,var(--bg-main) 12%);padding:clamp(1.1rem,2.6vw,1.75rem) 0}`,
+    `.footer-grid{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr);gap:clamp(.8rem,2vw,1.4rem);align-items:center}`,
+    `.site-footer .eyebrow{margin:0 0 .2rem;color:var(--accent-red);font-size:.72rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}`,
+    `.site-footer h2{margin:0 0 .3rem;color:var(--text-main);font-size:var(--title-section);line-height:1.12}`,
+    `.footer-copy{max-width:48ch;margin:0;color:var(--text-soft);font-size:.88rem;line-height:1.45}`,
+    `.newsletter-form{display:grid;gap:.52rem;background:var(--surface-1);border:1px solid var(--border-soft);border-radius:var(--radius-card);padding:.8rem;color:var(--text-main)}`,
+    `.newsletter-email-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.6rem;align-items:end}`,
+    `.newsletter-form label{display:grid;gap:.28rem;font-size:.82rem;font-weight:800}`,
+    `.newsletter-form input[type="email"]{width:100%;border:1px solid var(--border-soft);border-radius:10px;padding:.62rem .72rem;background:var(--surface-0);color:var(--text-main)}`,
+    `.newsletter-email-row .btn{min-height:44px}`,
+    `.newsletter-consent{display:flex!important;align-items:flex-start;gap:.5rem;color:var(--text-soft);font-size:.76rem;line-height:1.4;font-weight:650!important}`,
     `.newsletter-consent input{margin-top:.18rem;width:18px;height:18px}`,
     `.newsletter-consent a{color:var(--accent-green);font-weight:900}`,
-    `.legal-footer{display:flex;gap:.55rem;justify-content:center;flex-wrap:wrap;margin-top:1rem}`,
-    `.legal-footer a,.legal-footer button{border:0;background:transparent;color:var(--text-soft);text-decoration:underline;cursor:pointer;font-weight:800}`,
+    `.footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.8rem}`,
+    `.legal-footer{display:flex;gap:.35rem .7rem;justify-content:flex-start;flex-wrap:wrap}`,
+    `.legal-footer a,.legal-footer button{border:0;padding:.15rem 0;background:transparent;color:var(--text-soft);font-size:.75rem;text-decoration:underline;cursor:pointer;font-weight:700}`,
     `.legal-footer a:hover,.legal-footer a:focus-visible,.legal-footer button:hover,.legal-footer button:focus-visible{color:var(--accent-green);outline:2px solid color-mix(in srgb,var(--accent-green) 35%,transparent);outline-offset:3px;border-radius:6px}`,
+    `.whatsapp-link{display:inline-flex;align-items:center;justify-content:center;gap:.42rem;flex:0 0 auto;min-height:40px;padding:.45rem .75rem;border:1px solid color-mix(in srgb,#25d366 55%,var(--border-soft));border-radius:var(--radius-pill);background:color-mix(in srgb,#25d366 12%,var(--surface-1));color:var(--text-main);font-size:.8rem;font-weight:800;text-decoration:none}`,
+    `.whatsapp-link:hover,.whatsapp-link:focus-visible{border-color:#25d366;background:color-mix(in srgb,#25d366 20%,var(--surface-1));outline:3px solid color-mix(in srgb,#25d366 32%,transparent);outline-offset:2px}`,
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:12px;padding:7px 10px;line-height:1.3}.navbar{padding:8px 0;padding-top:max(8px,env(safe-area-inset-top))}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px}.search-modal{padding:12px;padding-top:max(12px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.whatsapp-float{right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));width:52px;height:52px}.side-menu{padding-top:max(20px,env(safe-area-inset-top));width:min(320px,calc(100vw - 16px))}.site-footer h2{font-size:clamp(1.25rem,6vw,1.55rem)}.newsletter-form .btn{width:100%}.legal-footer{padding:0 8px}}`,
+    `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:3px 0;padding-top:max(3px,env(safe-area-inset-top))}.logo{font-size:.9rem}.icon-btn,.cart-box,.theme-btn{width:40px;height:40px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none}}`,
-    `@media (min-width:768px){.desktop-only{display:flex;gap:8px}.mobile-only{display:none}.logo{font-size:24px}}`
+    `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.logo{font-size:1.3rem}}`
   ]
 })
 export class AppComponent {
@@ -476,10 +479,6 @@ export class AppComponent {
 
   isHome(): boolean {
     return this.router.url.split('?')[0] === '/';
-  }
-
-  showWhatsAppFloat(): boolean {
-    return !this.router.url.startsWith('/admin');
   }
 
   currentRoute(): string {

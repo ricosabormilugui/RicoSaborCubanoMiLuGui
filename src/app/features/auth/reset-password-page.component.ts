@@ -48,7 +48,7 @@ import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/servi
     </section>
   `,
   styles: [
-    `.auth-card{width:100%;max-width:620px;margin:40px auto;padding:30px}h1{margin-top:0}`,
+    `.auth-card{width:100%;max-width:620px;margin:clamp(1rem,4vw,2rem) auto;padding:clamp(1rem,3vw,1.5rem)}h1{margin:.1rem 0 .65rem;font-size:var(--title-section)}`,
     `form{display:grid;gap:.7rem;margin:1rem 0}label{font-weight:700}.hint{color:var(--text-soft);font-size:.92rem;line-height:1.5;margin:0 0 .3rem}`,
     `.password-field{position:relative}.password-field input{width:100%;padding-right:3rem}`,
     `.password-toggle{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:9px;background:transparent;color:var(--text-main);cursor:pointer}`,
@@ -57,7 +57,7 @@ import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/servi
     `.status h2{font-size:1.1rem;margin:0 0 .4rem}.status p{margin:0 0 .8rem}.status a:not(.btn),.back-link{color:var(--accent-green);font-weight:700;text-underline-offset:3px}`,
     `.success{background:color-mix(in srgb,var(--accent-green) 8%,var(--surface-0))}.invalid{background:color-mix(in srgb,var(--error-text) 6%,var(--surface-0))}.err{color:var(--error-text)}`,
     `.back-link{display:inline-block;margin-top:.5rem}`,
-    `@media(max-width:640px){.auth-card{margin:20px auto;padding:20px}.btn{width:100%;text-align:center}}`
+    `@media(max-width:640px){.btn{width:100%;min-height:44px;text-align:center}}`
   ]
 })
 export class ResetPasswordPageComponent {
