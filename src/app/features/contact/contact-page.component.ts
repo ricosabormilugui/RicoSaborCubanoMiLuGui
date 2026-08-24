@@ -21,10 +21,10 @@ import { IconComponent } from '../../shared/ui/icon.component';
         </header>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="contact-form">
-          <input class="input" formControlName="name" placeholder="Nombre" />
-          <input class="input" formControlName="phone" placeholder="Teléfono" />
-          <input class="input" formControlName="email" placeholder="Email" />
-          <textarea class="input" formControlName="message" placeholder="¿Cómo te ayudamos?"></textarea>
+          <input class="input" formControlName="name" aria-label="Nombre" placeholder="Nombre" />
+          <input class="input" formControlName="phone" type="tel" aria-label="Teléfono" placeholder="Teléfono" />
+          <input class="input" formControlName="email" type="email" aria-label="Email" placeholder="Email" />
+          <textarea class="input" formControlName="message" aria-label="Mensaje" placeholder="¿Cómo te ayudamos?"></textarea>
 
           <label class="legal-check">
             <input type="checkbox" formControlName="legalConsent" />

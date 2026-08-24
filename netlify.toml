@@ -15,6 +15,12 @@
   directory = "netlify/functions"
 
 [[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/api-proxy/sitemap.xml"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api-proxy/:splat"
   status = 200

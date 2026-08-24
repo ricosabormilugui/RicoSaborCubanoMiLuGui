@@ -70,9 +70,15 @@ export default async (request: Request): Promise<Response> => {
       body: request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.text()
     });
 
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': response.headers.get('content-type') ?? 'application/json'
+    };
+    const cacheControl = response.headers.get('cache-control');
+    if (cacheControl) responseHeaders['Cache-Control'] = cacheControl;
+
     return new Response(await response.text(), {
       status: response.status,
-      headers: { 'Content-Type': response.headers.get('content-type') ?? 'application/json' }
+      headers: responseHeaders
     });
   } catch {
     return new Response(JSON.stringify({ error: 'Backend unavailable' }), {

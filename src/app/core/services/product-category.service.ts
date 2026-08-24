@@ -4,6 +4,8 @@ import { resolveApiBaseUrl } from '../config/api.config';
 import { ProductCategoryPayload, ProductCategoryRecord } from '../models/product-category.model';
 import { AdminAuthService } from './admin-auth.service';
 
+const PUBLIC_CATEGORIES_CACHE_MS = 5 * 60_000;
+
 export class ProductCategoryApiError extends Error {
   constructor(message: string, readonly status: number, readonly productCount?: number) {
     super(message);
@@ -36,6 +38,7 @@ function normalizeRecord(value: Partial<ProductCategoryRecord>): ProductCategory
 export class ProductCategoryService {
   private readonly apiBase = resolveApiBaseUrl();
   private publicLoadingRequest: Promise<void> | null = null;
+  private publicLoadedAt = 0;
 
   readonly categories = signal<ProductCategoryRecord[]>(fallbackCategories());
   readonly loading = signal(false);
@@ -49,10 +52,12 @@ export class ProductCategoryService {
 
   async loadPublicCategories({ force = false } = {}): Promise<void> {
     if (this.publicLoadingRequest && !force) return this.publicLoadingRequest;
+    if (!force && this.publicLoadedAt && Date.now() - this.publicLoadedAt < PUBLIC_CATEGORIES_CACHE_MS) return;
     this.loading.set(true);
     this.publicLoadingRequest = this.fetchCategories(`${this.apiBase}/categories`)
       .then((categories) => this.categories.set(categories))
       .finally(() => {
+        this.publicLoadedAt = Date.now();
         this.loading.set(false);
         this.publicLoadingRequest = null;
       });

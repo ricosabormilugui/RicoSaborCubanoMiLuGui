@@ -13,6 +13,7 @@ import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-t
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
@@ -183,6 +184,22 @@ export class CatalogPageComponent implements OnDestroy {
   productImageAlt(product: Product): string {
     const category = this.categoryLabel(product.category);
     return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`;
+  }
+
+  imageUrl(source: string, width: number): string {
+    return optimizedImageUrl(source, width);
+  }
+
+  imageSrcset(source: string, widths: readonly number[]): string | null {
+    return responsiveImageSrcset(source, widths);
+  }
+
+  trackProduct(_index: number, product: Product): string {
+    return product.id;
+  }
+
+  trackCategory(_index: number, category: { slug: string }): string {
+    return category.slug;
   }
 
   private updateSeo(): void {

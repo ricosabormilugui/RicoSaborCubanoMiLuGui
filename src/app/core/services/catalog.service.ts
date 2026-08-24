@@ -4,6 +4,7 @@ import { Product, ProductApiRecord, ProductReview } from '../models/product.mode
 import { normalizeCustomizationOptions } from '../utils/customization-pricing';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
+const PRODUCTS_REQUEST_CACHE_MS = 5 * 60_000;
 
 function normalizeImages(item: Partial<ProductApiRecord> | Partial<Product>): string[] {
   const values = Array.isArray(item.images) ? item.images : [];
@@ -168,12 +169,14 @@ const fallbackProducts: Product[] = [
 export class CatalogService {
   private readonly endpoint = `${resolveApiBaseUrl()}/products`;
   private loadingRequest: Promise<void> | null = null;
+  private lastLoadAt = 0;
 
   readonly products = signal<Product[]>(this.readCachedProducts());
   readonly loading = signal(false);
 
-  async loadProducts(): Promise<void> {
+  async loadProducts({ force = false } = {}): Promise<void> {
     if (this.loadingRequest) return this.loadingRequest;
+    if (!force && this.lastLoadAt && Date.now() - this.lastLoadAt < PRODUCTS_REQUEST_CACHE_MS) return;
 
     this.loading.set(true);
     this.loadingRequest = this.fetchProducts()
@@ -183,6 +186,7 @@ export class CatalogService {
         }
       })
       .finally(() => {
+        this.lastLoadAt = Date.now();
         this.loading.set(false);
         this.loadingRequest = null;
       });

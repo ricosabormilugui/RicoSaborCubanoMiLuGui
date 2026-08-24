@@ -15,6 +15,7 @@ import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-t
 import { IconComponent } from '../../shared/ui/icon.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 
 @Component({
   standalone: true,
@@ -79,6 +80,22 @@ export class HomePageComponent {
   productImageAlt(product: Product): string {
     const category = this.categoryLabel(product.category);
     return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${this.brand.name}`;
+  }
+
+  imageUrl(source: string, width: number): string {
+    return optimizedImageUrl(source, width);
+  }
+
+  imageSrcset(source: string, widths: readonly number[]): string | null {
+    return responsiveImageSrcset(source, widths);
+  }
+
+  trackProduct(_index: number, product: Product): string {
+    return product.id;
+  }
+
+  trackCategory(_index: number, category: { slug: string }): string {
+    return category.slug;
   }
 
   addToCart(product: Product): void {

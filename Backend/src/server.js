@@ -7,6 +7,7 @@ import productsRouter from "./routes/products.routes.js";
 import homeRouter from "./routes/home.routes.js";
 import contactRouter from "./routes/contact.routes.js";
 import newsletterRouter from "./routes/newsletter.routes.js";
+import sitemapRouter from "./routes/sitemap.routes.js";
 import { logger } from "./lib/logger.js";
 
 const app = express();
@@ -54,6 +55,7 @@ app.use("/api", productsRouter);
 app.use("/api", homeRouter);
 app.use("/api", contactRouter);
 app.use("/api", newsletterRouter);
+app.use("/api", sitemapRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 

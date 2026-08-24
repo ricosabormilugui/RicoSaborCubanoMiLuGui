@@ -16,7 +16,7 @@
 .section-eyebrow {
   display: block;
   margin: 0 0 .3rem;
-  color: var(--accent-red);
+  color: var(--accent-red-text);
   font-size: .7rem;
   font-weight: 900;
   letter-spacing: .14em;
@@ -71,7 +71,7 @@
 .price-block { display: flex; align-items: flex-end; justify-content: space-between; gap: .45rem; margin-top: auto; padding-top: .35rem; }
 .price-block span { color: var(--text-soft); font-size: .64rem; font-weight: 800; text-transform: uppercase; }
 .price-block strong { color: var(--text-main); font-size: 1.12rem; line-height: 1.1; }
-.sale-note { color: var(--accent-red); }
+.sale-note { color: var(--accent-red-text); }
 .actions { display: grid; gap: .32rem; padding-top: .18rem; }
 .actions .btn { display: grid; min-height: 44px; place-items: center; padding: .52rem .65rem; font-size: .84rem; }
 .details-link { display: flex; min-height: 32px; align-items: center; justify-content: center; gap: .25rem; color: var(--text-soft); font-size: .78rem; font-weight: 800; text-align: center; text-decoration: none; }

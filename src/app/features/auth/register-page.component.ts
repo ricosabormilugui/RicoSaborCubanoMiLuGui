@@ -14,10 +14,10 @@ import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/conf
       <h1>Crear cuenta</h1>
       <p>También puedes comprar como invitado y registrarte más tarde.</p>
       <div class="grid">
-        <input [(ngModel)]="fullName" placeholder="Nombre completo" autocomplete="name" />
-        <input [(ngModel)]="email" placeholder="Email" autocomplete="email" />
+        <input [(ngModel)]="fullName" aria-label="Nombre completo" placeholder="Nombre completo" autocomplete="name" />
+        <input [(ngModel)]="email" type="email" aria-label="Email" placeholder="Email" autocomplete="email" />
         <div class="password-field">
-          <input [(ngModel)]="password" [type]="showPassword() ? 'text' : 'password'" placeholder="Contraseña" autocomplete="new-password" />
+          <input [(ngModel)]="password" [type]="showPassword() ? 'text' : 'password'" aria-label="Contraseña" placeholder="Contraseña" autocomplete="new-password" />
           <button class="password-toggle" type="button" (click)="togglePassword()" [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'">
             {{ showPassword() ? '🙈' : '👁️' }}
           </button>

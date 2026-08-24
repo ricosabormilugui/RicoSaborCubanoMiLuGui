@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord, ProductCustomizationGroupKey, ProductCustomizationGroupSettings } from '../../core/models/product.model';
@@ -26,6 +26,8 @@ import { BRAND_CONFIG } from '../../core/config/brand.config';
 })
 export class AdminProductsPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
+  private readonly document = inject(DOCUMENT);
+  private deleteDialogReturnFocus: HTMLElement | null = null;
   readonly brand = BRAND_CONFIG;
   email = '';
   password = '';
@@ -213,12 +215,47 @@ export class AdminProductsPageComponent {
       return;
     }
     this.categoryManagementError.set('');
+    this.deleteDialogReturnFocus = this.document.activeElement as HTMLElement | null;
     this.pendingDeleteCategory.set(category);
+    globalThis.setTimeout(() => this.document.getElementById('delete-category-cancel')?.focus());
   }
 
   cancelCategoryDeletion(): void {
     if (this.deletingCategory()) return;
     this.pendingDeleteCategory.set(null);
+    this.restoreDeleteDialogFocus();
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  closeCategoryDeletionOnEscape(event: KeyboardEvent): void {
+    if (!this.pendingDeleteCategory() || this.deletingCategory()) return;
+    event.preventDefault();
+    this.cancelCategoryDeletion();
+  }
+
+  trapDeleteDialogFocus(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') return;
+    const dialog = this.document.getElementById('delete-category-dialog');
+    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"])') ?? []);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && this.document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && this.document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private restoreDeleteDialogFocus(): void {
+    globalThis.setTimeout(() => {
+      const target = this.deleteDialogReturnFocus?.isConnected
+        ? this.deleteDialogReturnFocus
+        : this.document.getElementById('category-management-title');
+      target?.focus();
+    });
   }
 
   async confirmCategoryDeletion(): Promise<void> {
@@ -230,6 +267,7 @@ export class AdminProductsPageComponent {
     try {
       await this.productCategories.deleteCategory(category._id);
       this.pendingDeleteCategory.set(null);
+      this.restoreDeleteDialogFocus();
       if (this.form.category === category.slug) this.form.category = '';
       if (this.categoryFilter() === category.slug) this.categoryFilter.set('');
       this.categoryNotice.set(`Categoría "${category.label}" eliminada.`);
@@ -242,7 +280,10 @@ export class AdminProductsPageComponent {
       this.notifications.error('No se eliminó la categoría', message);
       if (error instanceof ProductCategoryApiError && (error.status === 404 || error.status === 409)) {
         await this.productCategories.loadAdminCategories().catch(() => undefined);
-        if (error.status === 404) this.pendingDeleteCategory.set(null);
+        if (error.status === 404) {
+          this.pendingDeleteCategory.set(null);
+          this.restoreDeleteDialogFocus();
+        }
       }
     } finally {
       this.deletingCategory.set(false);

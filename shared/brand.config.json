@@ -2,8 +2,8 @@
   "name": "MIXSABOR",
   "slogan": "Sabores que se encuentran",
   "logos": {
-    "light": "/assets/branding/mixsabor-logo-light.png",
-    "dark": "/assets/branding/mixsabor-logo-dark.png",
-    "available": false
+    "light": "/assets/branding/logo_mixsabor_light_256.png",
+    "dark": "/assets/branding/logo_mixsabor_dark_256.png",
+    "available": true
   }
 }

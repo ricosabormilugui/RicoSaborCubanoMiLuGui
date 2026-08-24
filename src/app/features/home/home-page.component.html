@@ -23,7 +23,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="heroImage()" [src]="heroImage()" [alt]="'Comida y tartas de ' + brand.name" width="1200" height="900" fetchpriority="high" />
+      <img *ngIf="heroImage()" [src]="imageUrl(heroImage(), 1200)" [attr.srcset]="imageSrcset(heroImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" [alt]="'Comida y tartas de ' + brand.name" width="1200" height="900" fetchpriority="high" />
     </div>
   </section>
 
@@ -46,9 +46,9 @@
       </button>
     </div>
     <div class="collections-track" #collectionsTrack>
-      <a class="collection-card" *ngFor="let category of collections()" [routerLink]="['/categoria', category.slug]">
+      <a class="collection-card" *ngFor="let category of collections(); trackBy: trackCategory" [routerLink]="['/categoria', category.slug]">
         <span class="collection-photo">
-          <img *ngIf="category.imageUrl" [src]="category.imageUrl" [alt]="category.label" width="320" height="200" loading="lazy" decoding="async" />
+          <img *ngIf="category.imageUrl" [src]="imageUrl(category.imageUrl, 480)" [attr.srcset]="imageSrcset(category.imageUrl, [240, 360, 480])" sizes="(max-width: 600px) 45vw, 240px" [alt]="category.label" width="320" height="200" loading="lazy" decoding="async" />
         </span>
         <span class="collection-label">{{ category.label }}</span>
       </a>
@@ -72,7 +72,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="cubanImage()" [src]="cubanImage()" alt="Comida cubana casera" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cubanImage()" [src]="imageUrl(cubanImage(), 1200)" [attr.srcset]="imageSrcset(cubanImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" alt="Comida cubana casera" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -93,7 +93,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="cakesImage()" [src]="cakesImage()" [alt]="'Tartas personalizadas de ' + brand.name" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cakesImage()" [src]="imageUrl(cakesImage(), 1200)" [attr.srcset]="imageSrcset(cakesImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" [alt]="'Tartas personalizadas de ' + brand.name" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -110,7 +110,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="spanishImage()" [src]="spanishImage()" alt="Platos de inspiración española" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="spanishImage()" [src]="imageUrl(spanishImage(), 1200)" [attr.srcset]="imageSrcset(spanishImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" alt="Platos de inspiración española" width="1200" height="900" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -152,9 +152,9 @@
       <a class="section-link" routerLink="/productos">Ver todos los productos</a>
     </div>
     <div class="product-grid">
-      <article class="product-card" *ngFor="let product of bestSellers()">
+      <article class="product-card" *ngFor="let product of bestSellers(); trackBy: trackProduct">
         <a class="product-image" [routerLink]="productRoute(product)" [attr.aria-label]="'Ver detalle de ' + product.name">
-          <img [src]="product.imageUrl || fallbackImage" [alt]="productImageAlt(product)" width="480" height="480" loading="lazy" decoding="async" />
+          <img [src]="imageUrl(product.imageUrl || fallbackImage, 480)" [attr.srcset]="imageSrcset(product.imageUrl, [240, 360, 480])" sizes="(min-width: 900px) 25vw, 80vw" [alt]="productImageAlt(product)" width="480" height="480" loading="lazy" decoding="async" />
         </a>
         <span class="mini-tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
         <a class="product-name" [routerLink]="productRoute(product)">{{ product.name }}</a>

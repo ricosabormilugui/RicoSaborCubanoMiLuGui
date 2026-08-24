@@ -12,12 +12,12 @@ test('caso 1: la configuración central devuelve MIXSABOR y el slogan oficial', 
 
 test('caso 2: el tema claro selecciona el logo para fondo claro', () => {
   const source = read('src/app/core/config/brand.config.ts');
-  assert.equal(brand.logos.light, '/assets/branding/mixsabor-logo-light.png');
+  assert.equal(brand.logos.light, '/assets/branding/logo_mixsabor_light_256.png');
   assert.match(source, /theme === 'dark' \? BRAND_CONFIG\.logos\.dark : BRAND_CONFIG\.logos\.light/);
 });
 
 test('caso 3: el tema oscuro selecciona el logo para fondo oscuro', () => {
-  assert.equal(brand.logos.dark, '/assets/branding/mixsabor-logo-dark.png');
+  assert.equal(brand.logos.dark, '/assets/branding/logo_mixsabor_dark_256.png');
   assert.notEqual(brand.logos.dark, brand.logos.light);
 });
 
@@ -74,11 +74,15 @@ test('caso 10: los emails activos no contienen branding antiguo', () => {
   assert.doesNotMatch(`${email}\n${replies}`, /Rico Sabor|MiLuGui/i);
 });
 
-test('Open Graph, Twitter Cards, sitemap y robots están presentes', () => {
+test('Open Graph, Twitter Cards, sitemap dinámico y robots están presentes', () => {
   const seo = read('src/app/core/services/seo.service.ts');
-  const sitemap = read('public/sitemap.xml');
+  const sitemap = read('Backend/src/services/sitemap.service.js');
+  const netlify = read('netlify.toml');
+  const robots = read('public/robots.txt');
   assert.match(seo, /og:site_name/);
   assert.match(seo, /twitter:card/);
-  assert.match(sitemap, /<loc>https:\/\/ricosaborcubano\.com\/productos<\/loc>/);
-  assert.doesNotMatch(sitemap, /\/(admin|login|registro|checkout|carrito|mis-pedidos)(\/|<)/);
+  assert.match(sitemap, /"\/productos"/);
+  assert.doesNotMatch(sitemap, /"\/(admin|login|registro|checkout|carrito|mis-pedidos)"/);
+  assert.match(netlify, /from = "\/sitemap\.xml"/);
+  assert.match(robots, /Sitemap: https:\/\/ricosaborcubano\.com\/sitemap\.xml/);
 });

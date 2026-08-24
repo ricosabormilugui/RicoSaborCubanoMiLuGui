@@ -14,6 +14,7 @@ import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { SeoService } from '../../core/services/seo.service';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 import {
   buildCartCustomizationSelections,
   calculateCustomizationExtra,
@@ -43,6 +44,7 @@ export class ProductDetailPageComponent {
   readonly customizationError = signal('');
 
   readonly product = computed(() => findProductBySlugOrId(this.catalog.products(), this.productParam()));
+  readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
   readonly isLoadingDetail = computed(() => this.catalog.loading() && !this.product());
   readonly relatedProducts = computed(() => selectBestSellers(this.catalog.products(), 4, this.product()?.id));
 
@@ -70,6 +72,10 @@ export class ProductDetailPageComponent {
   categoryLabel(value: string): string { return this.productCategories.labelFor(value) || getProductCategoryLabel(value); }
   productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`; }
   productImages(product: Product): string[] { return Array.from(new Set([product.imageUrl, ...(product.images ?? [])].map((image) => String(image ?? '').trim()).filter(Boolean))); }
+  imageUrl(source: string, width: number): string { return optimizedImageUrl(source, width); }
+  imageSrcset(source: string, widths: readonly number[]): string | null { return responsiveImageSrcset(source, widths); }
+  trackProduct(_index: number, product: Product): string { return product.id; }
+  trackImage(_index: number, image: string): string { return image; }
   productIngredients(product: Product): string[] { return Array.isArray(product.ingredients) ? product.ingredients.filter(Boolean) : []; }
   productReviews(product: Product) { return Array.isArray(product.reviews) ? product.reviews : []; }
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
@@ -123,7 +129,7 @@ export class ProductDetailPageComponent {
 
   private updateSeo(): void {
     const product = this.product();
-    if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`, path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); return; }
+    if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`, path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); this.seo.removeJsonLd('breadcrumb'); return; }
     const route = this.productRoute(product).join('/').replace('//', '/');
     const categoryLabel = this.categoryLabel(product.category);
     const description = product.description || `${product.name} de ${BRAND_CONFIG.name}. Producto casero disponible para pedido manual con entrega local o recogida.`;

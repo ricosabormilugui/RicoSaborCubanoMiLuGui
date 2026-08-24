@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -95,6 +95,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                     type="tel"
                     inputmode="numeric"
                     autocomplete="tel-national"
+                    aria-label="Número de teléfono"
                     placeholder="644423790"
                     required
                     [class.field-invalid]="isInvalid('phoneNumber')"
@@ -369,12 +370,14 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
     `@media (min-width:560px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.phone-input{grid-template-columns:minmax(110px,150px) minmax(0,1fr)}.coupon-row{grid-template-columns:minmax(0,1fr) auto}.coupon-row .btn{width:auto}.form-actions{grid-template-columns:minmax(0,1fr) auto}.submit-btn{width:auto}.pending-note{justify-self:start}}`,
     `@media (min-width:760px){.checkout-hero{display:flex;justify-content:space-between}.payment-options{grid-template-columns:repeat(3,minmax(0,1fr))}.summary-items{max-height:42vh;overflow:auto;padding-right:.2rem}}`,
     `@media (min-width:981px){.checkout-layout{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}.summary-card{position:sticky;top:86px}}`,
-    `@media (max-width:420px){.section-head{gap:.55rem}.section-head span{flex-basis:28px;height:28px}.slot-buttons{grid-template-columns:1fr}.summary-item{grid-template-columns:minmax(0,1fr)}.summary-item>strong{text-align:left;white-space:normal}}`
+    `@media (max-width:420px){.section-head{gap:.55rem}.section-head span{flex-basis:28px;height:28px}.slot-buttons{grid-template-columns:1fr}.summary-item{grid-template-columns:minmax(0,1fr)}.summary-item>strong{text-align:left;white-space:normal}}`,
+    `@media (prefers-reduced-motion:reduce){.spinner{animation:none}}`
   ]
 })
 export class CheckoutPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
   private readonly apiBaseUrl = resolveApiBaseUrl();
 
   readonly loading = signal(false);
@@ -691,6 +694,7 @@ export class CheckoutPageComponent {
 
     if (!this.form.value.deliveryDate || !this.form.value.deliverySlot) {
       this.notifications.warning('Datos incompletos', 'Selecciona fecha y horario');
+      this.focusFirstInvalidField();
       return;
     }
 
@@ -710,6 +714,7 @@ export class CheckoutPageComponent {
 
     if (this.form.invalid) {
       this.notifications.warning('Revisa el formulario', 'Completa los campos obligatorios y verifica el teléfono.');
+      this.focusFirstInvalidField();
       return;
     }
 
@@ -763,5 +768,17 @@ export class CheckoutPageComponent {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private focusFirstInvalidField(): void {
+    globalThis.setTimeout(() => {
+      const invalid = this.document.querySelector<HTMLElement>('.checkout-form [aria-invalid="true"]');
+      if (!invalid) return;
+      const target = invalid.matches('input, select, textarea, button, [tabindex]')
+        ? invalid
+        : invalid.querySelector<HTMLElement>('input, select, textarea, button, [tabindex]');
+      target?.focus();
+      target?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    });
   }
 }

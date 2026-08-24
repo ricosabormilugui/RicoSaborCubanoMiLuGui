@@ -1,6 +1,4 @@
 import { Routes } from '@angular/router';
-import { CatalogPageComponent } from './features/catalog/catalog-page.component';
-import { HomePageComponent } from './features/home/home-page.component';
 import { adminGuard } from './core/guards/admin.guard';
 import { SeoMetaInput } from './core/services/seo.service';
 import { BRAND_CONFIG } from './core/config/brand.config';
@@ -13,9 +11,9 @@ const privateSeo = (title: string, description: string, canonicalPath: string): 
 });
 
 export const appRoutes: Routes = [
-  { path: '', component: HomePageComponent },
-  { path: 'productos', component: CatalogPageComponent },
-  { path: 'categoria/:category', component: CatalogPageComponent },
+  { path: '', loadComponent: () => import('./features/home/home-page.component').then((m) => m.HomePageComponent) },
+  { path: 'productos', loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent) },
+  { path: 'categoria/:category', loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent) },
   {
     path: 'producto/:slug',
     loadComponent: () => import('./features/catalog/product-detail-page.component').then((m) => m.ProductDetailPageComponent)
@@ -119,5 +117,16 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./features/account/my-orders-page.component').then((m) => m.MyOrdersPageComponent),
     data: { seo: privateSeo('Mis pedidos', `Consulta privada de pedidos asociados a tu cuenta de ${BRAND_CONFIG.name}.`, '/mis-pedidos') }
   },
-  { path: '**', redirectTo: 'productos' }
+  {
+    path: '**',
+    loadComponent: () => import('./features/not-found/not-found-page.component').then((m) => m.NotFoundPageComponent),
+    data: {
+      seo: {
+        title: 'Página no encontrada',
+        description: `La página solicitada no existe o ya no está disponible en ${BRAND_CONFIG.name}.`,
+        canonicalPath: '/404',
+        robots: 'noindex,follow'
+      }
+    }
+  }
 ];

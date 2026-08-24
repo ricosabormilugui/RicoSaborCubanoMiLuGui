@@ -12,9 +12,9 @@ import { NotificationService } from '../../core/services/notification.service';
     <section class="card auth-card">
       <h1>Iniciar sesión</h1>
       <div class="grid">
-        <input [(ngModel)]="email" placeholder="Email" autocomplete="email" />
+        <input [(ngModel)]="email" type="email" aria-label="Email" placeholder="Email" autocomplete="email" />
         <div class="password-field">
-          <input [(ngModel)]="password" [type]="showPassword() ? 'text' : 'password'" placeholder="Contraseña" autocomplete="current-password" />
+          <input [(ngModel)]="password" [type]="showPassword() ? 'text' : 'password'" aria-label="Contraseña" placeholder="Contraseña" autocomplete="current-password" />
           <button class="password-toggle" type="button" (click)="togglePassword()" [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'">
             {{ showPassword() ? '🙈' : '👁️' }}
           </button>
