@@ -5,7 +5,6 @@ import { CartService } from './core/services/cart.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
 import { NotificationService } from './core/services/notification.service';
 import { CatalogService } from './core/services/catalog.service';
-import { DeliveryStateService } from './core/services/delivery-state.service';
 import { NotificationsComponent } from './shared/ui/notifications.component';
 import { matchesProductSearch } from './core/models/product-filter';
 import { Product } from './core/models/product.model';
@@ -35,20 +34,20 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
       <header class="navbar">
         <div class="container nav-grid">
           <div class="nav-left">
+            <a class="nav-brand" routerLink="/" [attr.aria-label]="brand.name">
+              <img
+                *ngIf="brandLogoAvailable(); else headerBrandFallback"
+                class="brand-logo brand-logo-header"
+                [src]="brandLogo()"
+                [alt]="brand.name"
+                (error)="markBrandLogoUnavailable()" />
+              <ng-template #headerBrandFallback><span class="brand-wordmark">{{ brand.name }}</span></ng-template>
+            </a>
+
             <button id="menu-trigger" class="icon-btn" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-controls="site-menu" [attr.aria-label]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'">
               <app-icon name="menu" />
             </button>
           </div>
-
-          <a class="nav-center" routerLink="/">
-            <img
-              *ngIf="brandLogoAvailable(); else headerBrandFallback"
-              class="brand-logo brand-logo-header"
-              [src]="brandLogo()"
-              [alt]="brand.name"
-              (error)="markBrandLogoUnavailable()" />
-            <ng-template #headerBrandFallback><span class="brand-wordmark">{{ brand.name }}</span></ng-template>
-          </a>
 
           <div class="nav-right">
             <button class="icon-btn mobile-only" type="button" (click)="openSearch()" aria-label="Buscar">
@@ -63,11 +62,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
             <div class="desktop-only">
               <button class="icon-btn" type="button" (click)="openSearch()" aria-label="Buscar">
                 <app-icon name="search" />
-              </button>
-
-              <button class="icon-btn" type="button" (click)="openCalendar()" aria-label="Elegir fecha de entrega">
-                <app-icon name="calendar" />
-                <span *ngIf="deliveryState.date()" class="badge-date">{{ deliveryState.date() | date:'dd/MM' }}</span>
               </button>
 
               <button class="icon-btn" type="button" (click)="openContact()" aria-label="Contacto">
@@ -110,7 +104,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
         <a routerLink="/mis-pedidos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
-        <button type="button" class="menu-action" (click)="openCalendar()">Elegir fecha</button>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
         <button
@@ -243,14 +236,14 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0;width:100%;max-width:100%;min-width:0;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
     `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:clamp(6px,2vw,10px);min-width:0;max-width:100%}`,
     `.nav-left,.nav-right{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto}`,
+    `.nav-left{gap:2px}`,
     `.nav-right{justify-content:flex-end}`,
-    `.nav-center{text-align:center;flex:1 1 auto;min-width:0;text-decoration:none;color:var(--text-main);overflow:hidden}`,
-    `.brand-logo{display:block;max-width:100%;object-fit:contain}.brand-logo-header{width:auto;height:64px;margin:auto}.brand-wordmark{display:block;font-size:clamp(1rem,4.5vw,1.25rem);font-weight:900;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+    `.nav-brand{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-start;min-width:0;text-decoration:none;color:var(--text-main)}`,
+    `.brand-logo{display:block;max-width:100%;object-fit:contain}.brand-logo-header{width:auto;height:68px}.brand-wordmark{display:block;max-width:96px;font-size:clamp(.78rem,3vw,1.1rem);font-weight:900;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
     `.icon-btn{background:transparent;border:none;color:var(--text-main);cursor:pointer;transition:.2s;border-radius:10px;width:34px;height:34px;display:inline-grid;place-items:center;position:relative}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
     `.cart-box{position:relative;width:34px;height:34px;padding:0;display:inline-grid;place-items:center;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
     `.badge{position:absolute;top:-5px;right:-5px;background:var(--accent-red);border-radius:50%;font-size:10px;padding:2px 5px;color:var(--on-accent)}`,
-    `.badge-date{position:absolute;bottom:-4px;right:-7px;font-size:10px;background:var(--ok-active-bg);color:var(--ok-active-text);border-radius:6px;padding:2px 4px}`,
     `.desktop-only{display:none}`,
     `.mobile-only{display:inline-flex}`,
     `.theme-btn{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;background:color-mix(in srgb, var(--surface-2) 80%, transparent);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);color:var(--text-main);border-radius:10px;cursor:pointer}`,
@@ -304,7 +297,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
     `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top))}.brand-logo-header{height:46px}.brand-wordmark{font-size:.95rem}.icon-btn,.cart-box,.theme-btn{width:40px;height:40px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px}.nav-grid{gap:4px}.nav-right{gap:2px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none}}`,
     `@media (prefers-reduced-motion:reduce){.dropdown{animation:none}.icon-btn,.result{transition:none}}`,
     `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}}`
@@ -351,7 +344,6 @@ export class AppComponent {
     public readonly cart: CartService,
     public readonly customerAuth: CustomerAuthService,
     private readonly catalog: CatalogService,
-    readonly deliveryState: DeliveryStateService,
     private readonly newsletterService: NewsletterService,
     private readonly cookieConsent: CookieConsentService,
     private readonly seo: SeoService
@@ -421,19 +413,18 @@ export class AppComponent {
   toggleMenu(): void {
     const nextOpen = !this.menuOpen();
     if (nextOpen) this.menuReturnFocusElement = this.document.activeElement as HTMLElement | null;
+    else this.menuReturnFocusElement?.focus();
     this.menuOpen.set(nextOpen);
     this.userMenuOpen.set(false);
     this.searchOpen.set(false);
     if (nextOpen) {
       globalThis.setTimeout(() => this.document.querySelector<HTMLElement>('#site-menu a, #site-menu button')?.focus());
-    } else {
-      globalThis.setTimeout(() => this.menuReturnFocusElement?.focus());
     }
   }
 
   closeMenu(): void {
+    if (this.menuOpen()) this.menuReturnFocusElement?.focus();
     this.menuOpen.set(false);
-    globalThis.setTimeout(() => this.menuReturnFocusElement?.focus());
   }
 
   trapMenuFocus(event: KeyboardEvent): void {
@@ -553,11 +544,6 @@ export class AppComponent {
     this.userMenuOpen.set(false);
     this.closeMenu();
     void this.router.navigateByUrl('/mis-pedidos');
-  }
-
-  openCalendar(): void {
-    this.closeMenu();
-    void this.router.navigateByUrl('/checkout');
   }
 
   openContact(): void {

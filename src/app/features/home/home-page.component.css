@@ -237,8 +237,9 @@
 }
 
 .collection-card {
-  flex: 1 1 0;
-  min-width: 148px;
+  flex: 0 0 clamp(168px, 18vw, 240px);
+  min-width: clamp(168px, 18vw, 240px);
+  max-width: 240px;
   color: inherit;
   text-align: center;
   text-decoration: none;
@@ -314,6 +315,20 @@
   transition: color 0.22s ease;
 }
 
+.collection-card.no-image .collection-label {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--surface-1);
+  color: var(--text-main);
+  font-weight: 800;
+}
+
 .collection-card:hover .collection-label,
 .collection-card:focus-visible .collection-label {
   color: var(--text-main);
@@ -381,6 +396,7 @@
 
 .product-image {
   display: block;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 18px;
   background: var(--surface-2);
@@ -389,7 +405,7 @@
 .product-image img {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
 }
 
@@ -402,10 +418,15 @@
 }
 
 .product-name {
+  display: -webkit-box;
+  min-height: 2.5em;
+  overflow: hidden;
   color: var(--text-main);
   font-weight: 800;
   line-height: 1.25;
   text-decoration: none;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .product-name:hover,
@@ -613,11 +634,27 @@
 
   .product-grid {
     display: flex;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-padding-inline: 1rem;
+    touch-action: pan-x pan-y;
   }
 
   .product-card {
-    flex: 0 0 min(78vw, 280px);
+    flex: 0 0 min(68vw, 220px);
+    gap: 0.35rem;
     scroll-snap-align: start;
+  }
+
+  .product-card strong {
+    font-size: 1rem;
+  }
+
+  .best-sellers .section-link {
+    max-width: 9rem;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    text-align: right;
   }
 
   .section-bar {

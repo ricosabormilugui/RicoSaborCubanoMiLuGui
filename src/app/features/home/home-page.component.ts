@@ -46,12 +46,20 @@ export class HomePageComponent {
   readonly cubanImage = computed(() => this.homeContent.content().cubanImageUrl);
   readonly cakesImage = computed(() => this.homeContent.content().cakesImageUrl);
   readonly spanishImage = computed(() => this.homeContent.content().spanishImageUrl);
-  readonly collections = computed(() =>
-    this.productCategories.categories().map((category) => ({
-      ...category,
-      imageUrl: this.homeContent.content().categoryImages[category.slug] || ''
-    }))
-  );
+  readonly collections = computed(() => {
+    if (this.productCategories.loading()) return [];
+
+    const categoryImages = this.homeContent.content().categoryImages;
+    let hasPriorityImage = false;
+
+    return this.productCategories.categories().map((category) => {
+      const imageUrl = categoryImages[category.slug] || '';
+      const priority = Boolean(imageUrl) && !hasPriorityImage;
+      if (priority) hasPriorityImage = true;
+
+      return { ...category, imageUrl, priority };
+    });
+  });
   readonly reviews = computed(() =>
     this.catalog.products()
       .flatMap((product) => (product.reviews ?? []).map((review) => ({

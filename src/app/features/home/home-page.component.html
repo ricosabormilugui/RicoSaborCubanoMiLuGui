@@ -35,7 +35,7 @@
     </div>
   </div>
 
-  <section class="collections" aria-labelledby="collections-title">
+  <section class="collections" *ngIf="collections().length" aria-labelledby="collections-title">
     <div class="section-bar">
       <div>
         <span class="eyebrow">El market</span>
@@ -46,9 +46,9 @@
       </button>
     </div>
     <div class="collections-track" #collectionsTrack>
-      <a class="collection-card" *ngFor="let category of collections(); trackBy: trackCategory" [routerLink]="['/categoria', category.slug]">
-        <span class="collection-photo">
-          <img *ngIf="category.imageUrl" [src]="imageUrl(category.imageUrl, 480)" [attr.srcset]="imageSrcset(category.imageUrl, [240, 360, 480])" sizes="(max-width: 600px) 45vw, 240px" [alt]="category.label" width="320" height="200" loading="lazy" decoding="async" />
+      <a class="collection-card" *ngFor="let category of collections(); trackBy: trackCategory" [class.no-image]="!category.imageUrl" [routerLink]="['/categoria', category.slug]">
+        <span class="collection-photo" *ngIf="category.imageUrl">
+          <img [src]="imageUrl(category.imageUrl, 480)" [attr.srcset]="imageSrcset(category.imageUrl, [240, 360, 480])" sizes="(max-width: 600px) 45vw, 240px" [alt]="category.label" width="320" height="200" [attr.loading]="category.priority ? 'eager' : 'lazy'" [attr.fetchpriority]="category.priority ? 'high' : null" decoding="async" />
         </span>
         <span class="collection-label">{{ category.label }}</span>
       </a>
@@ -131,8 +131,8 @@
       <article class="service-card">
         <app-icon name="store" [size]="28" />
         <h3>Recogida en Alcorcón</h3>
-        <p>Sin coste de envío. Elige fecha y franja en el checkout y pasa a recoger tu pedido.</p>
-        <a class="btn btn-sm btn-outline" routerLink="/checkout">Elegir fecha</a>
+        <p>Sin coste de envío. La fecha y la franja se definen al completar el pedido.</p>
+        <a class="btn btn-sm btn-outline" routerLink="/checkout">Ir al checkout</a>
       </article>
       <article class="service-card">
         <app-icon name="utensils" [size]="28" />
