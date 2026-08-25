@@ -1,4 +1,5 @@
 <div class="catalog-page">
+  <ng-container *ngIf="!invalidCategory(); else invalidCategoryState">
     <section class="hero" aria-labelledby="catalog-title">
       <span class="hero-eyebrow">Productos</span>
       <h1 id="catalog-title">Catálogo de sabores y encargos</h1>
@@ -178,4 +179,13 @@
         </article>
       </div>
     </section>
+  </ng-container>
+
+  <ng-template #invalidCategoryState>
+    <section class="empty-state card" role="status">
+      <h1>Categoría no encontrada</h1>
+      <p>La categoría solicitada no existe o ya no está disponible.</p>
+      <a class="btn btn-primary" routerLink="/productos">Ver todos los productos</a>
+    </section>
+  </ng-template>
 </div>

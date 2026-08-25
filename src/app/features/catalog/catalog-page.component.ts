@@ -32,11 +32,24 @@ export class CatalogPageComponent implements OnDestroy {
   readonly minPrice = signal('');
   readonly maxPrice = signal('');
   readonly sortBy = signal<CatalogSort>('featured');
+  readonly routeCategory = signal('');
   readonly filtersOpen = signal(false);
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=700';
   readonly skeletonCards = Array.from({ length: 6 });
 
-  readonly isInitialLoading = computed(() => this.catalog.loading() && !this.catalog.products().length);
+  readonly selectedCategoryRecord = computed(() => this.productCategories.categories().find((item) => item.slug === this.routeCategory()));
+  readonly invalidCategory = computed(() => Boolean(
+    this.routeCategory()
+    && this.productCategories.publicLoadFinished()
+    && (!this.productCategories.publicLoaded() || !this.selectedCategoryRecord())
+  ));
+  readonly emptyCategory = computed(() => Boolean(
+    this.routeCategory() && this.productCategories.publicLoaded() && this.selectedCategoryRecord()?.productCount === 0
+  ));
+  readonly isInitialLoading = computed(() =>
+    (this.catalog.loading() && !this.catalog.products().length)
+    || Boolean(this.routeCategory() && !this.productCategories.publicLoadFinished())
+  );
 
   readonly filteredProducts = computed(() => sortProducts(
     filterProducts(this.catalog.products(), {
@@ -72,6 +85,7 @@ export class CatalogPageComponent implements OnDestroy {
     void this.productCategories.loadPublicCategories().catch(() => undefined);
     this.route.paramMap.subscribe((params) => {
       const routeCategory = normalizeCategorySlug(params.get('category'));
+      this.routeCategory.set(routeCategory);
       if (routeCategory) {
         this.category.set(routeCategory);
       }
@@ -207,6 +221,7 @@ export class CatalogPageComponent implements OnDestroy {
   }
 
   private updateSeo(): void {
+    if (this.routeCategory() && !this.productCategories.publicLoadFinished()) return;
     const category = this.category();
     const categoryLabel = category ? this.categoryLabel(category) : '';
     const path = category ? `/categoria/${encodeURIComponent(category)}` : '/productos';
@@ -221,14 +236,15 @@ export class CatalogPageComponent implements OnDestroy {
       title,
       description,
       path,
-      canonicalPath: path,
-      type: 'website'
+      type: 'website',
+      robots: this.invalidCategory() || this.emptyCategory() ? 'noindex,follow' : 'index,follow',
+      canonicalPath: this.invalidCategory() ? '/productos' : path
     });
 
     this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([
       { name: 'Inicio', path: '/' },
       { name: 'Productos', path: '/productos' },
-      ...(category ? [{ name: categoryLabel, path }] : [])
+      ...(category && !this.invalidCategory() ? [{ name: categoryLabel, path }] : [])
     ]));
     this.seo.removeJsonLd('product');
   }

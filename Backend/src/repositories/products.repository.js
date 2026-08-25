@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { ensureIndexes, getCollection } from "../lib/mongo.js";
+import { allocateUniqueProductSlug, normalizeProductSlug } from "../utils/product-slug.js";
 
 export function getProductsCollectionName() {
   return process.env.MONGODB_PRODUCTS_COLLECTION ?? process.env.PRODUCTS_COLLECTION ?? "products";
@@ -15,7 +16,15 @@ async function getProductsCollection() {
     ensureProductsIndexesPromise = ensureIndexes(collection, [
       { keys: { published: 1, order: 1 }, options: { name: "published_order" } },
       { keys: { available: 1, order: 1 }, options: { name: "available_order" } },
-      { keys: { category: 1, order: 1 }, options: { name: "category_order" } }
+      { keys: { category: 1, order: 1 }, options: { name: "category_order" } },
+      {
+        keys: { slug: 1 },
+        options: {
+          name: "product_slug_unique",
+          unique: true,
+          partialFilterExpression: { slug: { $type: "string", $gt: "" } }
+        }
+      }
     ], { collectionName });
   }
 
@@ -37,6 +46,24 @@ export async function listPublicProducts() {
     .toArray();
 }
 
+export function buildIndexableProductQuery() {
+  return {
+    published: true,
+    $or: [
+      { available: true },
+      { trackStock: true, stock: { $lte: 0 } }
+    ]
+  };
+}
+
+export async function listIndexableProducts() {
+  const collection = await getProductsCollection();
+  return collection
+    .find(buildIndexableProductQuery())
+    .sort({ order: 1, createdAt: -1 })
+    .toArray();
+}
+
 export async function listAllProducts() {
   const collection = await getProductsCollection();
   return collection
@@ -51,6 +78,38 @@ export async function findProductById(id, { session } = {}) {
   return collection.findOne({ _id: new ObjectId(id) }, { session });
 }
 
+export async function findPublicProductByIdentifier(identifier) {
+  const collection = await getProductsCollection();
+  const normalizedSlug = normalizeProductSlug(identifier);
+  const identifiers = normalizedSlug ? [{ slug: normalizedSlug }] : [];
+  if (ObjectId.isValid(identifier)) identifiers.push({ _id: new ObjectId(identifier) });
+  if (!identifiers.length) return null;
+
+  return collection.findOne({
+    $and: [buildIndexableProductQuery(), { $or: identifiers }]
+  });
+}
+
+export async function listRelatedPublicProducts(product, limit = 4) {
+  const collection = await getProductsCollection();
+  const candidates = await collection
+    .find({ published: true, available: true, _id: { $ne: product._id } })
+    .sort({ order: 1, createdAt: -1 })
+    .limit(Math.max(limit * 3, limit))
+    .toArray();
+
+  return candidates
+    .sort((left, right) => Number(right.category === product.category) - Number(left.category === product.category))
+    .slice(0, limit);
+}
+
+async function uniqueSlugFor(collection, value, excludeId) {
+  return allocateUniqueProductSlug(value, async (slug) => Boolean(await collection.findOne({
+    slug,
+    ...(excludeId ? { _id: { $ne: excludeId } } : {})
+  }, { projection: { _id: 1 } })));
+}
+
 export async function createProduct(payload) {
   const collection = await getProductsCollection();
   const now = new Date().toISOString();
@@ -60,6 +119,7 @@ export async function createProduct(payload) {
 
   const product = {
     name: payload.name,
+    slug: await uniqueSlugFor(collection, payload.name),
     description: payload.description ?? "",
     price: payload.price,
     category: payload.category,
@@ -80,13 +140,25 @@ export async function createProduct(payload) {
     updatedAt: now
   };
 
-  const result = await collection.insertOne(product);
-  return { ...product, _id: result.insertedId };
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      const result = await collection.insertOne(product);
+      return { ...product, _id: result.insertedId };
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
+      product.slug = await uniqueSlugFor(collection, payload.name);
+    }
+  }
+  throw new Error("Unable to allocate a unique product slug");
 }
 
 export async function updateProduct(id, payload) {
   const collection = await getProductsCollection();
   if (!ObjectId.isValid(id)) return null;
+  const objectId = new ObjectId(id);
+  const existing = await collection.findOne({ _id: objectId }, { projection: { name: 1, slug: 1 } });
+  if (!existing) return null;
+  const shouldAssignSlug = !normalizeProductSlug(existing.slug);
 
   const updates = {
     ...(payload.name !== undefined ? { name: payload.name } : {}),
@@ -106,16 +178,23 @@ export async function updateProduct(id, payload) {
     ...(payload.unitLabel !== undefined ? { unitLabel: payload.unitLabel } : {}),
     ...(payload.available !== undefined ? { available: payload.available } : {}),
     ...(payload.order !== undefined ? { order: payload.order } : {}),
+    ...(shouldAssignSlug ? { slug: await uniqueSlugFor(collection, payload.name ?? existing.name, objectId) } : {}),
     updatedAt: new Date().toISOString()
   };
 
-  const result = await collection.findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    { $set: updates },
-    { returnDocument: "after" }
-  );
-
-  return result;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      return await collection.findOneAndUpdate(
+        { _id: objectId },
+        { $set: updates },
+        { returnDocument: "after" }
+      );
+    } catch (error) {
+      if (!shouldAssignSlug || error?.code !== 11000) throw error;
+      updates.slug = await uniqueSlugFor(collection, payload.name ?? existing.name, objectId);
+    }
+  }
+  throw new Error("Unable to allocate a unique product slug");
 }
 
 export async function deleteProduct(id) {

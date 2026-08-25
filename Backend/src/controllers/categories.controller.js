@@ -14,7 +14,7 @@ export function createCategoryHandlers(repository = categoriesRepository) {
   return {
     async listPublic(_req, res) {
       try {
-        const categories = await repository.listCategories();
+        const categories = await repository.listCategories({ includeProductCount: true, publicOnly: true });
         return res.status(200).json({ categories });
       } catch (error) {
         logger.error("categories.public.list.failed", { error: error.message ?? "Unexpected error" });

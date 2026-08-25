@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LEGAL_BUSINESS_CONFIG, LEGAL_DOCUMENTS, getLegalDocument } from '../../core/config/legal.config';
 import { SeoService } from '../../core/services/seo.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 
 @Component({
   standalone: true,
@@ -89,7 +90,7 @@ export class LegalPageComponent {
         description: legalDocument?.summary ?? `Información legal de ${BRAND_CONFIG.name}.`,
         path,
         canonicalPath: path,
-        robots: legalDocument ? 'index,follow' : 'noindex,follow'
+        robots: legalDocument && SEO_SITE_CONFIG.hasCompleteLegalIdentity ? 'index,follow' : 'noindex,follow'
       });
       this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([
         { name: 'Inicio', path: '/' },

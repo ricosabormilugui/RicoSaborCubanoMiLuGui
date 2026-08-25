@@ -21,6 +21,12 @@
   directory = "netlify/functions"
 
 [[redirects]]
+  from = "https://ricosaborcubano.netlify.app/*"
+  to = "https://mixsabor.milugui.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/api-proxy/sitemap.xml"
   status = 200

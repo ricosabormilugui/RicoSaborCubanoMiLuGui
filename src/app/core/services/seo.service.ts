@@ -88,18 +88,20 @@ export class SeoService {
   }
 
   setOrganizationAndWebsiteSchema(): void {
+    const organization: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: this.site.business.name,
+      slogan: BRAND_CONFIG.slogan,
+      url: this.absoluteUrl('/')
+    };
+    this.addConfiguredProperty(organization, 'legalName', this.site.business.legalName);
+    this.addConfiguredProperty(organization, 'email', this.site.business.email);
+    this.addConfiguredProperty(organization, 'telephone', this.site.business.phone);
+    this.addConfiguredProperty(organization, 'address', this.site.business.address);
+
     this.setJsonLd('site', [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: this.site.business.name,
-        slogan: BRAND_CONFIG.slogan,
-        legalName: this.site.business.legalName,
-        url: this.absoluteUrl('/'),
-        email: this.site.business.email,
-        telephone: this.site.business.phone,
-        address: this.site.business.address
-      },
+      organization,
       {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
@@ -108,7 +110,7 @@ export class SeoService {
         inLanguage: 'es-ES',
         potentialAction: {
           '@type': 'SearchAction',
-          target: `${this.absoluteUrl('/')}?q={search_term_string}`,
+          target: `${this.absoluteUrl('/productos')}?q={search_term_string}`,
           'query-input': 'required name=search_term_string'
         }
       }
@@ -129,22 +131,26 @@ export class SeoService {
   }
 
   absoluteUrl(pathOrUrl: string): string {
-    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-
     const base = this.resolveBaseUrl();
+    if (/^https?:\/\//i.test(pathOrUrl)) {
+      const url = new URL(pathOrUrl);
+      if (url.hostname === 'ricosaborcubano.netlify.app') {
+        return `${base}${url.pathname}${url.search}`;
+      }
+      return pathOrUrl;
+    }
+
     const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
     return `${base}${path}`;
   }
 
   private resolveBaseUrl(): string {
-    const configured = this.site.siteUrl.replace(/\/$/, '');
-    const host = this.document.location?.origin;
+    return this.site.siteUrl.replace(/\/$/, '');
+  }
 
-    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-      return host.replace(/\/$/, '');
-    }
-
-    return configured;
+  private addConfiguredProperty(target: Record<string, unknown>, key: string, value: string): void {
+    const normalized = String(value ?? '').trim();
+    if (normalized && !normalized.startsWith('PENDIENTE_CONFIGURAR_')) target[key] = normalized;
   }
 
   private withSuffix(title: string): string {

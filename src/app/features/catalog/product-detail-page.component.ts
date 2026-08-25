@@ -6,12 +6,13 @@ import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product, ProductCustomizationGroupKey, ProductCustomizationOption } from '../../core/models/product.model';
-import { findProductBySlugOrId, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
+import { getProductRoute } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { SeoService } from '../../core/services/seo.service';
+import { ApiRequestError } from '../../core/utils/api-client';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
@@ -42,15 +43,24 @@ export class ProductDetailPageComponent {
   readonly selectedImage = signal('');
   readonly selectedCustomization = signal<ProductCustomizationSelectionState>({});
   readonly customizationError = signal('');
+  readonly product = signal<Product | null>(null);
+  readonly relatedProducts = signal<Product[]>([]);
+  readonly detailLoading = signal(true);
+  readonly detailError = signal('');
 
-  readonly product = computed(() => findProductBySlugOrId(this.catalog.products(), this.productParam()));
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
-  readonly isLoadingDetail = computed(() => this.catalog.loading() && !this.product());
-  readonly relatedProducts = computed(() => selectBestSellers(this.catalog.products(), 4, this.product()?.id));
+  readonly isLoadingDetail = computed(() => this.detailLoading());
 
   constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router) {
-    void this.catalog.loadProducts();
-    this.route.paramMap.subscribe((params) => { this.productParam.set(params.get('slug') ?? ''); this.quantity.set(1); this.selectedImage.set(''); this.selectedCustomization.set({}); this.customizationError.set(''); });
+    this.route.paramMap.subscribe((params) => {
+      const identifier = params.get('slug') ?? '';
+      this.productParam.set(identifier);
+      this.quantity.set(1);
+      this.selectedImage.set('');
+      this.selectedCustomization.set({});
+      this.customizationError.set('');
+      void this.loadProduct(identifier);
+    });
     effect(() => this.updateSeo());
     effect(() => {
       const product = this.product();
@@ -99,6 +109,7 @@ export class ProductDetailPageComponent {
   customizedTotal(product: Product): number { return calculateFinalUnitPrice(product.price, flattenCustomizationSelections(this.selectedCustomization())); }
 
   addToCart(product: Product, amount = this.quantity()): boolean {
+    if (!this.isOrderable(product)) return false;
     const groups = this.customizationGroups(product);
     if (this.isCustomCake(product) && !hasAllRequiredCustomizations(groups, this.selectedCustomization())) { this.customizationError.set('Completa las opciones obligatorias antes de añadir el producto.'); return false; }
     const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
@@ -127,7 +138,32 @@ export class ProductDetailPageComponent {
 
   private optionId(option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }
 
+  isOrderable(product: Product): boolean {
+    return product.available !== false && (!product.trackStock || Number(product.stock ?? 0) > 0);
+  }
+
+  private async loadProduct(identifier: string): Promise<void> {
+    this.detailLoading.set(true);
+    this.detailError.set('');
+    this.product.set(null);
+    this.relatedProducts.set([]);
+    try {
+      const result = await this.catalog.loadProductByIdentifier(identifier);
+      if (identifier !== this.productParam()) return;
+      this.product.set(result.product);
+      this.relatedProducts.set(result.relatedProducts);
+    } catch (error) {
+      if (identifier !== this.productParam()) return;
+      if (!(error instanceof ApiRequestError) || error.status !== 404) {
+        this.detailError.set(error instanceof Error ? error.message : 'No se pudo cargar el producto.');
+      }
+    } finally {
+      if (identifier === this.productParam()) this.detailLoading.set(false);
+    }
+  }
+
   private updateSeo(): void {
+    if (this.detailLoading()) return;
     const product = this.product();
     if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`, path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); this.seo.removeJsonLd('breadcrumb'); return; }
     const route = this.productRoute(product).join('/').replace('//', '/');
@@ -135,8 +171,15 @@ export class ProductDetailPageComponent {
     const description = product.description || `${product.name} de ${BRAND_CONFIG.name}. Producto casero disponible para pedido manual con entrega local o recogida.`;
     const images = this.productImages(product);
     const image = images[0] || SEO_SITE_CONFIG.defaultImage;
-    this.seo.setPageMeta({ title: `${product.name} · ${categoryLabel}`, description, path: route, canonicalPath: route, image, type: 'product', price: Number(product.price ?? 0), currency: 'EUR', availability: product.available === false ? 'out of stock' : 'in stock' });
+    const orderable = this.isOrderable(product);
+    this.seo.setPageMeta({ title: `${product.name} · ${categoryLabel}`, description, path: route, canonicalPath: route, image, type: 'product', price: Number(product.price ?? 0), currency: 'EUR', availability: orderable ? 'in stock' : 'out of stock' });
     this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([{ name: 'Inicio', path: '/' }, { name: 'Productos', path: '/productos' }, { name: categoryLabel, path: `/categoria/${encodeURIComponent(normalizeCategorySlug(product.category))}` }, { name: product.name, path: route }]));
-    this.seo.setJsonLd('product', { '@context': 'https://schema.org', '@type': 'Product', name: product.name, description, image: images.length ? images.map((item) => this.seo.absoluteUrl(item)) : [this.seo.absoluteUrl(image)], category: categoryLabel, sku: product.id, offers: { '@type': 'Offer', price: Number(product.price ?? 0).toFixed(2), priceCurrency: 'EUR', availability: product.available === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock', url: this.seo.absoluteUrl(route), seller: { '@type': 'Organization', name: SEO_SITE_CONFIG.siteName } } });
+    const reviews = this.productReviews(product);
+    const schema: Record<string, unknown> = { '@context': 'https://schema.org', '@type': 'Product', name: product.name, description, image: images.length ? images.map((item) => this.seo.absoluteUrl(item)) : [this.seo.absoluteUrl(image)], category: categoryLabel, url: this.seo.absoluteUrl(route), offers: { '@type': 'Offer', price: Number(product.price ?? 0).toFixed(2), priceCurrency: 'EUR', availability: orderable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', url: this.seo.absoluteUrl(route), seller: { '@type': 'Organization', name: SEO_SITE_CONFIG.siteName } } };
+    if (reviews.length) {
+      schema['aggregateRating'] = { '@type': 'AggregateRating', ratingValue: this.averageRating(product).toFixed(1), reviewCount: reviews.length };
+      schema['review'] = reviews.map((review) => ({ '@type': 'Review', author: { '@type': 'Person', name: review.author }, reviewRating: { '@type': 'Rating', ratingValue: review.rating, bestRating: 5, worstRating: 1 }, reviewBody: review.comment, ...(review.date ? { datePublished: review.date } : {}) }));
+    }
+    this.seo.setJsonLd('product', schema);
   }
 }

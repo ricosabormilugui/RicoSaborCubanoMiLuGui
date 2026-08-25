@@ -110,3 +110,18 @@ test("rechaza nombres duplicados aunque cambien mayúsculas y espacios", async (
   assert.equal(response.statusCode, 409);
   assert.match(response.body.message, /ya existe/i);
 });
+
+test("la API pública solicita conteos de productos públicos para validar categorías SEO", async () => {
+  let receivedOptions;
+  const repository = {
+    async listCategories(options) {
+      receivedOptions = options;
+      return [{ slug: "tartas", label: "Tartas", productCount: 2 }];
+    }
+  };
+  const res = mockResponse();
+  await createCategoryHandlers(repository).listPublic({}, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(receivedOptions, { includeProductCount: true, publicOnly: true });
+  assert.equal(res.body.categories[0].productCount, 2);
+});

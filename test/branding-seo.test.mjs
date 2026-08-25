@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const brand = JSON.parse(read('shared/brand.config.json'));
+const site = JSON.parse(read('shared/site.config.json'));
 
 test('caso 1: la configuración central devuelve MIXSABOR y el slogan oficial', () => {
   assert.equal(brand.name, 'MIXSABOR');
@@ -54,6 +55,9 @@ test('caso 7: canonical usa la URL configurada y actualiza el link único', () =
   assert.match(seoConfig, /siteUrl: environment\.siteUrl/);
   assert.match(seo, /querySelector<HTMLLinkElement>\('link\[rel="canonical"\]'\)/);
   assert.match(seo, /link\.setAttribute\('href', href\)/);
+  assert.equal(site.productionSiteUrl, 'https://mixsabor.milugui.com');
+  assert.doesNotMatch(seo, /location\?\.origin|window\.location|document\.location.*origin/);
+  assert.match(seo, /url\.hostname === 'ricosaborcubano\.netlify\.app'/);
 });
 
 test('caso 8: structured data usa MIXSABOR y su slogan', () => {
@@ -61,6 +65,8 @@ test('caso 8: structured data usa MIXSABOR y su slogan', () => {
   assert.match(seo, /name: this\.site\.business\.name/);
   assert.match(seo, /slogan: BRAND_CONFIG\.slogan/);
   assert.equal(brand.name, 'MIXSABOR');
+  assert.match(seo, /absoluteUrl\('\/productos'\).*\?q=\{search_term_string\}/);
+  assert.match(seo, /!normalized\.startsWith\('PENDIENTE_CONFIGURAR_'\)/);
 });
 
 test('caso 9: la navegación SPA limpia metadata anterior', () => {
@@ -89,5 +95,42 @@ test('Open Graph, Twitter Cards, sitemap dinámico y robots están presentes', (
   assert.match(sitemap, /"\/productos"/);
   assert.doesNotMatch(sitemap, /"\/(admin|login|registro|checkout|carrito|mis-pedidos)"/);
   assert.match(netlify, /from = "\/sitemap\.xml"/);
-  assert.match(robots, /Sitemap: https:\/\/ricosaborcubano\.com\/sitemap\.xml/);
+  assert.match(robots, /Disallow: \/api\//);
+  assert.match(robots, /Sitemap: https:\/\/mixsabor\.milugui\.com\/sitemap\.xml/);
+});
+
+test('dominio, canonical inicial y Open Graph usan una única autoridad de producción', () => {
+  const index = read('src/index.html');
+  const production = read('src/environments/environment.prod.ts');
+  const development = read('src/environments/environment.ts');
+  assert.match(production, /siteConfig\.productionSiteUrl/);
+  assert.match(development, /siteConfig\.productionSiteUrl/);
+  assert.match(index, /https:\/\/mixsabor\.milugui\.com\//);
+  assert.doesNotMatch(`${index}\n${production}\n${development}`, /ricosaborcubano\.com|ricosaborcubano\.netlify\.app/);
+});
+
+test('la ficha usa endpoint directo, canonical por slug y JSON-LD sin Mongo ID como SKU', () => {
+  const catalog = read('src/app/core/services/catalog.service.ts');
+  const detail = read('src/app/features/catalog/product-detail-page.component.ts');
+  assert.match(catalog, /loadProductByIdentifier/);
+  assert.match(catalog, /`\$\{this\.endpoint\}\/\$\{encodeURIComponent\(identifier\)\}`/);
+  assert.doesNotMatch(detail, /loadProducts\(\)/);
+  assert.doesNotMatch(detail, /sku:\s*product\.id/);
+  assert.match(detail, /aggregateRating/);
+  assert.match(detail, /schema\.org\/OutOfStock/);
+});
+
+test('las categorías desconocidas y vacías quedan noindex', () => {
+  const catalog = read('src/app/features/catalog/catalog-page.component.ts');
+  assert.match(catalog, /invalidCategory/);
+  assert.match(catalog, /emptyCategory/);
+  assert.match(catalog, /'noindex,follow'/);
+  assert.match(catalog, /canonicalPath: this\.invalidCategory\(\) \? '\/productos' : path/);
+});
+
+test('Netlify redirige el hostname de infraestructura conservando el path', () => {
+  const netlify = read('netlify.toml');
+  assert.match(netlify, /from = "https:\/\/ricosaborcubano\.netlify\.app\/\*"/);
+  assert.match(netlify, /to = "https:\/\/mixsabor\.milugui\.com\/:splat"/);
+  assert.match(netlify, /status = 301/);
 });

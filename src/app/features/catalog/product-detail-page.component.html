@@ -42,6 +42,7 @@
               </div>
               <p class="description">{{ product()!.description || ('Producto casero preparado por ' + brand.name + '.') }}</p>
               <p class="sale-note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
+              <p class="sale-note" *ngIf="!isOrderable(product()!)">Producto agotado temporalmente. Puedes consultar sus detalles y volver más adelante.</p>
 
               <section class="cake-config" *ngIf="isCustomCake(product()!) && customizationGroups(product()!).length">
                 <h2>Personaliza tu tarta</h2>
@@ -57,7 +58,7 @@
                 <small class="field-error" *ngIf="customizationError()">{{ customizationError() }}</small>
               </section>
 
-              <div class="purchase-row">
+              <div class="purchase-row" *ngIf="isOrderable(product()!)">
                 <label class="quantity-field">
                   Cantidad
                   <input type="number" [attr.min]="minimumQuantity(product()!)" max="99" inputmode="numeric" [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" />
@@ -105,6 +106,6 @@
         </ng-container>
       </ng-template>
 
-      <ng-template #notFound><div class="not-found card"><h1>Producto no encontrado</h1><p>No encontramos el producto solicitado. Puede que ya no esté disponible o que el enlace no sea correcto.</p><a class="btn btn-primary" routerLink="/productos">Volver a productos</a></div></ng-template>
+      <ng-template #notFound><div class="not-found card"><h1>Producto no encontrado</h1><p>{{ detailError() || 'No encontramos el producto solicitado. Puede que ya no esté disponible o que el enlace no sea correcto.' }}</p><a class="btn btn-primary" routerLink="/productos">Volver a productos</a></div></ng-template>
     </section>
   

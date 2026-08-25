@@ -23,7 +23,7 @@ test('caso SEO 2: la ruta 404 muestra UX propia y genera noindex', () => {
 test('caso SEO 3: búsqueda, precio y ordenación no alteran el canonical', () => {
   const catalog = read('src/app/features/catalog/catalog-page.component.ts');
   assert.match(catalog, /const path = category \? `\/categoria\/\$\{encodeURIComponent\(category\)\}` : '\/productos'/);
-  assert.match(catalog, /canonicalPath: path/);
+  assert.match(catalog, /canonicalPath: this\.invalidCategory\(\) \? '\/productos' : path/);
   assert.doesNotMatch(catalog, /canonicalPath:\s*.*(?:query|minPrice|maxPrice|sortBy)/);
 });
 

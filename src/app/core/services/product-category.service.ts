@@ -42,6 +42,8 @@ export class ProductCategoryService {
 
   readonly categories = signal<ProductCategoryRecord[]>(fallbackCategories());
   readonly loading = signal(false);
+  readonly publicLoaded = signal(false);
+  readonly publicLoadFinished = signal(false);
 
   constructor(private readonly auth: AdminAuthService) {}
 
@@ -55,10 +57,14 @@ export class ProductCategoryService {
     if (!force && this.publicLoadedAt && Date.now() - this.publicLoadedAt < PUBLIC_CATEGORIES_CACHE_MS) return;
     this.loading.set(true);
     this.publicLoadingRequest = this.fetchCategories(`${this.apiBase}/categories`)
-      .then((categories) => this.categories.set(categories))
+      .then((categories) => {
+        this.categories.set(categories);
+        this.publicLoaded.set(true);
+      })
       .finally(() => {
         this.publicLoadedAt = Date.now();
         this.loading.set(false);
+        this.publicLoadFinished.set(true);
         this.publicLoadingRequest = null;
       });
     return this.publicLoadingRequest;

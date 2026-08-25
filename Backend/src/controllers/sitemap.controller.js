@@ -1,19 +1,14 @@
 import { logger } from "../lib/logger.js";
 import { listCategories } from "../repositories/categories.repository.js";
-import { listPublicProducts } from "../repositories/products.repository.js";
+import { listIndexableProducts } from "../repositories/products.repository.js";
 import { buildSitemap } from "../services/sitemap.service.js";
+import { getPublicSiteUrl } from "../config/site.config.js";
 
 export const SITEMAP_CACHE_TTL_MS = 10 * 60_000;
-const DEFAULT_SITE_URL = "https://ricosaborcubano.com";
-
-function configuredSiteUrl() {
-  return String(process.env.FRONTEND_URL ?? DEFAULT_SITE_URL).trim();
-}
-
 export function createSitemapHandler({
-  loadProducts = listPublicProducts,
-  loadCategories = listCategories,
-  siteUrl = configuredSiteUrl(),
+  loadProducts = listIndexableProducts,
+  loadCategories = () => listCategories({ includeProductCount: true, publicOnly: true }),
+  siteUrl = getPublicSiteUrl(),
   now = () => Date.now()
 } = {}) {
   let cache;

@@ -3,13 +3,7 @@ import { normalizeCategorySlug } from "../config/product-categories.config.js";
 const STATIC_PUBLIC_PATHS = [
   "/",
   "/productos",
-  "/contacto",
-  "/legal/aviso-legal",
-  "/legal/privacidad",
-  "/legal/cookies",
-  "/legal/condiciones-compra",
-  "/legal/envios",
-  "/legal/devoluciones-cancelaciones"
+  "/contacto"
 ];
 
 export function escapeXml(value) {
@@ -36,14 +30,15 @@ function validLastModified(value) {
 }
 
 function productPath(product) {
-  const identifier = normalizeCategorySlug(product?.slug) || String(product?._id ?? product?.id ?? "").trim();
+  const identifier = normalizeCategorySlug(product?.slug);
   return identifier ? `/producto/${encodeURIComponent(identifier)}` : "";
 }
 
 function categoryPath(category) {
   const slug = normalizeCategorySlug(category?.slug);
   const label = String(category?.label ?? "").trim();
-  return slug && label ? `/categoria/${encodeURIComponent(slug)}` : "";
+  const productCount = Number(category?.productCount ?? 0);
+  return slug && label && productCount > 0 ? `/categoria/${encodeURIComponent(slug)}` : "";
 }
 
 export function buildSitemap({ siteUrl, products = [], categories = [] }) {
@@ -64,7 +59,9 @@ export function buildSitemap({ siteUrl, products = [], categories = [] }) {
 
   for (const product of products) {
     const complete = String(product?.name ?? "").trim() && String(product?.category ?? "").trim();
-    if (product?.published !== true || product?.available !== true || !complete) continue;
+    const indexable = product?.published === true
+      && (product?.available === true || (product?.trackStock === true && Number(product?.stock ?? 0) <= 0));
+    if (!indexable || !complete) continue;
     addEntry(productPath(product), validLastModified(product.updatedAt));
   }
 

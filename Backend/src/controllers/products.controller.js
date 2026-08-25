@@ -3,8 +3,10 @@ import {
   createProduct,
   deleteProduct,
   findProductById,
+  findPublicProductByIdentifier,
   listAllProducts,
   listPublicProducts,
+  listRelatedPublicProducts,
   updateProduct
 } from "../repositories/products.repository.js";
 import { normalizeCategorySlug } from "../config/product-categories.config.js";
@@ -26,10 +28,10 @@ function normalizeReviews(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => ({
     author: String(item?.author ?? "").trim(),
-    rating: Math.max(1, Math.min(5, Number(item?.rating ?? 5))),
+    rating: Number(item?.rating),
     comment: String(item?.comment ?? "").trim(),
     ...(item?.date ? { date: String(item.date) } : {})
-  })).filter((item) => item.author && item.comment);
+  })).filter((item) => item.author && item.comment && Number.isFinite(item.rating) && item.rating >= 1 && item.rating <= 5);
 }
 
 function buildPayload(body = {}, { partial = false } = {}) {
@@ -107,6 +109,25 @@ export async function getProductsForAdmin(_req, res) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
   }
 }
+
+export function createPublicProductHandler({
+  findProduct = findPublicProductByIdentifier,
+  listRelated = listRelatedPublicProducts
+} = {}) {
+  return async function getProductByIdentifier(req, res) {
+    try {
+      const product = await findProduct(req.params.identifier);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+      const relatedProducts = await listRelated(product, 4);
+      return res.status(200).json({ product, relatedProducts });
+    } catch (error) {
+      logger.error("products.public.detail.failed", { error: error.message ?? "Unexpected error" });
+      return res.status(500).json({ error: error.message ?? "Unexpected error" });
+    }
+  };
+}
+
+export const getProductByIdentifier = createPublicProductHandler();
 
 export async function getProductById(req, res) {
   try {

@@ -36,7 +36,7 @@ Variables obligatorias del backend en producción:
 - [ ] `NODE_ENV=production`.
 - [ ] `MONGODB_URI` y `MONGODB_DB_NAME` apuntan a producción.
 - [ ] `AUTH_TOKEN_SECRET` aleatorio de al menos 32 caracteres.
-- [ ] `FRONTEND_URL` con el dominio HTTPS definitivo.
+- [ ] `FRONTEND_URL=https://mixsabor.milugui.com` en el backend de producción.
 - [ ] `CORS_ORIGIN` limitado al dominio HTTPS definitivo, nunca `*`.
 - [ ] `PAYMENT_BIZUM_PHONE`, `PAYMENT_BANK_IBAN`, `PAYMENT_BANK_HOLDER` y `PAYMENT_CASH_INSTRUCTIONS` configurados explícitamente.
 - [ ] Si se habilita email: `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM` y `NOTIFY_EMAIL_TO` configurados juntos.
@@ -70,7 +70,7 @@ Variables obligatorias del backend en producción:
 - [x] Blueprint usa `Backend`, `npm ci`, `npm start` y `/api/health`.
 - [x] `AUTH_TOKEN_SECRET` se genera y Mongo/CORS/frontend/email/pago quedan declarados como configuración manual.
 - [ ] Completar todas las variables `sync: false` de `render.yaml`.
-- [ ] Confirmar `FRONTEND_URL` y `CORS_ORIGIN` con el dominio real de Netlify.
+- [ ] Confirmar `FRONTEND_URL` y `CORS_ORIGIN` con `https://mixsabor.milugui.com`.
 - [ ] Confirmar `MONGODB_URI` de producción y nombres de colecciones.
 - [ ] Confirmar las cuatro variables `PAYMENT_*` y compararlas con el checkout.
 - [ ] Revisar los defaults de timeouts: selección Mongo 5 s, conexión Mongo 10 s, HTTP externo 8 s, Resend 8 s, request HTTP 30 s y headers 15 s.
@@ -112,7 +112,7 @@ Variables obligatorias del backend en producción:
 - [x] `robots.txt` referencia el sitemap y bloquea rutas privadas.
 - [ ] Añadir favicon y `apple-touch-icon` definitivos; no existen assets todavía.
 - [ ] Sustituir la imagen Open Graph genérica por una imagen social MIXSABOR definitiva.
-- [ ] Registrar dominio y enviar sitemap en Google Search Console.
+- [ ] Añadir `https://mixsabor.milugui.com` a Google Search Console y enviar `https://mixsabor.milugui.com/sitemap.xml`.
 
 ## Seguridad
 

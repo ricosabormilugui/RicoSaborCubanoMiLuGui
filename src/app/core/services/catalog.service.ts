@@ -25,12 +25,12 @@ function normalizeReviews(value: unknown): ProductReview[] {
       const source = review as Partial<ProductReview>;
       return {
         author: String(source.author ?? '').trim(),
-        rating: Math.max(1, Math.min(5, Number(source.rating ?? 5))),
+        rating: Number(source.rating),
         comment: String(source.comment ?? '').trim(),
         date: source.date ? String(source.date) : undefined
       };
     })
-    .filter((review) => review.author && review.comment);
+    .filter((review) => review.author && review.comment && Number.isFinite(review.rating) && review.rating >= 1 && review.rating <= 5);
 }
 
 function normalizeMinimumQuantity(value: unknown): number {
@@ -38,7 +38,7 @@ function normalizeMinimumQuantity(value: unknown): number {
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
-function toProduct(item: ProductApiRecord): Product {
+export function toProduct(item: ProductApiRecord): Product {
   return {
     id: item._id,
     name: item.name,
@@ -196,6 +196,18 @@ export class CatalogService {
       });
 
     return this.loadingRequest;
+  }
+
+  async loadProductByIdentifier(identifier: string): Promise<{ product: Product; relatedProducts: Product[] }> {
+    const data = await requestJson<{ product: ProductApiRecord; relatedProducts?: ProductApiRecord[] }>(
+      `${this.endpoint}/${encodeURIComponent(identifier)}`,
+      {},
+      'No se pudo cargar el producto.'
+    );
+    return {
+      product: toProduct(data.product),
+      relatedProducts: (data.relatedProducts ?? []).map(toProduct)
+    };
   }
 
   private async fetchProducts(): Promise<void> {

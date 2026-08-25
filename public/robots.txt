@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /admin/
+Disallow: /api/
 Disallow: /checkout
 Disallow: /carrito
 Disallow: /mis-pedidos
@@ -10,4 +11,4 @@ Disallow: /registro
 Disallow: /recuperar-contrasena
 Disallow: /reset-password
 
-Sitemap: https://ricosaborcubano.com/sitemap.xml
+Sitemap: https://mixsabor.milugui.com/sitemap.xml

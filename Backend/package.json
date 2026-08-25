@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch --watch-path=src --watch-preserve-output src/server.js",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "migrate:product-slugs": "node scripts/migrate-product-slugs.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

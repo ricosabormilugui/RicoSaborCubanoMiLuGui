@@ -10,12 +10,18 @@ export const SEO_SITE_CONFIG = {
   siteUrl: environment.siteUrl,
   locale: 'es_ES',
   twitterCard: 'summary_large_image',
-  defaultImage: 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=1200',
+  defaultImage: '/assets/branding/logo_mixsabor_dark.png',
   business: {
     name: BRAND_CONFIG.name,
     legalName: LEGAL_BUSINESS_CONFIG.legalName,
     email: LEGAL_BUSINESS_CONFIG.legalEmail,
     phone: LEGAL_BUSINESS_CONFIG.phone,
     address: LEGAL_BUSINESS_CONFIG.fiscalAddress
-  }
+  },
+  hasCompleteLegalIdentity: [
+    LEGAL_BUSINESS_CONFIG.legalName,
+    LEGAL_BUSINESS_CONFIG.legalEmail,
+    LEGAL_BUSINESS_CONFIG.phone,
+    LEGAL_BUSINESS_CONFIG.fiscalAddress
+  ].every((value) => value && !String(value).startsWith('PENDIENTE_CONFIGURAR_'))
 } as const;

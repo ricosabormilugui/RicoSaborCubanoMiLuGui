@@ -17,9 +17,9 @@ services:
       - key: AUTH_TOKEN_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        sync: false
+        value: https://mixsabor.milugui.com
       - key: CORS_ORIGIN
-        sync: false
+        value: https://mixsabor.milugui.com
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD

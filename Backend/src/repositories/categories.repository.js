@@ -91,10 +91,13 @@ function toCategoryRecord(document, productCount) {
   };
 }
 
-async function getProductCountsBySlug() {
+async function getProductCountsBySlug({ publicOnly = false } = {}) {
   const products = await getCollection(getProductsCollectionName());
   const counts = await products.aggregate([
-    { $match: { category: { $type: "string", $ne: "" } } },
+    { $match: {
+      category: { $type: "string", $ne: "" },
+      ...(publicOnly ? { published: true, available: true } : {})
+    } },
     { $group: { _id: "$category", count: { $sum: 1 } } }
   ]).toArray();
 
@@ -107,11 +110,11 @@ async function getProductCountsBySlug() {
   return bySlug;
 }
 
-export async function listCategories({ includeProductCount = false } = {}) {
+export async function listCategories({ includeProductCount = false, publicOnly = false } = {}) {
   await ensureCategoriesInitialized();
   const collection = await getCategoriesCollection();
   const documents = await collection.find({}).sort({ order: 1, label: 1 }).toArray();
-  const counts = includeProductCount ? await getProductCountsBySlug() : null;
+  const counts = includeProductCount ? await getProductCountsBySlug({ publicOnly }) : null;
   return documents.map((document) => toCategoryRecord(document, counts?.get(document.slug) ?? (counts ? 0 : undefined)));
 }
 

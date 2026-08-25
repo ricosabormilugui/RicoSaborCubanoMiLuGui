@@ -3,7 +3,7 @@ import test from "node:test";
 import { createSitemapHandler, SITEMAP_CACHE_TTL_MS } from "../src/controllers/sitemap.controller.js";
 import { buildSitemap, escapeXml } from "../src/services/sitemap.service.js";
 
-const siteUrl = "https://ricosaborcubano.com";
+const siteUrl = "https://mixsabor.milugui.com";
 
 function sitemap(overrides = {}) {
   return buildSitemap({ siteUrl, products: [], categories: [], ...overrides });
@@ -21,19 +21,21 @@ test("caso 2: incluye el catálogo", () => {
   assert.ok(locations(sitemap()).includes(`${siteUrl}/productos`));
 });
 
-test("caso 3: incluye un producto activo por su ID real y su lastmod real", () => {
+test("caso 3: incluye un producto activo solo por slug y con su lastmod real", () => {
   const xml = sitemap({
-    products: [{ _id: "507f1f77bcf86cd799439011", name: "Tarta", category: "tartas", published: true, available: true, updatedAt: "2026-08-20T12:30:00.000Z" }]
+    products: [{ _id: "507f1f77bcf86cd799439011", slug: "tarta-cubana", name: "Tarta", category: "tartas", published: true, available: true, updatedAt: "2026-08-20T12:30:00.000Z" }]
   });
-  assert.match(xml, /\/producto\/507f1f77bcf86cd799439011/);
+  assert.match(xml, /\/producto\/tarta-cubana/);
+  assert.doesNotMatch(xml, /507f1f77bcf86cd799439011/);
   assert.match(xml, /<lastmod>2026-08-20T12:30:00\.000Z<\/lastmod>/);
 });
 
 test("caso 4: excluye productos inactivos, borradores e incompletos", () => {
   const xml = sitemap({ products: [
-    { _id: "inactive", name: "Inactivo", category: "platos", published: true, available: false },
-    { _id: "draft", name: "Borrador", category: "platos", published: false, available: true },
-    { _id: "incomplete", name: "", category: "platos", published: true, available: true }
+    { slug: "inactive", name: "Inactivo", category: "platos", published: true, available: false },
+    { slug: "draft", name: "Borrador", category: "platos", published: false, available: true },
+    { slug: "incomplete", name: "", category: "platos", published: true, available: true },
+    { _id: "507f1f77bcf86cd799439011", name: "Legacy sin slug", category: "platos", published: true, available: true }
   ] });
   assert.doesNotMatch(xml, /inactive|draft|incomplete/);
 });
@@ -52,8 +54,8 @@ test("caso 6: elimina URLs duplicadas", () => {
       { _id: "two", slug: "tarta-especial", name: "Tarta B", category: "tartas", published: true, available: true }
     ],
     categories: [
-      { slug: "tartas", label: "Tartas" },
-      { slug: "tartas", label: "Tartas" }
+      { slug: "tartas", label: "Tartas", productCount: 2 },
+      { slug: "tartas", label: "Tartas", productCount: 2 }
     ]
   });
   const urls = locations(xml);
@@ -61,7 +63,7 @@ test("caso 6: elimina URLs duplicadas", () => {
 });
 
 test("caso 7: genera un documento XML completo y bien formado", () => {
-  const xml = sitemap({ categories: [{ slug: "tartas", label: "Tartas" }] });
+  const xml = sitemap({ categories: [{ slug: "tartas", label: "Tartas", productCount: 1 }] });
   assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
   assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
   assert.ok(xml.trimEnd().endsWith("</urlset>"));
@@ -77,10 +79,27 @@ test("caso 8: escapa correctamente caracteres reservados de XML", () => {
 test("incluye solo categorías públicas completas con ruta estable", () => {
   const xml = sitemap({ categories: [
     { slug: "dulces-gourmet", label: "Dulces Gourmet" },
-    { slug: "sin-label", label: "" }
+    { slug: "sin-label", label: "", productCount: 1 },
+    { slug: "vacia", label: "Vacía", productCount: 0 }
   ] });
-  assert.match(xml, /\/categoria\/dulces-gourmet/);
+  assert.doesNotMatch(xml, /\/categoria\/dulces-gourmet/);
   assert.doesNotMatch(xml, /\/categoria\/sin-label/);
+  assert.doesNotMatch(xml, /\/categoria\/vacia/);
+});
+
+test("incluye categorías con contenido y productos publicados agotados", () => {
+  const xml = sitemap({
+    categories: [{ slug: "tartas", label: "Tartas", productCount: 1 }],
+    products: [{ slug: "tarta-agotada", name: "Tarta agotada", category: "tartas", published: true, available: false, trackStock: true, stock: 0 }]
+  });
+  assert.match(xml, /\/categoria\/tartas/);
+  assert.match(xml, /\/producto\/tarta-agotada/);
+});
+
+test("no publica dominios antiguos ni páginas legales placeholder", () => {
+  const xml = sitemap();
+  assert.doesNotMatch(xml, /ricosaborcubano\.com|ricosaborcubano\.netlify\.app/);
+  assert.doesNotMatch(xml, /\/legal\//);
 });
 
 test("el endpoint sirve application/xml y reutiliza la caché durante diez minutos", async () => {
