@@ -44,6 +44,20 @@ test('el proxy aplica timeout y propaga requestId sin exponer backend interno', 
   assert.doesNotMatch(proxy, /your-render-app\.onrender\.com/);
 });
 
+test('el sitemap público conserva su ruta al atravesar la Function de Netlify', () => {
+  const proxy = read('netlify/functions/api-proxy.ts');
+  const netlify = read('netlify.toml');
+
+  assert.match(proxy, /pathname === '\/sitemap\.xml'/);
+  assert.match(proxy, /return 'sitemap\.xml'/);
+
+  const sitemapRule = netlify.indexOf('from = "/sitemap.xml"');
+  const apiRule = netlify.indexOf('from = "/api/*"');
+  const spaRule = netlify.indexOf('from = "/*"');
+  assert.ok(sitemapRule >= 0 && sitemapRule < apiRule && apiRule < spaRule);
+  assert.match(netlify, /to = "\/\.netlify\/functions\/api-proxy\/sitemap\.xml"/);
+});
+
 test('ninguna utilidad de autenticación conserva secretos fijos de respaldo', () => {
   const token = read('Backend/src/utils/auth-token.js');
   assert.match(token, /getRequiredEnv\("AUTH_TOKEN_SECRET"\)/);

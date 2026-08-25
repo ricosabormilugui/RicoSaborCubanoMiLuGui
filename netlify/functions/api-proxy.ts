@@ -57,6 +57,12 @@ function pickForwardHeaders(request: Request, requestId: string): Record<string,
 }
 
 function resolveSplat(pathname: string): string {
+  // Netlify preserves the original public URL when a rewrite invokes a
+  // Function, so /sitemap.xml must be mapped explicitly to the backend route.
+  if (pathname === '/sitemap.xml') {
+    return 'sitemap.xml';
+  }
+
   const marker = '/.netlify/functions/api-proxy/';
   const idx = pathname.indexOf(marker);
   if (idx >= 0) {
