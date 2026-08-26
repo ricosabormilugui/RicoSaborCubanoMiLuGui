@@ -79,18 +79,21 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       width: 100%;
       min-width: 0;
       height: 100%;
-      overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
       border-radius: 12px;
       background: var(--surface-0);
       box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-soft) 35%, transparent);
       color: var(--text-main);
     }
-    .media { position: relative; isolation: isolate; }
+    .media {
+      position: relative;
+      isolation: isolate;
+    }
     .product-image {
       display: block;
       aspect-ratio: 4 / 3;
       overflow: hidden;
+      border-radius: 11px 11px 0 0;
       background: var(--surface-2);
     }
     .product-image img {
@@ -106,7 +109,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       z-index: 2;
       top: .45rem;
       left: .45rem;
-      max-width: calc(100% - 3.4rem);
+      max-width: calc(100% - 3.6rem);
       padding: .18rem .4rem;
       border-radius: 999px;
       background: color-mix(in srgb, var(--surface-0) 88%, transparent);
@@ -116,14 +119,24 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       letter-spacing: .04em;
       text-transform: uppercase;
       line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .badge.is-sold { background: color-mix(in srgb, var(--surface-0) 92%, var(--accent-red) 8%); }
     .favorite,
     .cta {
       appearance: none;
+      position: relative;
       padding: 0;
       margin: 0;
       font: inherit;
+    }
+    .favorite::after,
+    .cta::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
     }
     .favorite {
       position: absolute;
@@ -136,7 +149,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       place-items: center;
       border: 0;
       border-radius: 50%;
-      background: color-mix(in srgb, var(--surface-0) 86%, transparent);
+      background: color-mix(in srgb, var(--surface-0) 88%, transparent);
       color: var(--text-main);
       cursor: pointer;
     }
@@ -162,6 +175,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       line-height: 1.23;
       text-decoration: none;
       overflow-wrap: anywhere;
+      line-clamp: 2;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
@@ -180,7 +194,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
     .price.is-sold strong {
       color: var(--text-soft);
       font-size: .78rem;
-      font-weight: 750;
+      font-weight: 700;
       letter-spacing: .04em;
       text-transform: uppercase;
     }
@@ -197,8 +211,15 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       text-decoration: none;
       cursor: pointer;
     }
-    .cta:disabled { opacity: .45; cursor: not-allowed; }
-    .product-image:focus-visible,
+    .cta:disabled {
+      color: var(--text-soft);
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    .product-image:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent-green) 65%, transparent);
+      outline-offset: -3px;
+    }
     .product-name:focus-visible,
     .favorite:focus-visible,
     .cta:focus-visible {
@@ -210,6 +231,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       .product-image img { transition: transform .22s ease; }
       .cta { transition: background .2s ease, border-color .2s ease, color .2s ease; }
       :host:hover {
+        z-index: 1;
         transform: translateY(-2px);
         border-color: color-mix(in srgb, var(--accent-green) 32%, var(--border-soft));
         box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-soft) 42%, transparent);
@@ -223,12 +245,10 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       }
       .favorite:hover { background: var(--surface-1); }
     }
-    @media (max-width: 300px) {
-      .product-name { font-size: .8rem; }
-      .price strong { font-size: .88rem; }
-    }
     @media (prefers-reduced-motion: reduce) {
       :host, .product-image img, .cta { transition: none; }
+      :host:hover { transform: none; }
+      :host:hover .product-image img { transform: none; }
     }
   `],
   host: {
