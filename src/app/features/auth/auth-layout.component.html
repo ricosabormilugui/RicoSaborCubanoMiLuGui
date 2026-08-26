@@ -1,0 +1,33 @@
+<section class="auth-shell">
+  <aside class="auth-visual" [class.has-photo]="!!visualPhoto()" aria-hidden="true">
+    <img
+      *ngIf="visualPhoto()"
+      class="auth-visual-photo"
+      [src]="visualPhotoSrc()"
+      [attr.srcset]="visualPhotoSrcset()"
+      sizes="55vw"
+      alt=""
+      width="1400"
+      height="1050"
+      loading="lazy"
+      decoding="async" />
+    <img class="auth-visual-mark" [src]="visualLogo" alt="" width="256" height="256" loading="lazy" decoding="async" />
+    <p class="auth-visual-copy">
+      Todo el sabor, más cerca de ti.
+      <small>{{ brand.slogan }}</small>
+    </p>
+  </aside>
+
+  <div class="auth-panel">
+    <div class="auth-form-wrap">
+      <a class="auth-brand" routerLink="/" [attr.aria-label]="brand.name">
+        <img [src]="brandLogo()" [alt]="brand.name" width="96" height="96" />
+      </a>
+      <header class="auth-head">
+        <h1>{{ title() }}</h1>
+        <p *ngIf="subtitle()">{{ subtitle() }}</p>
+      </header>
+      <ng-content />
+    </div>
+  </div>
+</section>

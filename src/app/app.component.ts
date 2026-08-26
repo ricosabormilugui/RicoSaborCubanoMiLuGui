@@ -164,8 +164,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <button class="overlay" type="button" tabindex="-1" aria-label="Cerrar búsqueda" (click)="toggleSearch()"></button>
       </section>
 
-      <main class="page-content" [class.is-flush]="isHome()">
-        <div class="container main-layout" [class.is-flush]="isHome()">
+      <main class="page-content" [class.is-flush]="isHome() || isAuthSurface()">
+        <div class="container main-layout" [class.is-flush]="isHome() || isAuthSurface()">
           <div class="route-fade">
             <router-outlet />
           </div>
@@ -588,6 +588,11 @@ export class AppComponent {
 
   isHome(): boolean {
     return this.router.url.split('?')[0] === '/';
+  }
+
+  isAuthSurface(): boolean {
+    const path = this.router.url.split('?')[0].split('#')[0];
+    return path === '/login' || path === '/registro' || path === '/recuperar-contrasena' || path === '/reset-password';
   }
 
   currentRoute(): string {
