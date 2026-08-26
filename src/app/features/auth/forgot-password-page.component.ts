@@ -5,6 +5,7 @@ import { RouterLink, ActivatedRoute } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { PasswordRecoveryService } from '../../core/services/password-recovery.service';
 import { returnUrlQueryParams } from '../../core/utils/safe-return-url';
+import { isValidAuthEmail } from './auth-validation';
 import { AuthLayoutComponent } from './auth-layout.component';
 
 @Component({
@@ -17,8 +18,11 @@ import { AuthLayoutComponent } from './auth-layout.component';
       title="Recuperar contraseña"
       subtitle="Introduce el correo asociado a tu cuenta y te enviaremos las instrucciones para restablecerla.">
       <form class="auth-form-grid" *ngIf="!sent()" (ngSubmit)="submit()" novalidate>
-        <div class="auth-field" [class.is-error]="!!error()" [class.is-filled]="!!email">
-          <label for="recovery-email">Correo electrónico</label>
+        <div class="auth-field" [class.is-error]="!!error()" [class.is-filled]="!!email" [class.is-valid]="emailOk()">
+          <label for="recovery-email">
+            Correo electrónico
+            <span class="auth-valid-mark" aria-hidden="true">✓</span>
+          </label>
           <input
             id="recovery-email"
             name="email"
@@ -33,12 +37,17 @@ import { AuthLayoutComponent } from './auth-layout.component';
             required
             [attr.aria-invalid]="error() ? true : null"
             [attr.aria-describedby]="error() ? 'recovery-email-error' : null" />
-          <p class="auth-field-error" id="recovery-email-error" role="alert">{{ error() }}</p>
+          <p class="auth-field-error" id="recovery-email-error" [class.is-on]="!!error()" role="alert">{{ error() }}</p>
         </div>
 
-        <button class="btn btn-primary auth-submit" type="submit" [disabled]="loading()">
-          <span class="auth-spinner" *ngIf="loading()" aria-hidden="true"></span>
-          {{ loading() ? 'Enviando...' : 'Enviar instrucciones' }}
+        <button class="btn btn-primary auth-submit" type="submit" [class.is-loading]="loading()" [disabled]="loading()">
+          <span class="auth-submit-label">
+            <span class="auth-submit-idle">Enviar instrucciones</span>
+            <span class="auth-submit-busy">
+              <span class="auth-spinner" aria-hidden="true"></span>
+              Enviando…
+            </span>
+          </span>
         </button>
       </form>
 
@@ -49,7 +58,10 @@ import { AuthLayoutComponent } from './auth-layout.component';
         </div>
       </div>
 
-      <a class="auth-back" routerLink="/login" [queryParams]="returnLinkParams">Volver a iniciar sesión</a>
+      <a class="auth-back" routerLink="/login" [queryParams]="returnLinkParams">
+        <span class="auth-back-arrow" aria-hidden="true">←</span>
+        Volver a iniciar sesión
+      </a>
     </app-auth-layout>
   `
 })
@@ -70,9 +82,13 @@ export class ForgotPasswordPageComponent {
     return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
+  emailOk(): boolean {
+    return isValidAuthEmail(this.email);
+  }
+
   async submit(): Promise<void> {
     const email = this.email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidAuthEmail(email)) {
       this.error.set('Introduce un correo electrónico válido.');
       return;
     }

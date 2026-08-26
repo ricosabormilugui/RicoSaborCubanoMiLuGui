@@ -1,11 +1,12 @@
 import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { returnUrlQueryParams, safeReturnUrl } from '../../core/utils/safe-return-url';
+import { isValidAuthEmail } from './auth-validation';
 import { AuthLayoutComponent } from './auth-layout.component';
 import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
 
@@ -19,8 +20,11 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
       title="Bienvenido de nuevo"
       subtitle="Entra en tu cuenta y continúa disfrutando de MIXSABOR.">
       <form class="auth-form-grid" (ngSubmit)="login()" novalidate>
-        <div class="auth-field" [class.is-error]="!!emailError()" [class.is-filled]="!!email">
-          <label for="login-email">Email</label>
+        <div class="auth-field" [class.is-error]="!!emailError()" [class.is-filled]="!!email" [class.is-valid]="emailOk()">
+          <label for="login-email">
+            Email
+            <span class="auth-valid-mark" aria-hidden="true">✓</span>
+          </label>
           <input
             id="login-email"
             [(ngModel)]="email"
@@ -35,7 +39,7 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
             spellcheck="false"
             [attr.aria-invalid]="emailError() ? true : null"
             [attr.aria-describedby]="emailError() ? 'login-email-error' : null" />
-          <p class="auth-field-error" id="login-email-error" role="alert">{{ emailError() }}</p>
+          <p class="auth-field-error" id="login-email-error" [class.is-on]="!!emailError()" [attr.role]="emailError() ? 'alert' : null">{{ emailError() }}</p>
         </div>
 
         <div class="auth-field" [class.is-error]="!!passwordError()" [class.is-filled]="!!password">
@@ -53,16 +57,23 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
               [attr.aria-describedby]="passwordError() ? 'login-password-error' : null" />
             <app-auth-password-toggle [(visible)]="showPassword" />
           </div>
-          <p class="auth-field-error" id="login-password-error" role="alert">{{ passwordError() }}</p>
+          <p class="auth-field-error" id="login-password-error" [class.is-on]="!!passwordError()" [attr.role]="passwordError() ? 'alert' : null">{{ passwordError() }}</p>
         </div>
 
         <div class="auth-row">
           <a class="auth-forgot" routerLink="/recuperar-contrasena" [queryParams]="returnLinkParams">Recuperar contraseña</a>
         </div>
 
-        <button class="btn btn-primary auth-submit" type="submit" [disabled]="loading()">
-          <span class="auth-spinner" *ngIf="loading()" aria-hidden="true"></span>
-          {{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}
+        <p class="auth-banner" *ngIf="formError()" role="alert">{{ formError() }}</p>
+
+        <button class="btn btn-primary auth-submit" type="submit" [class.is-loading]="loading()" [disabled]="loading()">
+          <span class="auth-submit-label">
+            <span class="auth-submit-idle">Iniciar sesión</span>
+            <span class="auth-submit-busy">
+              <span class="auth-spinner" aria-hidden="true"></span>
+              Iniciando sesión…
+            </span>
+          </span>
         </button>
 
         <p class="auth-ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
@@ -78,6 +89,9 @@ export class LoginPageComponent {
   readonly loading = signal(false);
   readonly emailError = signal('');
   readonly passwordError = signal('');
+  readonly formError = signal('');
+  private readonly layout = viewChild(AuthLayoutComponent);
+  private finishing = false;
 
   constructor(
     public readonly auth: CustomerAuthService,
@@ -90,23 +104,34 @@ export class LoginPageComponent {
     return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
+  emailOk(): boolean {
+    return isValidAuthEmail(this.email);
+  }
+
   private destinationUrl(): string {
     return safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
   async login(): Promise<void> {
+    if (this.loading() || this.finishing) return;
     const email = this.email.trim();
-    this.emailError.set(email ? '' : 'Introduce tu email.');
+    this.formError.set('');
+    this.emailError.set(!email ? 'Introduce tu email.' : isValidAuthEmail(email) ? '' : 'Introduce un correo electrónico válido.');
     this.passwordError.set(this.password ? '' : 'Introduce tu contraseña.');
-    if (!email || !this.password) return;
+    if (this.emailError() || this.passwordError()) return;
 
     this.loading.set(true);
     try {
       await this.auth.login(email, this.password);
+      this.finishing = true;
+      this.loading.set(false);
       this.notifications.success('Sesión iniciada', 'Bienvenido de nuevo.');
-      await this.router.navigateByUrl(this.destinationUrl());
+      if (await this.layout()?.playSuccess('welcome') !== false) {
+        await this.router.navigateByUrl(this.destinationUrl());
+      }
     } catch (error) {
       const message = getUserFriendlyError(error, 'No se pudo iniciar sesión.');
+      this.formError.set(message);
       this.notifications.error('Error al iniciar sesión', message);
     } finally {
       this.loading.set(false);

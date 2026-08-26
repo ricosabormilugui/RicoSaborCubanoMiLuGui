@@ -164,8 +164,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <button class="overlay" type="button" tabindex="-1" aria-label="Cerrar búsqueda" (click)="toggleSearch()"></button>
       </section>
 
-      <main class="page-content" [class.is-flush]="isHome() || isAuthSurface()">
-        <div class="container main-layout" [class.is-flush]="isHome() || isAuthSurface()">
+      <main class="page-content" [class.is-flush]="isHome() || isAuthSurface()" [class.is-auth]="isAuthSurface()">
+        <div class="container main-layout" [class.is-flush]="isHome() || isAuthSurface()" [class.is-auth]="isAuthSurface()">
           <div class="route-fade">
             <router-outlet />
           </div>
@@ -284,6 +284,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.page-content.is-flush{padding:0}`,
     `.container.is-flush{max-width:none;padding:0}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
+    `@media (min-width:1024px){.page-content.is-auth{display:flex;flex-direction:column;min-height:0;overflow:hidden}.page-content.is-auth .main-layout{flex:1;min-height:0;display:flex}.page-content.is-auth .route-fade{flex:1;min-height:0;display:flex;width:100%}}`,
     `.site-footer{border-top:1px solid var(--border-soft);background:color-mix(in srgb,var(--surface-0) 88%,var(--bg-main) 12%);padding:clamp(1.1rem,2.6vw,1.75rem) 0}`,
     `.footer-grid{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr);gap:clamp(.8rem,2vw,1.4rem);align-items:center}`,
     `.site-footer .eyebrow{margin:0 0 .2rem;color:var(--accent-red-text);font-size:.72rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}`,

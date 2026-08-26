@@ -1,18 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/config/password-policy.config';
+import { getPasswordPolicyError } from '../../core/config/password-policy.config';
 import { NotificationService } from '../../core/services/notification.service';
 import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/services/password-recovery.service';
 import { returnUrlQueryParams } from '../../core/utils/safe-return-url';
 import { AuthLayoutComponent } from './auth-layout.component';
+import { AuthPasswordPolicyComponent } from './auth-password-policy.component';
 import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
 
 @Component({
   selector: 'app-reset-password-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AuthLayoutComponent, AuthPasswordToggleComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AuthLayoutComponent, AuthPasswordToggleComponent, AuthPasswordPolicyComponent],
   styleUrls: ['./auth-form.css'],
   template: `
     <app-auth-layout
@@ -34,9 +35,7 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
       </div>
 
       <form class="auth-form-grid" *ngIf="!invalidToken() && !updated()" (ngSubmit)="submit()" novalidate>
-        <p class="auth-hint">{{ policyMessage }}</p>
-
-        <div class="auth-field" [class.is-error]="!!passwordError()" [class.is-filled]="!!password">
+        <div class="auth-field" [class.is-error]="!!passwordError()" [class.is-filled]="!!password" [class.is-valid]="passwordOk()">
           <label for="new-password">Nueva contraseña</label>
           <div class="auth-password">
             <input
@@ -47,14 +46,20 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
               autocomplete="new-password"
               required
               [attr.aria-invalid]="passwordError() ? true : null"
-              [attr.aria-describedby]="passwordError() ? 'reset-password-error' : null" />
+              [attr.aria-describedby]="'reset-password-policy' + (passwordError() ? ' reset-password-error' : '')" />
             <app-auth-password-toggle [(visible)]="showPassword" showLabel="Mostrar nueva contraseña" hideLabel="Ocultar nueva contraseña" />
           </div>
-          <p class="auth-field-error" id="reset-password-error" role="alert">{{ passwordError() }}</p>
+          <div id="reset-password-policy">
+            <app-auth-password-policy [password]="password" />
+          </div>
+          <p class="auth-field-error" id="reset-password-error" [class.is-on]="!!passwordError()" role="alert">{{ passwordError() }}</p>
         </div>
 
-        <div class="auth-field" [class.is-error]="!!confirmError()" [class.is-filled]="!!confirmation">
-          <label for="confirm-password">Confirmar contraseña</label>
+        <div class="auth-field" [class.is-error]="!!confirmError()" [class.is-filled]="!!confirmation" [class.is-valid]="passwordsMatch()">
+          <label for="confirm-password">
+            Confirmar contraseña
+            <span class="auth-valid-mark" aria-hidden="true">✓</span>
+          </label>
           <div class="auth-password">
             <input
               id="confirm-password"
@@ -64,27 +69,35 @@ import { AuthPasswordToggleComponent } from './auth-password-toggle.component';
               autocomplete="new-password"
               required
               [attr.aria-invalid]="confirmError() ? true : null"
-              [attr.aria-describedby]="confirmError() ? 'reset-confirm-error' : null" />
+              [attr.aria-describedby]="confirmError() ? 'reset-confirm-error' : (passwordsMatch() ? 'reset-confirm-ok' : null)" />
             <app-auth-password-toggle [(visible)]="showConfirmation" showLabel="Mostrar confirmación de contraseña" hideLabel="Ocultar confirmación de contraseña" />
           </div>
-          <p class="auth-field-error" id="reset-confirm-error" role="alert">{{ confirmError() }}</p>
+          <p class="auth-match" id="reset-confirm-ok" *ngIf="passwordsMatch()">Las contraseñas coinciden.</p>
+          <p class="auth-field-error" id="reset-confirm-error" [class.is-on]="!!confirmError()" role="alert">{{ confirmError() }}</p>
         </div>
 
-        <button class="btn btn-primary auth-submit" type="submit" [disabled]="loading()">
-          <span class="auth-spinner" *ngIf="loading()" aria-hidden="true"></span>
-          {{ loading() ? 'Actualizando...' : 'Actualizar contraseña' }}
+        <button class="btn btn-primary auth-submit" type="submit" [class.is-loading]="loading()" [disabled]="loading()">
+          <span class="auth-submit-label">
+            <span class="auth-submit-idle">Actualizar contraseña</span>
+            <span class="auth-submit-busy">
+              <span class="auth-spinner" aria-hidden="true"></span>
+              Actualizando…
+            </span>
+          </span>
         </button>
       </form>
 
-      <p class="auth-err" role="alert" *ngIf="error()">{{ error() }}</p>
-      <a class="auth-back" routerLink="/login" [queryParams]="returnLinkParams" *ngIf="!updated()">Volver a iniciar sesión</a>
+      <p class="auth-banner" role="alert" *ngIf="error()">{{ error() }}</p>
+      <a class="auth-back" routerLink="/login" [queryParams]="returnLinkParams" *ngIf="!updated()">
+        <span class="auth-back-arrow" aria-hidden="true">←</span>
+        Volver a iniciar sesión
+      </a>
     </app-auth-layout>
   `
 })
 export class ResetPasswordPageComponent {
   password = '';
   confirmation = '';
-  readonly policyMessage = PASSWORD_POLICY_MESSAGE;
   readonly showPassword = signal(false);
   readonly showConfirmation = signal(false);
   readonly loading = signal(false);
@@ -93,6 +106,8 @@ export class ResetPasswordPageComponent {
   readonly error = signal('');
   readonly passwordError = signal('');
   readonly confirmError = signal('');
+  private readonly layout = viewChild(AuthLayoutComponent);
+  private finishing = false;
   private readonly token: string;
 
   constructor(
@@ -115,7 +130,16 @@ export class ResetPasswordPageComponent {
     return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
+  passwordOk(): boolean {
+    return !getPasswordPolicyError(this.password);
+  }
+
+  passwordsMatch(): boolean {
+    return this.passwordOk() && this.confirmation.length > 0 && this.password === this.confirmation;
+  }
+
   async submit(): Promise<void> {
+    if (this.loading() || this.finishing) return;
     const policyError = getPasswordPolicyError(this.password);
     this.passwordError.set(policyError);
     this.confirmError.set(this.password === this.confirmation ? '' : 'Las contraseñas no coinciden.');
@@ -125,10 +149,14 @@ export class ResetPasswordPageComponent {
     this.loading.set(true);
     try {
       await this.recovery.resetPassword(this.token, this.password);
+      this.finishing = true;
       this.password = '';
       this.confirmation = '';
-      this.updated.set(true);
+      this.loading.set(false);
       this.notifications.success('Contraseña actualizada', 'Ya puedes iniciar sesión con tu nueva contraseña.');
+      if (await this.layout()?.playSuccess('reset') !== false) {
+        this.updated.set(true);
+      }
     } catch (error) {
       if (error instanceof PasswordRecoveryError && error.code === 'INVALID_OR_EXPIRED_TOKEN') {
         this.invalidToken.set(true);

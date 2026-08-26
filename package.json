@@ -23,6 +23,7 @@
     "mongodb": "^6.16.0",
     "ngx-sonner": "3.1.0",
     "rxjs": "~7.8.0",
+    "three": "^0.185.1",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
@@ -30,6 +31,7 @@
     "@angular-devkit/build-angular": "^20.3.34",
     "@angular/cli": "^20.3.34",
     "@angular/compiler-cli": "^20.3.29",
+    "@types/three": "^0.185.4",
     "typescript": "~5.8.0"
   }
 }

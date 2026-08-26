@@ -1,0 +1,44 @@
+<div
+  #stage
+  class="stage"
+  [attr.data-state]="state()"
+  [class.is-ready]="ready()"
+  [class.is-fallback]="failed()">
+  <div class="vortex-ambient" aria-hidden="true"></div>
+  <div class="vortex-haze" aria-hidden="true"></div>
+  <div class="vortex-compose">
+    <div class="vortex-field" aria-hidden="true">
+      <canvas #gl class="vortex-canvas" aria-hidden="true"></canvas>
+      <div class="vortex-fallback" aria-hidden="true"></div>
+      @for (item of products; track item.id) {
+        <span
+          class="item-track"
+          [class.depth-back]="item.depth === 'back'"
+          [class.depth-middle]="item.depth === 'middle'"
+          [class.depth-front]="item.depth === 'front'"
+          [class.parked]="item.parked"
+          [style.--cycle.s]="item.cycle"
+          [style.--delay.s]="item.delay">
+          <span
+            class="item"
+            [style.--size.px]="item.size"
+            [style.--cycle.s]="item.cycle"
+            [style.--delay.s]="item.delay"
+            [style.--tilt.deg]="item.rotate"
+            [style.--sx.%]="item.staticX"
+            [style.--sy.%]="item.staticY">
+            <img [src]="item.src" alt="" [attr.width]="item.size" [attr.height]="item.size" decoding="async" draggable="false" />
+          </span>
+        </span>
+      }
+    </div>
+    <div class="vortex-eye" aria-hidden="true"></div>
+    <div class="stage-center">
+      @if (state() === 'success') {
+        <div class="stage-success">
+          <img class="stage-logo" [src]="logoSrc()" [alt]="brandName()" width="128" height="128" />
+        </div>
+      }
+    </div>
+  </div>
+</div>
