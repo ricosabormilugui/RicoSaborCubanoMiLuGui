@@ -2,8 +2,8 @@ import { DatePipe } from '@angular/common';
 import { Component, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { IconComponent } from './icon.component';
-import { UserNotificationsService } from '../../core/services/user-notifications.service';
-import { UserNotification, notificationDestination } from '../../core/notifications/user-notification.types';
+import { NotificationCenterService } from '../../core/services/notification-center.service';
+import { NotificationItem } from '../../core/notifications/local-notification.types';
 
 @Component({
   selector: 'app-user-notification-list', standalone: true, imports: [DatePipe, IconComponent],
@@ -43,13 +43,14 @@ import { UserNotification, notificationDestination } from '../../core/notificati
   `]
 })
 export class UserNotificationListComponent {
-  readonly items = input.required<UserNotification[]>();
-  readonly service = inject(UserNotificationsService);
+  readonly items = input.required<NotificationItem[]>();
+  readonly service = inject(NotificationCenterService);
   private readonly router = inject(Router);
-  readonly destination = notificationDestination;
-  typeLabel(type: string): string { return ({ order: 'Pedido', account: 'Cuenta', system: 'Sistema', promotion: 'Promoción', warning: 'Aviso', info: 'Información' } as Record<string, string>)[type] ?? 'Información'; }
-  async open(item: UserNotification): Promise<void> {
+  readonly destination = (item: NotificationItem) => this.service.destination(item);
+  typeLabel(type: string): string { return ({ order: 'Pedido', account: 'Cuenta', system: 'Sistema', promotion: 'Promoción', success: 'Completado', error: 'Error', warning: 'Aviso', info: 'Información' } as Record<string, string>)[type] ?? 'Información'; }
+  async open(item: NotificationItem): Promise<void> {
+    const session = this.service.session();
     const url = this.destination(item);
-    if (url && await this.service.markRead(item)) await this.router.navigateByUrl(url);
+    if (url && await this.service.markRead(item) && session === this.service.session()) await this.router.navigateByUrl(url);
   }
 }

@@ -53,9 +53,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
           </div>
 
           <div class="nav-right">
-            @if (customerAuth.isAuthenticated()) {
-              @defer (on immediate) { <app-notification-bell /> }
-            }
+            @defer (on immediate) { <app-notification-bell /> }
             <button class="icon-btn mobile-only" type="button" (click)="openSearch()" aria-label="Buscar">
               <app-icon name="search" />
             </button>
@@ -111,7 +109,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
         <a routerLink="/mis-pedidos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
-        <a routerLink="/mis-notificaciones" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis notificaciones</a>
+        <a routerLink="/mis-notificaciones" (click)="closeMenu()">{{ customerAuth.isAuthenticated() ? 'Mis notificaciones' : 'Actividad reciente' }}</a>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
         <button
@@ -235,7 +233,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
       <app-cookie-banner />
       <app-notifications />
-      <app-confirm-dialog />
+      @defer (on immediate) { <app-confirm-dialog /> }
     </div>
   `,
   styles: [

@@ -117,7 +117,7 @@ export class ProductDetailPageComponent {
     const customization = buildCartCustomizationSelections(product, this.selectedCustomization());
     this.cart.add(product, customization, quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
     return true;
   }
 

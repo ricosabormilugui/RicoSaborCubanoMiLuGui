@@ -20,6 +20,7 @@ function load(path, page = false) {
   const require = name => {
     if (name === '@angular/core') return { ...angular, Component: () => target => target };
     if (name === 'ngx-sonner') return sonner;
+    if (name.endsWith('customer-auth.service')) return { CustomerAuthService: class {} };
     if (name.endsWith('user-friendly-error') || name.endsWith('notification.config')) return load(resolve(dirname(path), name + '.ts'));
     if (page) return {};
     throw new Error('Unmocked import: ' + name);
@@ -39,6 +40,29 @@ const notifications = new NotificationService();
 // Focus unit tests on adapter behavior; browser QA exercises actual lazy loading.
 notifications.dispatch = operation => operation(sonner);
 beforeEach(() => notifications.dismissAll());
+
+test('cupón: solo el botón Aplicar emite actividad; la validación automática permanece silenciosa', () => {
+  const component = Object.create(CheckoutPageComponent.prototype);
+  const code = { value: '', setValue(value) { this.value = value; } };
+  component.form = { controls: { couponCode: code } };
+  component.couponPreviewValid = angular.signal(false);
+  component.couponPreviewMessage = angular.signal('');
+  const calls = [];
+  component.notifications = { success: (...args) => calls.push(['success', ...args]), warning: (...args) => calls.push(['warning', ...args]) };
+  component.applyCouponWithFeedback();
+  assert.equal(calls.length, 0);
+  code.value = ' primer10 ';
+  component.applyCouponWithFeedback();
+  assert.equal(calls[0][0], 'success');
+  assert.equal(calls[0][3].saveToHistory, true);
+  assert.match(calls[0][3].history.message, /Pendiente/);
+  component.applyCouponPreview();
+  assert.equal(calls.length, 1);
+  code.value = 'INVALIDO';
+  component.applyCouponWithFeedback();
+  assert.equal(calls[1][0], 'warning');
+  assert.equal(calls[1][3].saveToHistory, true);
+});
 
 test('carga diferida aplica loading → success → dismiss en orden', async () => {
   const service = new NotificationService();

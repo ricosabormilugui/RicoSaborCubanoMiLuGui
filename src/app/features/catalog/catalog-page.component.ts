@@ -261,7 +261,7 @@ export class CatalogPageComponent implements OnDestroy {
     const quantity = this.minimumQuantity(product);
     this.cart.add(product, [], quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
   }
 
   addAction(product: Product): AddToCartAction {

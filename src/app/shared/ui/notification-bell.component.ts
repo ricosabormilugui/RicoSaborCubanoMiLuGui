@@ -3,7 +3,7 @@ import { Component, ElementRef, OnDestroy, afterRenderEffect, effect, inject, si
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { LucideBell } from '@lucide/angular';
-import { UserNotificationsService } from '../../core/services/user-notifications.service';
+import { NotificationCenterService } from '../../core/services/notification-center.service';
 import { notificationBadge } from '../../core/notifications/user-notification.types';
 import { UserNotificationListComponent } from './user-notification-list.component';
 import { IconComponent } from './icon.component';
@@ -18,22 +18,23 @@ import { IconComponent } from './icon.component';
     </button>
     <dialog #panel id="notification-panel" aria-labelledby="notification-panel-title" (cancel)="$event.preventDefault(); close()" (keydown.escape)="$event.preventDefault(); $event.stopPropagation(); close()" (keydown)="trapFocus($event)" (click)="backdrop($event)">
       @if (opened() && panelOwner === service.session()) {
-        <header><div><span class="eyebrow">TU ACTIVIDAD</span><h2 id="notification-panel-title">Notificaciones</h2></div><button autofocus class="close" type="button" aria-label="Cerrar notificaciones" (click)="close()"><app-icon name="close" /></button></header>
+        <header><div><span class="eyebrow">{{ service.isAccount() ? 'TU CUENTA' : 'EN ESTE DISPOSITIVO' }}</span><h2 id="notification-panel-title">{{ service.isAccount() ? 'Notificaciones' : 'Actividad reciente' }}</h2></div><button autofocus class="close" type="button" aria-label="Cerrar notificaciones" (click)="close()"><app-icon name="close" /></button></header>
         <div class="toolbar"><span aria-live="polite">{{ service.unreadCount() }} sin leer</span><button type="button" [disabled]="!service.unreadCount() || service.busy()" (click)="service.markAllRead()">Marcar todas leídas</button></div>
         <div class="content" [attr.aria-busy]="service.loading().recent">
+          @if (service.storageWarning()) { <p class="state" role="status">{{ service.storageWarning() }}</p> }
           @if (service.error()) { <div role="alert" class="state"><p>{{ service.error() }}</p><button type="button" (click)="reload()">Reintentar</button></div> }
           @if (service.loading().recent) { <p class="state" role="status">Cargando notificaciones…</p> }
-          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>Estás al día</h3><p>Aquí aparecerán las novedades de tus pedidos y tu cuenta.</p></div> }
+          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>{{ service.isAccount() ? 'Estás al día' : 'No tienes actividad reciente' }}</h3><p>{{ service.isAccount() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
           <app-user-notification-list [items]="service.recent()" />
         </div>
-        <footer><a routerLink="/mis-notificaciones" (click)="close()">Ver todas las notificaciones <span aria-hidden="true">→</span></a></footer>
+        <footer><a routerLink="/mis-notificaciones" (click)="close()">{{ service.isAccount() ? 'Ver todas las notificaciones' : 'Ver toda la actividad' }} <span aria-hidden="true">→</span></a></footer>
       }
     </dialog>
   `,
   styleUrl: './notification-bell.component.scss'
 })
 export class NotificationBellComponent implements OnDestroy {
-  readonly service = inject(UserNotificationsService);
+  readonly service = inject(NotificationCenterService);
   readonly badge = notificationBadge;
   readonly opened = signal(false);
   readonly panel = viewChild<ElementRef<HTMLDialogElement>>('panel');
@@ -53,7 +54,6 @@ export class NotificationBellComponent implements OnDestroy {
     inject(Router).events.pipe(takeUntilDestroyed()).subscribe(event => { if (event instanceof NavigationStart) this.close(); });
   }
   show(trigger: HTMLElement): void {
-    if (!this.service.session()) return;
     this.trigger = trigger;
     this.panelOwner = this.service.session();
     this.focusedOpening = false;

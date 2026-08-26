@@ -19,6 +19,6 @@ export class CartPageComponent {
     const item = this.cart.items().find(item => item.productId === productId);
     if (!item) return;
     this.cart.remove(productId);
-    this.notifications.info('Producto eliminado del carrito', item.name, { key: 'cart-remove:' + productId });
+    this.notifications.info('Producto eliminado del carrito', item.name, { key: 'cart-remove:' + productId, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } } });
   }
 }

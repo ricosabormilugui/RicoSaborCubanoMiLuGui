@@ -179,3 +179,6 @@ Se ejecutan métodos reales de TypeScript con las dependencias externas de pági
 - Se verificó UI local y comportamiento con servicios sustituidos en pruebas; no se validaron operaciones administrativas o checkout contra un backend autenticado real ni con un lector de pantalla externo.
 - La carga inicial queda cerca del presupuesto existente; futuras dependencias de la raíz deben mantener carga diferida cuando proceda.
 - Sin despliegue ni cambios en precios, stock, estructura de pedidos, reglas de checkout o contratos del backend.
+# Actividad local opcional
+
+El servicio de toasts admite `saveToHistory: true` con una política exclusiva para invitados. No copia por defecto la descripción del toast. La API existente y los toasts temporales se conservan. Ver `docs/local-notification-history.md` para la política, componentes reutilizados, privacidad, pruebas y ejemplos.

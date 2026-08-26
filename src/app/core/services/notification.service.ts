@@ -1,10 +1,25 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
+import { CustomerAuthService } from './customer-auth.service';
 import { NOTIFICATION_DURATIONS } from '../notifications/notification.config';
 import { NotificationId, NotificationOptions, NotificationType } from '../notifications/notification.types';
 import { getUserFriendlyError } from '../utils/user-friendly-error';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
+  constructor(private readonly injector?: Injector) {}
+  historySession(): number { return this.injector?.get(CustomerAuthService).sessionVersion() ?? -1; }
+
+  private record(type: NotificationType, title: string, options: NotificationOptions): void {
+    const injector = this.injector;
+    if (!options.saveToHistory || type === 'loading' || !injector) return;
+    const auth = injector.get(CustomerAuthService);
+    const version = options.history?.sessionVersion ?? auth.sessionVersion();
+    if (auth.isAuthenticated() || version !== auth.sessionVersion()) return;
+    const createdAt = Date.now();
+    void import('./notification-history.service').then(({ NotificationHistoryService }) => {
+      if (!auth.isAuthenticated() && auth.sessionVersion() === version) injector.get(NotificationHistoryService).add({ type, title, message: options.history?.message, action: options.history?.action }, createdAt);
+    }).catch(() => { /* A storage/chunk failure must not prevent immediate feedback. */ });
+  }
   // Keep the toast library out of the initial SPA bundle. Calls made while it
   // loads are applied in order; callers still receive their ID synchronously.
   private library?: Promise<typeof import('ngx-sonner')>;
@@ -48,6 +63,7 @@ export class NotificationService {
   dismissAll(): void { this.dispatch(({ toast }) => toast.dismiss()); }
 
   private show(type: NotificationType, title: string, description?: string, options: NotificationOptions = {}): NotificationId {
+    this.record(type, title, options);
     const id = options.id ?? (options.key ? `key:${options.key}` : `message:${JSON.stringify([type, title, description])}`);
     this.dispatch(({ toast, toastState }) => {
       // Sonner 3.1 restarts timers on updates: avoid setTimeout(Infinity).

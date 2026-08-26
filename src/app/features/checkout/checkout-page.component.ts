@@ -257,7 +257,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                 Cupón descuento
                 <div class="coupon-row">
                   <input [value]="form.controls.couponCode.value" placeholder="Cupon" (input)="setCouponCode($event)" />
-                  <button class="btn btn-secondary" type="button" (click)="applyCouponPreview()">Aplicar</button>
+                  <button class="btn btn-secondary" type="button" (click)="applyCouponWithFeedback()">Aplicar</button>
                 </div>
               </label>
               <small class="coupon-ok" *ngIf="couponPreviewValid()">Cupón preaplicado. El backend validará que sea tu primer pedido.</small>
@@ -593,6 +593,14 @@ export class CheckoutPageComponent {
     this.couponPreviewMessage.set('');
   }
 
+  applyCouponWithFeedback(): void {
+    this.applyCouponPreview();
+    if (!this.form.controls.couponCode.value.trim()) return;
+    const history = { action: { label: 'Revisar pedido', url: '/checkout' } };
+    if (this.couponPreviewValid()) this.notifications.success('Cupón preaplicado', 'Se validará al confirmar el pedido.', { saveToHistory: true, history: { ...history, message: 'Pendiente de la validación del servidor al confirmar el pedido.' } });
+    else this.notifications.warning('Cupón rechazado', this.couponPreviewMessage(), { saveToHistory: true, history });
+  }
+
   sanitizePostalCode(): void {
     const clean = normalizePostalCode(this.form.controls.postalCode.value);
     if (clean !== this.form.controls.postalCode.value) {
@@ -724,6 +732,7 @@ export class CheckoutPageComponent {
     this.notificationWarning.set('');
 
     const id = this.notifications.loading('Procesando pedido…', 'Estamos validando disponibilidad y stock.', { key: 'checkout' });
+    const historySession = this.notifications.historySession();
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
       payload.requiresAdvancePayment = this.requiresAdvancePayment();
@@ -733,7 +742,7 @@ export class CheckoutPageComponent {
       this.isLocalDraft.set(result.channel === 'local');
       this.notificationWarning.set(result.warning ? getUserFriendlyError(result.warning, 'El pedido se ha guardado, pero no se pudo enviar el aviso por correo.') : '');
 
-      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`);
+      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: result.channel !== 'local', history: { sessionVersion: historySession } });
       this.cart.clear();
       this.orderService.completeOrderIntent();
 
@@ -759,7 +768,7 @@ export class CheckoutPageComponent {
       this.deliveryState.clear();
     } catch (error) {
       const message = getUserFriendlyError(error, 'No fue posible registrar el pedido. Intenta nuevamente.');
-      this.notifications.updateError(id, 'No se pudo enviar el pedido', message);
+      this.notifications.updateError(id, 'No se pudo enviar el pedido', message, { saveToHistory: true, history: { sessionVersion: historySession, action: { label: 'Revisar pedido', url: '/checkout' } } });
     } finally {
       this.loading.set(false);
     }
