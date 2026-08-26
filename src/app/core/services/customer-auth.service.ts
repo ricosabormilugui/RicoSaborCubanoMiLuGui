@@ -3,6 +3,7 @@ import { Injectable, signal, inject } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminAuthService } from './admin-auth.service';
 import { ApiRequestError, requestJson } from '../utils/api-client';
+import { ActiveIdentityService, StaleIdentityError } from './active-identity.service';
 
 export interface CustomerProfile {
   userId: string;
@@ -19,10 +20,15 @@ export class CustomerAuthService {
 
   readonly token = signal<string>(this.readStorage(this.tokenKey));
   readonly profile = signal<CustomerProfile | null>(this.readProfile());
-  readonly sessionVersion = signal(0);
+  readonly sessionVersion = this.identity.version;
 
-  constructor(private readonly adminAuth: AdminAuthService) {
+  constructor(private readonly adminAuth: AdminAuthService, private readonly identity: ActiveIdentityService) {
+    this.publishIdentity();
     this.syncAdminSession();
+  }
+
+  private publishIdentity(): void {
+    this.identity.activate(!this.token() ? { type: 'guest' } : this.profile()?.userId ? { type: 'user', userId: this.profile()!.userId } : null);
   }
 
   private readStorage(key: string): string {
@@ -98,6 +104,7 @@ export class CustomerAuthService {
         email: data.email,
         role: data.role === 'admin' ? 'admin' : 'customer'
       });
+      if (this.identity.key() !== `user:${data.userId}`) this.publishIdentity();
       this.persist();
       this.syncAdminSession();
     } catch (error) {
@@ -114,17 +121,20 @@ export class CustomerAuthService {
     this.sessionVersion.update(version => version + 1);
     this.token.set('');
     this.profile.set(null);
+    this.publishIdentity();
     this.persist();
     this.syncAdminSession();
   }
 
   async register(fullName: string, email: string, password: string): Promise<{ linkedOrders: number }> {
+    const version = this.sessionVersion();
     const normalizedEmail = email.trim().toLowerCase();
     const data = await requestJson<{ linkedOrders?: number }>(`${this.apiBase}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fullName, email: normalizedEmail, password })
     }, 'No se pudo registrar la cuenta.');
+    if (version !== this.sessionVersion()) throw new StaleIdentityError();
     await this.login(normalizedEmail, password);
     return { linkedOrders: data.linkedOrders ?? 0 };
   }
@@ -140,10 +150,11 @@ export class CustomerAuthService {
         body: JSON.stringify({ email: normalizedEmail, password })
       }, 'No se pudo iniciar sesión.');
     } catch (error) {
+      if (version !== this.sessionVersion()) throw new StaleIdentityError();
       if (error instanceof ApiRequestError && error.status === 401) throw new Error('Credenciales inválidas.');
       throw error;
     }
-    if (version !== this.sessionVersion()) return;
+    if (version !== this.sessionVersion()) throw new StaleIdentityError();
     this.sessionVersion.update(value => value + 1);
     this.token.set(data.token ?? '');
     this.profile.set({
@@ -151,6 +162,7 @@ export class CustomerAuthService {
       email: normalizedEmail,
       role: data.role === 'admin' ? 'admin' : 'customer'
     });
+    this.publishIdentity();
     this.persist();
     this.syncAdminSession();
   }

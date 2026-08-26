@@ -1,9 +1,9 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, OnDestroy, computed, linkedSignal } from '@angular/core';
+import { ActiveIdentityService } from './active-identity.service';
 import { CartCustomizationSelection, CartItem } from '../models/order.model';
 import { isProductCustomizable, Product } from '../models/product.model';
 import { buildCustomizationOptionId, calculateFinalUnitPrice, getCustomizationGroupKeyByLabel, getPriceModifier, roundMoney } from '../utils/customization-pricing';
 
-const CART_STORAGE_KEY = 'ricosabor-cart';
 const CART_SCHEMA_VERSION = 3;
 const SUPPORTED_CART_SCHEMA_VERSIONS = new Set([2, CART_SCHEMA_VERSION]);
 const MAX_RESTORED_QUANTITY = 99;
@@ -14,9 +14,18 @@ interface StoredCartState {
 }
 
 @Injectable({ providedIn: 'root' })
-export class CartService {
+export class CartService implements OnDestroy {
   private lastPersistedValue = '';
-  private readonly state = signal<CartItem[]>(this.restoreCart());
+  private readonly state = linkedSignal<CartItem[]>(() => {
+    this.identity.session();
+    this.lastPersistedValue = '';
+    return this.restoreCart();
+  });
+  private readonly onStorage = (event: StorageEvent): void => {
+    if (event.key === this.identity.storageKey('cart') || event.key === null) this.state.set(this.restoreCart());
+  };
+  constructor(private readonly identity: ActiveIdentityService) { globalThis.addEventListener?.('storage', this.onStorage); }
+  ngOnDestroy(): void { globalThis.removeEventListener?.('storage', this.onStorage); }
 
   readonly items = computed(() => this.state());
   readonly subtotal = computed(() => roundMoney(this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)));
@@ -86,13 +95,17 @@ export class CartService {
   }
 
   private setItems(items: CartItem[]): void {
+    this.state(); // Resolve a changed identity before mutating or comparing persisted values.
+    if (!this.identity.storageKey('cart')) return;
     this.state.set(items);
     this.persistCart(items);
   }
 
   private restoreCart(): CartItem[] {
     try {
-      const raw = globalThis.localStorage?.getItem(CART_STORAGE_KEY);
+      const key = this.identity.storageKey('cart');
+      if (!key) return [];
+      const raw = globalThis.localStorage?.getItem(key);
       if (!raw) return [];
 
       const parsed = JSON.parse(raw) as Partial<StoredCartState> | CartItem[];
@@ -106,7 +119,7 @@ export class CartService {
       this.lastPersistedValue = serialized;
 
       if (serialized !== raw) {
-        globalThis.localStorage?.setItem(CART_STORAGE_KEY, serialized);
+        globalThis.localStorage?.setItem(key, serialized);
       }
 
       return normalized;
@@ -176,10 +189,12 @@ export class CartService {
 
   private persistCart(items: CartItem[]): void {
     try {
+      const key = this.identity.storageKey('cart');
+      if (!key) return;
       const serialized = this.serializeCart(items);
       if (serialized === this.lastPersistedValue) return;
 
-      globalThis.localStorage?.setItem(CART_STORAGE_KEY, serialized);
+      globalThis.localStorage?.setItem(key, serialized);
       this.lastPersistedValue = serialized;
     } catch {
       // Ignore storage failures so cart interactions continue to work.
