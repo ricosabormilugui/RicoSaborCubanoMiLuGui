@@ -26,9 +26,11 @@ const catchSlice = (source) => source.slice(source.indexOf('} catch'));
 test('la escena auth usa productos locales configurables y un success acotado', () => {
   const { AUTH_FLOATING_PRODUCTS, AUTH_VISUAL_SUCCESS_MS, AUTH_VISUAL_SUCCESS_REDUCED_MS } = load('src/app/features/auth/auth-visual.model.ts');
 
-  assert.equal(AUTH_VISUAL_SUCCESS_MS, 650);
-  assert.equal(AUTH_VISUAL_SUCCESS_REDUCED_MS, 280);
-  assert.ok(AUTH_VISUAL_SUCCESS_MS >= 550 && AUTH_VISUAL_SUCCESS_MS <= 750);
+  assert.equal(AUTH_VISUAL_SUCCESS_MS, 1300);
+  assert.equal(AUTH_VISUAL_SUCCESS_REDUCED_MS, 400);
+  assert.ok(AUTH_VISUAL_SUCCESS_MS >= 1250 && AUTH_VISUAL_SUCCESS_MS <= 1350);
+  assert.ok(AUTH_VISUAL_SUCCESS_REDUCED_MS >= 350 && AUTH_VISUAL_SUCCESS_REDUCED_MS <= 450);
+  assert.ok(AUTH_VISUAL_SUCCESS_REDUCED_MS < AUTH_VISUAL_SUCCESS_MS);
   assert.ok(AUTH_FLOATING_PRODUCTS.length >= 5 && AUTH_FLOATING_PRODUCTS.length <= 7);
   assert.deepEqual(new Set(AUTH_FLOATING_PRODUCTS.map((item) => item.depth)), new Set(['back', 'middle', 'front']));
   assert.ok(AUTH_FLOATING_PRODUCTS.every((item) => !('path' in item)));
@@ -69,6 +71,13 @@ test('el panel visual desktop monta la escena y no carga fotos CMS', () => {
   assert.match(layout, /async playSuccess\(kind: AuthVisualSuccessKind\)/);
   assert.match(layout, /AUTH_VISUAL_SUCCESS_MS/);
   assert.match(layout, /waitForSuccess/);
+  assert.match(layout, /if \(!this\.showVisual\(\)\) return true/);
+  assert.match(layout, /reducedMotion\(\) \? AUTH_VISUAL_SUCCESS_REDUCED_MS : AUTH_VISUAL_SUCCESS_MS/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /550ms/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /800ms/);
+  assert.match(renderer, /return 4200/);
+  assert.match(renderer, /return 5600/);
+  assert.match(renderer, /return 7200/);
   assert.doesNotMatch(layout, /HomeContentService/);
   assert.doesNotMatch(layout, /visualPhoto/);
   assert.doesNotMatch(html, /auth-visual-photo/);

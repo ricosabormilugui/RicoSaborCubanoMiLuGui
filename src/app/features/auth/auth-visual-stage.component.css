@@ -33,10 +33,10 @@
       color-mix(in srgb, var(--brand-cream) 16%, transparent),
       transparent 64%),
     radial-gradient(ellipse 48% 42% at 64% 62%,
-      color-mix(in srgb, var(--brand-blue) 26%, transparent),
+      color-mix(in srgb, var(--brand-blue) 28%, transparent),
       transparent 72%),
     radial-gradient(ellipse 28% 24% at 48% 38%,
-      color-mix(in srgb, var(--brand-red) 10%, transparent),
+      color-mix(in srgb, var(--brand-red) 6%, transparent),
       transparent 70%);
   filter: blur(34px);
   transform: translate3d(calc(var(--visual-x, 0px) * 0.08), calc(var(--visual-y, 0px) * 0.08), 0);
@@ -92,11 +92,11 @@
   pointer-events: none;
   background:
     radial-gradient(circle at 50% 49%,
-      color-mix(in srgb, var(--brand-cream) 28%, transparent) 0 8%,
-      transparent 16%),
+      color-mix(in srgb, var(--brand-blue) 16%, transparent) 0 9%,
+      transparent 18%),
     radial-gradient(ellipse 70% 62% at 48% 50%,
-      color-mix(in srgb, var(--brand-blue) 32%, transparent) 18%,
-      color-mix(in srgb, var(--brand-red) 10%, transparent) 42%,
+      color-mix(in srgb, var(--brand-blue) 30%, transparent) 18%,
+      color-mix(in srgb, var(--brand-red) 8%, transparent) 42%,
       transparent 68%);
   filter: blur(18px);
   transition: opacity 280ms ease;
@@ -109,18 +109,33 @@
   position: absolute;
   left: 50%;
   top: 49%;
-  width: 18%;
-  height: 16.5%;
+  width: 14.5%;
+  height: 14.5%;
   translate: -50% -50%;
   z-index: 2;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 42% 36%,
-      color-mix(in srgb, var(--brand-cream) 40%, transparent),
-      color-mix(in srgb, var(--brand-cream) 10%, transparent) 46%,
-      transparent 74%);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--brand-cream) 12%, transparent);
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--brand-blue) 14%, transparent),
+      color-mix(in srgb, var(--brand-cream) 5%, transparent) 44%,
+      transparent 76%);
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--brand-blue) 20%, transparent);
   pointer-events: none;
+}
+
+.vortex-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 72% 66% at 50% 49%,
+      transparent 0 16%,
+      color-mix(in srgb, var(--brand-blue) 10%, transparent) 38%,
+      color-mix(in srgb, var(--brand-blue) 16%, transparent) 62%,
+      transparent 86%);
+  mix-blend-mode: multiply;
+  opacity: 0.42;
 }
 
 .item-track {
@@ -148,7 +163,13 @@
 }
 
 .item-track.depth-back .item img {
-  filter: blur(0.55px) drop-shadow(0 8px 12px color-mix(in srgb, #061018 28%, transparent));
+  opacity: 0.78;
+  filter: blur(0.7px) drop-shadow(0 8px 14px color-mix(in srgb, var(--brand-blue) 28%, transparent));
+}
+
+.item-track.depth-middle .item img {
+  opacity: 0.92;
+  filter: drop-shadow(0 12px 18px color-mix(in srgb, var(--brand-blue) 32%, transparent));
 }
 
 .item img {
@@ -156,7 +177,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 16px 22px color-mix(in srgb, #061018 38%, transparent));
+  filter: drop-shadow(0 14px 20px color-mix(in srgb, var(--brand-blue) 34%, transparent));
   animation: product-sway calc(var(--cycle) * var(--tempo)) ease-in-out var(--delay) infinite;
 }
 
@@ -172,39 +193,46 @@
 .stage-success { display: grid; justify-items: center; }
 
 .stage-logo {
-  width: 128px;
-  height: 128px;
+  width: 160px;
+  height: 160px;
   object-fit: contain;
   filter: drop-shadow(0 0 0 transparent);
 }
 
 .stage[data-state='success'] .item-track {
   opacity: 0;
-  scale: 0.28;
-  filter: blur(3px);
-  transition: opacity 180ms ease, scale 180ms cubic-bezier(.45, .08, .2, 1), filter 180ms ease;
+  scale: 0.2;
+  filter: blur(2.5px);
+  transition: opacity 250ms ease, scale 250ms cubic-bezier(.45, .08, .2, 1), filter 250ms ease;
 }
 
 .stage[data-state='success'] .item,
 .stage[data-state='success'] .item img { animation-play-state: paused; }
 
 .stage[data-state='success'] .vortex-ambient,
-.stage[data-state='success'] .vortex-haze {
-  opacity: 0.28;
-  transition: opacity 200ms ease 150ms;
+.stage[data-state='success'] .vortex-haze,
+.stage[data-state='success'] .vortex-veil {
+  opacity: 0.22;
+  transition: opacity 250ms ease 200ms;
 }
 
 .stage[data-state='success'] .vortex-eye {
-  scale: 1.32;
-  transition: scale 200ms ease 150ms;
+  scale: 1.12;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--brand-cream) 22%, transparent),
+      color-mix(in srgb, var(--brand-cream) 6%, transparent) 48%,
+      transparent 78%);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--brand-cream) 16%, transparent);
+  transition: scale 250ms ease 200ms, background 250ms ease 200ms, box-shadow 250ms ease 200ms;
 }
 
 .stage[data-state='success'] .stage-success {
-  animation: success-in 280ms cubic-bezier(.22, .7, .3, 1) 220ms both;
+  animation: success-in 300ms cubic-bezier(.22, .7, .3, 1) 550ms both;
 }
 
 .stage[data-state='success'] .stage-logo {
-  animation: success-glow 350ms ease 300ms both;
+  animation: success-glow 250ms ease 800ms both;
 }
 
 @keyframes flow-vortex {
@@ -268,17 +296,17 @@
     filter: blur(0.35px);
   }
   27.4% {
-    transform: translate(-50%, -50%) translate(calc(-9.64cqw * var(--amp)), calc(4.52cqh * var(--amp))) scale(0.38);
-    opacity: 0.62;
+    transform: translate(-50%, -50%) translate(calc(-4.2cqw * var(--amp)), calc(2.1cqh * var(--amp))) scale(0.36);
+    opacity: 0.58;
     filter: blur(0.5px);
   }
   28.7% {
-    transform: translate(-50%, -50%) translate(calc(-2.50cqw * var(--amp)), calc(8.95cqh * var(--amp))) scale(0.32);
+    transform: translate(-50%, -50%) translate(calc(-1.1cqw * var(--amp)), calc(1.2cqh * var(--amp))) scale(0.26);
     opacity: 0.28;
     filter: blur(0.7px);
   }
   30% {
-    transform: translate(-50%, -50%) translate(calc(6.04cqw * var(--amp)), calc(6.00cqh * var(--amp))) scale(0.26);
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.16);
     opacity: 0;
     filter: blur(0.9px);
   }
@@ -296,7 +324,7 @@
 }
 
 @keyframes success-in {
-  from { opacity: 0; transform: scale(0.84); }
+  from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -304,8 +332,8 @@
   from { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--brand-cream) 0%, transparent)); }
   to {
     filter:
-      drop-shadow(0 8px 22px color-mix(in srgb, var(--brand-cream) 42%, transparent))
-      drop-shadow(0 0 30px color-mix(in srgb, var(--brand-red) 24%, transparent));
+      drop-shadow(0 6px 18px color-mix(in srgb, var(--brand-cream) 34%, transparent))
+      drop-shadow(0 0 22px color-mix(in srgb, var(--brand-red) 14%, transparent));
   }
 }
 
@@ -329,6 +357,7 @@
 
   .stage[data-state='success'] .vortex-haze,
   .stage[data-state='success'] .vortex-ambient,
+  .stage[data-state='success'] .vortex-veil,
   .stage[data-state='success'] .vortex-eye,
   .stage[data-state='success'] .item-track {
     transition: none;

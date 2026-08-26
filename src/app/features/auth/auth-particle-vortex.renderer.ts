@@ -15,17 +15,18 @@ import {
 } from 'three';
 import { AUTH_VISUAL_SUCCESS_MS, AuthVisualState } from './auth-visual.model';
 
-const NAVY = [0.0, 0.41, 0.66];
-const CREAM = [0.96, 0.94, 0.87];
-const CORAL = [0.93, 0.11, 0.2];
+const NAVY = [0.0, 0.36, 0.58];
+const CREAM = [0.74, 0.68, 0.52];
+const CORAL = [0.86, 0.18, 0.26];
 const ARMS = 5;
 const TURNS = 2.35;
 const R_MAX = 2.32;
-const R_EYE = 0.3;
-const R_WALL = 0.52;
+const R_EYE = 0.32;
+const R_WALL = 0.54;
 
 const VERT = /* glsl */ `
 attribute float aSize;
+attribute float aMorph;
 attribute vec3 aColor;
 attribute vec3 aSeed;
 attribute vec3 aTarget;
@@ -42,32 +43,37 @@ varying float vAlpha;
 void main() {
   vec3 p = position;
   float r = length(p.xy);
-  float spin = mix(0.045, 0.22, smoothstep(R_MAX, R_EYE, r)) * uEnergy * (1.0 - uReduced);
+  float spin = mix(0.038, 0.26, smoothstep(R_MAX, R_EYE, r)) * uEnergy * (1.0 - uReduced);
   float ang = uTime * spin;
   float ca = cos(ang);
   float sa = sin(ang);
   vec2 xy = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
-  float nR = sin(uTime * 0.21 + aSeed.x * 6.28318) * 0.018 * uEnergy * (1.0 - uReduced);
-  float nA = sin(uTime * 0.17 + aSeed.y * 6.28318) * 0.016 * uEnergy * (1.0 - uReduced);
+  float nR = sin(uTime * 0.21 + aSeed.x * 6.28318) * 0.022 * uEnergy * (1.0 - uReduced);
+  float nA = sin(uTime * 0.17 + aSeed.y * 6.28318) * 0.018 * uEnergy * (1.0 - uReduced);
   xy += vec2(nR * xy.x - nA * xy.y, nR * xy.y + nA * xy.x);
 
-  float absorb = smoothstep(0.0, 0.28, uSuccess);
-  float morph = smoothstep(0.34, 0.77, uSuccess);
-  xy *= mix(1.0, 0.72, absorb);
+  float absorb = smoothstep(0.0, 0.192, uSuccess);
+  float concentrate = smoothstep(0.154, 0.346, uSuccess);
+  float morph = smoothstep(0.269, 0.5, uSuccess);
+  float logoFade = smoothstep(0.423, 0.654, uSuccess);
+  xy *= mix(1.0, 0.56, absorb);
   float dP = length(xy - uPerturb.xy);
   xy += normalize(xy - uPerturb.xy + 0.0008) * uPerturb.z * smoothstep(0.62, 0.0, dP) * (1.0 - uSuccess);
 
-  vec3 live = vec3(xy + uPointer * 0.05 * (0.35 + r * 0.18), p.z * mix(1.0, 0.2, uSuccess));
-  vec3 pos = mix(live, aTarget, morph);
+  vec3 live = vec3(xy + uPointer * 0.05 * (0.35 + r * 0.18), p.z * mix(1.0, 0.18, uSuccess));
+  vec3 pos = mix(live, aTarget, morph * aMorph);
 
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = max(1.15, aSize * uSize / max(0.8, -mv.z));
+  gl_PointSize = max(1.1, aSize * uSize / max(0.8, -mv.z));
   vColor = aColor;
   float inner = smoothstep(R_MAX, R_WALL, r);
-  vAlpha = mix(0.22, 0.82, inner);
-  vAlpha *= mix(1.0, 0.12, step(r, R_EYE * 0.9));
-  vAlpha *= mix(1.0, mix(0.2, 1.0, smoothstep(1.1, 0.28, r)), smoothstep(0.23, 0.54, uSuccess));
+  float idleAlpha = mix(0.26, 0.58, inner);
+  idleAlpha *= mix(1.0, 0.06, step(r, R_EYE * 0.92));
+  float successAlpha = mix(idleAlpha, mix(0.12, 0.78, smoothstep(1.15, 0.32, r)), concentrate);
+  vAlpha = mix(idleAlpha, successAlpha, uSuccess);
+  vAlpha *= mix(1.0, 0.35, logoFade * aMorph);
+  vAlpha *= mix(1.0, 0.22, logoFade * (1.0 - aMorph) * smoothstep(0.55, 1.6, r));
 }
 `.replaceAll('R_MAX', R_MAX.toFixed(2)).replaceAll('R_EYE', R_EYE.toFixed(2)).replaceAll('R_WALL', R_WALL.toFixed(2));
 
@@ -103,12 +109,14 @@ export function generateVortex(count: number): {
   seeds: Float32Array;
   sizes: Float32Array;
   targets: Float32Array;
+  morphs: Float32Array;
 } {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const seeds = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
   const targets = new Float32Array(count * 3);
+  const morphs = new Float32Array(count);
 
   for (let i = 0; i < count; i++) {
     const arm = i % ARMS;
@@ -132,20 +140,22 @@ export function generateVortex(count: number): {
     const roll = hash(i, 6.6);
     const inner = r < R_WALL;
     let col = NAVY;
-    if (inner) col = roll < 0.42 ? CREAM : roll < 0.9 ? NAVY : CORAL;
-    else if (roll > 0.78 && roll < 0.93) col = CREAM;
-    else if (roll >= 0.93) col = CORAL;
-    const jitter = 0.88 + hash(i, 7.7) * 0.18;
+    if (inner) {
+      if (roll < 0.16) col = CREAM;
+      else if (roll < 0.24) col = CORAL;
+    } else if (roll > 0.82 && roll < 0.94) col = CREAM;
+    else if (roll >= 0.94) col = CORAL;
+    const jitter = 0.9 + hash(i, 7.7) * 0.14;
     colors[i * 3] = col[0] * jitter;
     colors[i * 3 + 1] = col[1] * jitter;
     colors[i * 3 + 2] = col[2] * jitter;
-    sizes[i] = (inner ? 1.55 : 0.85) * (0.7 + hash(i, 1.1) * 0.7);
+    sizes[i] = (inner ? 1.12 : 0.88) * (0.7 + hash(i, 1.1) * 0.55);
     seeds[i * 3] = hash(i, 0.3);
     seeds[i * 3 + 1] = hash(i, 1.3);
     seeds[i * 3 + 2] = hash(i, 2.3);
   }
 
-  return { positions, colors, seeds, sizes, targets };
+  return { positions, colors, seeds, sizes, targets, morphs };
 }
 
 export interface VortexMountOptions {
@@ -203,13 +213,14 @@ export class AuthParticleVortexRenderer {
     camera.position.set(0, 0, 6.15);
     camera.lookAt(0, 0, 0);
 
-    const { positions, colors, seeds, sizes, targets } = generateVortex(this.count);
+    const { positions, colors, seeds, sizes, targets, morphs } = generateVortex(this.count);
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(positions, 3));
     geometry.setAttribute('aColor', new BufferAttribute(colors, 3));
     geometry.setAttribute('aSeed', new BufferAttribute(seeds, 3));
     geometry.setAttribute('aSize', new BufferAttribute(sizes, 1));
     geometry.setAttribute('aTarget', new BufferAttribute(targets, 3));
+    geometry.setAttribute('aMorph', new BufferAttribute(morphs, 1));
 
     const material = new ShaderMaterial({
       uniforms: {
@@ -254,7 +265,7 @@ export class AuthParticleVortexRenderer {
 
   setState(state: AuthVisualState): void {
     this.state = state;
-    this.energyTarget = state === 'interacting' ? 0.91 : 1;
+    this.energyTarget = state === 'interacting' ? 0.91 : state === 'success' ? 1.08 : 1;
     if (state === 'success' && this.successAt === 0) this.successAt = performance.now();
     if (state !== 'success') this.successAt = 0;
     if (this.reduced && this.material) {
@@ -383,7 +394,7 @@ export class AuthParticleVortexRenderer {
       img.src = src;
       await img.decode();
       if (this.disposed || !this.geometry) return;
-      const size = 88;
+      const size = 96;
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -395,25 +406,29 @@ export class AuthParticleVortexRenderer {
       const hits: number[] = [];
       for (let y = 0; y < size; y += 1) {
         for (let x = 0; x < size; x += 1) {
-          if (data[(y * size + x) * 4 + 3] > 96) hits.push(x, y);
+          if (data[(y * size + x) * 4 + 3] > 88) hits.push(x, y);
         }
       }
       if (hits.length < 8) return;
       const attr = this.geometry.getAttribute('aTarget') as BufferAttribute;
+      const morphAttr = this.geometry.getAttribute('aMorph') as BufferAttribute;
       const pos = this.geometry.getAttribute('position') as BufferAttribute;
       const morphCount = Math.min(this.count, Math.floor(this.count * 0.38));
-      const span = 1.05;
+      const span = 1.18;
       for (let i = 0; i < this.count; i++) {
         if (i < morphCount) {
           const point = i % Math.floor(hits.length / 2);
           const hx = hits[point * 2];
           const hy = hits[point * 2 + 1];
           attr.setXYZ(i, ((hx / size) - 0.5) * span, (0.5 - hy / size) * span, 0.02);
+          morphAttr.setX(i, 1);
         } else {
-          attr.setXYZ(i, pos.getX(i) * 0.1, pos.getY(i) * 0.1, 0);
+          attr.setXYZ(i, pos.getX(i) * 0.08, pos.getY(i) * 0.08, 0);
+          morphAttr.setX(i, 0);
         }
       }
       attr.needsUpdate = true;
+      morphAttr.needsUpdate = true;
       if (this.reduced) this.renderFrame(0);
     } catch {
       /* morph is optional; the real PNG logo still appears on success */
