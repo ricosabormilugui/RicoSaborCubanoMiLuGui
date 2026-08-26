@@ -307,6 +307,7 @@ test('checkout mantiene carrito/intención al fallar y resuelve un solo toast', 
   component.requiresAdvancePayment = () => false;
   component.shippingQuote = () => ({ available: true });
   component.orderService = { createPayload: () => ({}), async submitOrder() { throw new Error('Stock insuficiente.'); }, completeOrderIntent() { assert.fail('No debe limpiar intención'); } };
+  component.identity = { session: () => '1:guest', isCurrent: () => true };
   await component.submit();
   assert.equal(component.loading(), false);
   assert.equal(sonner.toastState.toasts().length, 1);

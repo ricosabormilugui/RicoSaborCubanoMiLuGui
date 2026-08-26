@@ -1,9 +1,13 @@
 import { NotificationService } from './notification.service';
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, WritableSignal, signal, inject } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminAuthService } from './admin-auth.service';
 import { ApiRequestError, requestJson } from '../utils/api-client';
-import { ActiveIdentityService, StaleIdentityError } from './active-identity.service';
+import { ActiveIdentityService, StaleIdentityError, canonicalUserId } from './active-identity.service';
+import { CartService } from './cart.service';
+import { ConfirmDialogService } from './confirm-dialog.service';
+import { DeliveryStateService } from './delivery-state.service';
+import { transferGuestOrderIntent } from '../utils/order-idempotency';
 
 export interface CustomerProfile {
   userId: string;
@@ -14,21 +18,44 @@ export interface CustomerProfile {
 @Injectable({ providedIn: 'root' })
 export class CustomerAuthService {
   private readonly notifications = inject(NotificationService);
+  private readonly cart = inject(CartService);
+  private readonly delivery = inject(DeliveryStateService);
+  private readonly confirm = inject(ConfirmDialogService);
   private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
   private readonly tokenKey = 'ricosabor-customer-token';
   private readonly profileKey = 'ricosabor-customer-profile';
 
   readonly token = signal<string>(this.readStorage(this.tokenKey));
   readonly profile = signal<CustomerProfile | null>(this.readProfile());
-  readonly sessionVersion = this.identity.version;
+  readonly sessionVersion: WritableSignal<number>;
 
   constructor(private readonly adminAuth: AdminAuthService, private readonly identity: ActiveIdentityService) {
+    this.sessionVersion = this.identity.version;
     this.publishIdentity();
     this.syncAdminSession();
   }
 
   private publishIdentity(): void {
     this.identity.activate(!this.token() ? { type: 'guest' } : this.profile()?.userId ? { type: 'user', userId: this.profile()!.userId } : null);
+  }
+
+  private invalidatePersonalMemory(): void {
+    this.notifications.dismissAll();
+    this.confirm.close(false);
+    this.identity.beginTransition();
+  }
+
+  private becomeUser(profile: CustomerProfile, token: string, adoptGuest: boolean): void {
+    this.invalidatePersonalMemory();
+    this.token.set(token);
+    this.profile.set(profile);
+    this.identity.activate({ type: 'user', userId: profile.userId });
+    this.persist();
+    this.syncAdminSession();
+    if (!adoptGuest) return;
+    this.cart.adoptGuestCart();
+    this.delivery.adoptGuestShipping();
+    transferGuestOrderIntent(profile.userId);
   }
 
   private readStorage(key: string): string {
@@ -45,10 +72,11 @@ export class CustomerAuthService {
       if (!raw) return null;
 
       const parsed = JSON.parse(raw) as Partial<CustomerProfile>;
-      if (!parsed.userId || !parsed.email) return null;
+      const userId = canonicalUserId(parsed.userId);
+      if (!userId || !parsed.email) return null;
 
       return {
-        userId: String(parsed.userId),
+        userId,
         email: String(parsed.email),
         role: parsed.role === 'admin' ? 'admin' : 'customer'
       };
@@ -99,12 +127,14 @@ export class CustomerAuthService {
         headers: { Authorization: `Bearer ${token}` }
       }, 'No se pudo restaurar la sesión.');
       if (token !== this.token() || version !== this.sessionVersion()) return;
+      const userId = canonicalUserId(data.userId);
+      if (!userId) return;
       this.profile.set({
-        userId: data.userId,
+        userId,
         email: data.email,
         role: data.role === 'admin' ? 'admin' : 'customer'
       });
-      if (this.identity.key() !== `user:${data.userId}`) this.publishIdentity();
+      if (this.identity.key() !== `user:${userId}`) this.publishIdentity();
       this.persist();
       this.syncAdminSession();
     } catch (error) {
@@ -118,7 +148,7 @@ export class CustomerAuthService {
   }
 
   logout(): void {
-    this.sessionVersion.update(version => version + 1);
+    this.invalidatePersonalMemory();
     this.token.set('');
     this.profile.set(null);
     this.publishIdentity();
@@ -155,15 +185,12 @@ export class CustomerAuthService {
       throw error;
     }
     if (version !== this.sessionVersion()) throw new StaleIdentityError();
-    this.sessionVersion.update(value => value + 1);
-    this.token.set(data.token ?? '');
-    this.profile.set({
-      userId: data.userId,
+    const userId = canonicalUserId(data.userId);
+    if (!userId || !data.token) throw new Error('No se pudo iniciar sesión.');
+    this.becomeUser({
+      userId,
       email: normalizedEmail,
       role: data.role === 'admin' ? 'admin' : 'customer'
-    });
-    this.publishIdentity();
-    this.persist();
-    this.syncAdminSession();
+    }, data.token, true);
   }
 }

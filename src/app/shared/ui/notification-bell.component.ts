@@ -26,7 +26,7 @@ import { NotificationSourceSelectorComponent } from './notification-source-selec
           @if (service.storageWarning()) { <p class="state" role="status">{{ service.storageWarning() }}</p> }
           @if (service.error()) { <div role="alert" class="state"><p>{{ service.error() }}</p><button type="button" (click)="reload()">Reintentar</button></div> }
           @if (service.loading().recent) { <p class="state" role="status">Cargando notificaciones…</p> }
-          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>{{ service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h3><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
+          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>{{ service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h3><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes de esta identidad.' }}</p></div> }
           <app-user-notification-list [items]="service.recent()" />
         </div>
         <footer><a routerLink="/mis-notificaciones" (click)="close()">{{ service.isAccount() ? 'Ver todas las notificaciones' : 'Ver toda la actividad' }} <span aria-hidden="true">→</span></a></footer>

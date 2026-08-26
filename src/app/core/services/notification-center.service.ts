@@ -61,7 +61,7 @@ export class NotificationCenterService {
   }
   async clearLocal(): Promise<void> {
     const session = this.session();
-    const confirmed = await this.confirm.open({ title: '¿Limpiar actividad reciente?', message: 'Se eliminarán los avisos guardados en este navegador. Tus notificaciones de cuenta no se modificarán.', confirmText: 'Limpiar actividad', variant: 'danger' });
+    const confirmed = await this.confirm.open({ title: '¿Limpiar actividad reciente?', message: 'Se eliminarán los avisos de esta identidad en este navegador. Tus notificaciones de cuenta no se modificarán.', confirmText: 'Limpiar actividad', variant: 'danger' });
     if (confirmed && session === this.session()) this.local.clear();
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy, computed, linkedSignal } from '@angular/core';
-import { ActiveIdentityService } from './active-identity.service';
+import { ActiveIdentityService, GUEST_IDENTITY, StorageIdentity, getStorageKey } from './active-identity.service';
 import { CartCustomizationSelection, CartItem } from '../models/order.model';
 import { isProductCustomizable, Product } from '../models/product.model';
 import { buildCustomizationOptionId, calculateFinalUnitPrice, getCustomizationGroupKeyByLabel, getPriceModifier, roundMoney } from '../utils/customization-pricing';
@@ -94,6 +94,44 @@ export class CartService implements OnDestroy {
     this.setItems([]);
   }
 
+  readIdentityCart(identity: StorageIdentity): CartItem[] {
+    return this.readCart(getStorageKey('cart', identity));
+  }
+
+  adoptGuestCart(): boolean {
+    const identity = this.identity.identity();
+    if (identity?.type !== 'user') return true;
+
+    const guestItems = this.readIdentityCart(GUEST_IDENTITY);
+    if (!guestItems.length) return true;
+
+    const merged = this.normalizeItems([...this.state(), ...guestItems]);
+    if (!this.writeCart(getStorageKey('cart', identity), merged)) return false;
+
+    this.state.set(merged);
+    this.lastPersistedValue = this.serializeCart(merged);
+    this.clearIdentityCart(GUEST_IDENTITY);
+    return true;
+  }
+
+  clearIdentityCart(identity: StorageIdentity): void {
+    try {
+      globalThis.localStorage?.removeItem(getStorageKey('cart', identity));
+    } catch {
+      // Guest leftovers are only removed after the destination persist already succeeded.
+    }
+    if (this.identitiesMatch(this.identity.identity(), identity)) {
+      this.state.set([]);
+      this.lastPersistedValue = this.serializeCart([]);
+    }
+  }
+
+  private identitiesMatch(left: StorageIdentity | null, right: StorageIdentity): boolean {
+    if (!left) return false;
+    if (left.type === 'guest' || right.type === 'guest') return left.type === right.type;
+    return left.userId === right.userId;
+  }
+
   private setItems(items: CartItem[]): void {
     this.state(); // Resolve a changed identity before mutating or comparing persisted values.
     if (!this.identity.storageKey('cart')) return;
@@ -105,6 +143,17 @@ export class CartService implements OnDestroy {
     try {
       const key = this.identity.storageKey('cart');
       if (!key) return [];
+      const normalized = this.readCart(key);
+      const serialized = this.serializeCart(normalized);
+      this.lastPersistedValue = serialized;
+      return normalized;
+    } catch {
+      return [];
+    }
+  }
+
+  private readCart(key: string): CartItem[] {
+    try {
       const raw = globalThis.localStorage?.getItem(key);
       if (!raw) return [];
 
@@ -116,7 +165,6 @@ export class CartService implements OnDestroy {
       const items = isLegacyCart ? parsed : parsed.items;
       const normalized = this.normalizeItems(items ?? []);
       const serialized = this.serializeCart(normalized);
-      this.lastPersistedValue = serialized;
 
       if (serialized !== raw) {
         globalThis.localStorage?.setItem(key, serialized);
@@ -187,17 +235,22 @@ export class CartService implements OnDestroy {
     };
   }
 
-  private persistCart(items: CartItem[]): void {
-    try {
-      const key = this.identity.storageKey('cart');
-      if (!key) return;
-      const serialized = this.serializeCart(items);
-      if (serialized === this.lastPersistedValue) return;
+  private persistCart(items: CartItem[]): boolean {
+    const key = this.identity.storageKey('cart');
+    return key ? this.writeCart(key, items) : false;
+  }
 
-      globalThis.localStorage?.setItem(key, serialized);
-      this.lastPersistedValue = serialized;
+  private writeCart(key: string, items: CartItem[]): boolean {
+    try {
+      const serialized = this.serializeCart(items);
+      if (serialized === this.lastPersistedValue && key === this.identity.storageKey('cart')) return true;
+      const storage = globalThis.localStorage;
+      if (!storage) return false;
+      storage.setItem(key, serialized);
+      if (key === this.identity.storageKey('cart')) this.lastPersistedValue = serialized;
+      return true;
     } catch {
-      // Ignore storage failures so cart interactions continue to work.
+      return false;
     }
   }
 

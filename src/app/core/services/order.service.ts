@@ -1,10 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, effect, untracked } from '@angular/core';
 import { CheckoutFormData, OrderPayload, PaymentMethod } from '../models/order.model';
 import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
 import { DeliveryStateService } from './delivery-state.service';
+import { ActiveIdentityService } from './active-identity.service';
 import { MANUAL_PAYMENT_DETAILS } from '../config/payment.config';
 import { calculateShippingQuote } from '../config/shipping.config';
 import { requestJson } from '../utils/api-client';
@@ -45,13 +46,20 @@ export interface SubmitOrderResponse {
 export class OrderService {
   private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
   private readonly backendEndpoint = `${resolveApiBaseUrl()}/orders`;
-  private readonly orderIntent = new OrderIdempotencyIntent();
+  private readonly orderIntent: OrderIdempotencyIntent;
 
   constructor(
     private readonly cartService: CartService,
     private readonly customerAuth: CustomerAuthService,
-    private readonly deliveryState: DeliveryStateService
-  ) {}
+    private readonly deliveryState: DeliveryStateService,
+    private readonly identity: ActiveIdentityService
+  ) {
+    this.orderIntent = new OrderIdempotencyIntent(undefined, undefined, () => this.identity.storageKey('order-intent'));
+    effect(() => {
+      const session = this.identity.session();
+      untracked(() => this.orderIntent.bindIdentity(session));
+    });
+  }
 
   createPayload(data: CheckoutFormData): OrderPayload {
     const subtotal = Number(this.cartService.subtotal().toFixed(2));
@@ -151,6 +159,10 @@ export class OrderService {
 
   completeOrderIntent(): void {
     this.orderIntent.complete();
+  }
+
+  adoptGuestIntent(): boolean {
+    return this.orderIntent.adoptGuestIntent();
   }
 
   private async submitToNetlify(
@@ -256,31 +268,11 @@ export class OrderService {
     return host === 'localhost' || host === '127.0.0.1';
   }
 
-  private saveOrderLocally(payload: OrderPayload): SubmitOrderResponse {
-    const orderId = `LOCAL-${Date.now()}`;
-    const storageKey = 'ricosabor-local-orders';
-
-    try {
-      const current = globalThis?.localStorage?.getItem(storageKey);
-      const orders = current
-        ? (JSON.parse(current) as Array<
-            OrderPayload & { orderId: string; createdAt: string }
-          >)
-        : [];
-
-      orders.push({
-        orderId,
-        createdAt: new Date().toISOString(),
-        ...payload
-      });
-
-      globalThis?.localStorage?.setItem(storageKey, JSON.stringify(orders));
-    } catch {}
-
+  private saveOrderLocally(_payload: OrderPayload): SubmitOrderResponse {
     return {
-      orderId,
+      orderId: `LOCAL-${Date.now()}`,
       channel: 'local',
-      destination: 'localStorage (clave: ricosabor-local-orders)'
+      destination: 'memoria local (sin persistir el pedido completo)'
     };
   }
 }

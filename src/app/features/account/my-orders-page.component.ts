@@ -1,9 +1,10 @@
 import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, effect, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { CustomerOrdersService, CustomerOrder } from '../../core/services/customer-orders.service';
+import { ActiveIdentityService } from '../../core/services/active-identity.service';
 
 @Component({
   standalone: true,
@@ -38,18 +39,33 @@ import { CustomerOrdersService, CustomerOrder } from '../../core/services/custom
 export class MyOrdersPageComponent {
   readonly orders = signal<CustomerOrder[]>([]);
   readonly error = signal('');
+  private loadToken = 0;
 
-  constructor(public readonly auth: CustomerAuthService, private readonly customerOrders: CustomerOrdersService) {
-    if (this.auth.isAuthenticated()) {
-      void this.loadOrders();
-    }
+  constructor(
+    public readonly auth: CustomerAuthService,
+    private readonly customerOrders: CustomerOrdersService,
+    private readonly identity: ActiveIdentityService
+  ) {
+    effect(() => {
+      this.identity.session();
+      untracked(() => {
+        this.orders.set([]);
+        this.error.set('');
+        if (this.auth.isAuthenticated()) void this.loadOrders();
+      });
+    });
   }
 
   async loadOrders(): Promise<void> {
+    const token = ++this.loadToken;
+    const session = this.identity.session();
     this.error.set('');
     try {
-      this.orders.set(await this.customerOrders.listMyOrders());
+      const orders = await this.customerOrders.listMyOrders();
+      if (token !== this.loadToken || !this.identity.isCurrent(session)) return;
+      this.orders.set(orders);
     } catch (error) {
+      if (token !== this.loadToken || !this.identity.isCurrent(session)) return;
       this.error.set(getUserFriendlyError(error, 'No se pudo cargar el historial.'));
     }
   }

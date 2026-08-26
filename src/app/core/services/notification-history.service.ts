@@ -1,7 +1,8 @@
-import { Inject, Injectable, InjectionToken, OnDestroy, computed, signal } from '@angular/core';
+import { Inject, Injectable, InjectionToken, OnDestroy, computed, linkedSignal, signal } from '@angular/core';
 import { LOCAL_ACTION_URLS, LOCAL_NOTIFICATION_CONFIG as config, LocalNotification, LocalNotificationInput } from '../notifications/local-notification.types';
+import { ActiveIdentityService } from './active-identity.service';
 
-type HistoryStorage = Pick<Storage, 'getItem' | 'setItem'>;
+type HistoryStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export const LOCAL_NOTIFICATION_STORAGE = new InjectionToken<HistoryStorage | null>('Local notification storage', {
   providedIn: 'root', factory: () => { try { return globalThis.localStorage ?? null; } catch { return null; } }
 });
@@ -21,19 +22,29 @@ function safeAction(value: unknown): LocalNotification['action'] {
 
 @Injectable({ providedIn: 'root' })
 export class NotificationHistoryService implements OnDestroy {
-  private readonly state = signal<LocalNotification[]>([]);
-  readonly items = this.state.asReadonly();
+  private readonly state = linkedSignal<LocalNotification[]>(() => {
+    this.identity.session();
+    this.dirty = false;
+    return this.readStored();
+  });
+  readonly items = computed(() => this.state());
   readonly unreadCount = computed(() => this.items().filter(item => !item.read).length);
   readonly storageWarning = signal('');
   private dirty = false;
   private readonly onStorage = (event: StorageEvent): void => {
-    if (event.key === config.storageKey || event.key === null) this.reload();
+    if (event.key === this.identity.storageKey('activity') || event.key === null) this.reload();
   };
-  constructor(@Inject(LOCAL_NOTIFICATION_STORAGE) private readonly storage: HistoryStorage | null) {
-    this.reload();
+  constructor(
+    @Inject(LOCAL_NOTIFICATION_STORAGE) private readonly storage: HistoryStorage | null,
+    private readonly identity: ActiveIdentityService
+  ) {
     globalThis.addEventListener?.('storage', this.onStorage);
   }
   ngOnDestroy(): void { globalThis.removeEventListener?.('storage', this.onStorage); }
+
+  currentStorageKey(): string | null {
+    return this.identity.storageKey('activity');
+  }
 
   private normalize(values: unknown, now = Date.now()): LocalNotification[] {
     if (!Array.isArray(values)) return [];
@@ -47,31 +58,44 @@ export class NotificationHistoryService implements OnDestroy {
       return [{ source: 'local' as const, id: value.id, type: value.type, title, message, read: value.read, createdAt: new Date(at).toISOString(), action: safeAction(value.action) }];
     }).sort((a,b) => b.createdAt.localeCompare(a.createdAt)).slice(0, config.limit);
   }
-  reload(): void {
-    if (this.dirty) { this.persist(); return; }
+  private readStored(): LocalNotification[] {
     try {
-      if (!this.storage) throw new Error('Storage unavailable');
-      const raw = this.storage.getItem(config.storageKey);
-      if (raw && raw.length > 100_000) throw new Error('Invalid storage');
+      const key = this.currentStorageKey();
+      if (!this.storage || !key) return [];
+      const raw = this.storage.getItem(key);
+      if (raw && raw.length > 100_000) return [];
       const data = raw ? JSON.parse(raw) : null;
       const rows = this.normalize(data?.version === config.version ? data.items : []);
-      this.state.set(rows);
-      if (raw && JSON.stringify({ version: config.version, items: rows }) !== raw) this.persist();
-      else this.storageWarning.set('');
+      const serialized = JSON.stringify({ version: config.version, items: rows });
+      if (raw && serialized !== raw) {
+        try { this.storage.setItem(key, serialized); } catch { /* Keep the normalized in-memory copy. */ }
+      }
+      return rows;
     } catch {
-      // Keep in-memory activity if the browser blocks access; malformed JSON is replaced on the next write.
-      this.storageWarning.set('La actividad solo se conservará durante esta sesión si el navegador no permite guardarla.');
+      return [];
     }
   }
-  private persist(): void {
+  reload(): void {
+    if (this.dirty) { this.persist(); return; }
+    this.state.set(this.readStored());
+  }
+  private writeStored(items: LocalNotification[]): boolean {
+    const key = this.currentStorageKey();
     try {
-      if (!this.storage) throw new Error('Storage unavailable');
-      this.storage.setItem(config.storageKey, JSON.stringify({ version: config.version, items: this.state() }));
+      if (!this.storage || !key) throw new Error('Storage unavailable');
+      this.storage.setItem(key, JSON.stringify({ version: config.version, items }));
       this.dirty = false;
       this.storageWarning.set('');
-    } catch { this.dirty = true; this.storageWarning.set('No se pudo guardar la actividad en este navegador. Se mantiene solo en esta sesión.'); }
+      return true;
+    } catch {
+      this.dirty = true;
+      this.storageWarning.set('No se pudo guardar la actividad en este navegador. Se mantiene solo en esta sesión.');
+      return false;
+    }
   }
+  private persist(): void { this.writeStored(this.state()); }
   add(input: LocalNotificationInput, createdAt = Date.now()): void {
+    if (!this.currentStorageKey()) return;
     const title = safeText(input.title, 120), message = safeText(input.message, 300);
     if (!title || !types.includes(input.type)) return;
     const now = Date.now();
@@ -84,14 +108,20 @@ export class NotificationHistoryService implements OnDestroy {
     this.persist();
   }
   markRead(id: string): boolean {
-    if (!this.state().some(item => item.id === id)) return false;
+    if (!this.currentStorageKey() || !this.state().some(item => item.id === id)) return false;
     this.state.update(items => items.map(item => item.id === id ? { ...item, read: true } : item));
     this.persist(); return true;
   }
-  markAllRead(): void { this.state.update(items => items.map(item => ({ ...item, read: true }))); this.persist(); }
+  markAllRead(): void {
+    if (!this.currentStorageKey()) return;
+    this.state.update(items => items.map(item => ({ ...item, read: true }))); this.persist();
+  }
   remove(id: string): boolean {
-    if (!this.state().some(item => item.id === id)) return false;
+    if (!this.currentStorageKey() || !this.state().some(item => item.id === id)) return false;
     this.state.update(items => items.filter(item => item.id !== id)); this.persist(); return true;
   }
-  clear(): void { this.state.set([]); this.persist(); }
+  clear(): void {
+    if (!this.currentStorageKey()) return;
+    this.state.set([]); this.persist();
+  }
 }

@@ -2,7 +2,7 @@ import type { UserNotification } from './user-notification.types';
 import type { NotificationType } from './notification.types';
 
 export const LOCAL_NOTIFICATION_CONFIG = {
-  storageKey: 'mixsabor.notifications', version: 1, limit: 50,
+  resource: 'activity', legacyStorageKey: 'mixsabor.notifications', version: 1, limit: 50,
   maxAgeMs: 30 * 24 * 60 * 60 * 1000, dedupeMs: 10_000
 } as const;
 export interface LocalNotification {

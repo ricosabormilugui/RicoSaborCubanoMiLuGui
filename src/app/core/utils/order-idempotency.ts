@@ -1,4 +1,6 @@
-const ORDER_INTENT_STORAGE_KEY = 'mixsabor-order-intent-v1';
+import { GUEST_IDENTITY, StorageIdentity, getStorageKey } from './identity-storage';
+
+const LEGACY_ORDER_INTENT_STORAGE_KEY = 'mixsabor-order-intent-v1';
 
 interface StorageLike {
   getItem(key: string): string | null;
@@ -107,11 +109,19 @@ function createIdempotencyKey(cryptoSource: CryptoLike | undefined): string {
 
 export class OrderIdempotencyIntent {
   private memoryIntent: StoredOrderIntent | undefined;
+  private boundKey: string | null | undefined;
 
   constructor(
     private readonly storage: StorageLike | undefined = resolveSessionStorage(),
-    private readonly cryptoSource: CryptoLike | undefined = globalThis.crypto
+    private readonly cryptoSource: CryptoLike | undefined = globalThis.crypto,
+    private readonly resolveKey: () => string | null = () => LEGACY_ORDER_INTENT_STORAGE_KEY
   ) {}
+
+  bindIdentity(sessionKey: string | null | undefined): void {
+    if (this.boundKey === sessionKey) return;
+    this.boundKey = sessionKey;
+    this.memoryIntent = undefined;
+  }
 
   keyFor(payload: unknown): string {
     const fingerprint = buildClientOrderIntentFingerprint(payload);
@@ -120,33 +130,101 @@ export class OrderIdempotencyIntent {
 
     const intent = { key: createIdempotencyKey(this.cryptoSource), fingerprint };
     this.memoryIntent = intent;
-    try {
-      this.storage?.setItem(ORDER_INTENT_STORAGE_KEY, JSON.stringify(intent));
-    } catch {}
+    this.write(intent);
     return intent.key;
   }
 
   complete(): void {
     this.memoryIntent = undefined;
-    try {
-      this.storage?.removeItem(ORDER_INTENT_STORAGE_KEY);
-    } catch {}
+    this.remove();
   }
 
-  private read(): StoredOrderIntent | undefined {
-    if (this.memoryIntent) return this.memoryIntent;
+  adoptGuestIntent(): boolean {
+    const key = this.resolveKey();
+    if (!key || !key.includes('.user.')) return true;
+    const guestRaw = this.readRaw(getStorageKey('order-intent', GUEST_IDENTITY));
+    if (!guestRaw) return true;
+    if (!this.writeRaw(key, guestRaw)) return false;
+    this.memoryIntent = this.parse(guestRaw);
+    this.removeRaw(getStorageKey('order-intent', GUEST_IDENTITY));
+    return true;
+  }
+
+  private storageKey(): string | null {
+    try { return this.resolveKey(); } catch { return null; }
+  }
+
+  private write(intent: StoredOrderIntent): void {
+    this.writeRaw(this.storageKey(), JSON.stringify(intent));
+  }
+
+  private writeRaw(key: string | null, value: string): boolean {
+    if (!key) return false;
     try {
-      const raw = this.storage?.getItem(ORDER_INTENT_STORAGE_KEY);
-      if (!raw) return undefined;
+      if (!this.storage) return false;
+      this.storage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private remove(): void {
+    this.removeRaw(this.storageKey());
+  }
+
+  private removeRaw(key: string | null): void {
+    if (!key) return;
+    try { this.storage?.removeItem(key); } catch {}
+  }
+
+  private readRaw(key: string | null): string | undefined {
+    if (!key) return undefined;
+    try { return this.storage?.getItem(key) ?? undefined; } catch { return undefined; }
+  }
+
+  private parse(raw: string): StoredOrderIntent | undefined {
+    try {
       const parsed = JSON.parse(raw) as Partial<StoredOrderIntent>;
-      if (!/^order_[A-Za-z0-9._:-]{8,122}$/.test(String(parsed.key ?? '')) || !parsed.fingerprint) {
-        this.storage?.removeItem(ORDER_INTENT_STORAGE_KEY);
-        return undefined;
-      }
-      this.memoryIntent = { key: String(parsed.key), fingerprint: String(parsed.fingerprint) };
-      return this.memoryIntent;
+      if (!/^order_[A-Za-z0-9._:-]{8,122}$/.test(String(parsed.key ?? '')) || !parsed.fingerprint) return undefined;
+      return { key: String(parsed.key), fingerprint: String(parsed.fingerprint) };
     } catch {
       return undefined;
     }
   }
+
+  private read(): StoredOrderIntent | undefined {
+    if (this.memoryIntent) return this.memoryIntent;
+    const raw = this.readRaw(this.storageKey());
+    if (!raw) return undefined;
+    const parsed = this.parse(raw);
+    if (!parsed) {
+      this.remove();
+      return undefined;
+    }
+    this.memoryIntent = parsed;
+    return this.memoryIntent;
+  }
+}
+
+export function transferGuestOrderIntent(
+  userId: string,
+  storage: StorageLike | undefined = resolveSessionStorage()
+): boolean {
+  const guestKey = getStorageKey('order-intent', GUEST_IDENTITY);
+  const userKey = getStorageKey('order-intent', { type: 'user', userId });
+  try {
+    const raw = storage?.getItem(guestKey);
+    if (!raw) return true;
+    if (!storage) return false;
+    storage.setItem(userKey, raw);
+    storage.removeItem(guestKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function identityOrderIntentKey(identity: StorageIdentity | null): string | null {
+  return identity ? getStorageKey('order-intent', identity) : null;
 }

@@ -118,12 +118,13 @@ test('una mutación previa no desbloquea otra mientras sus refrescos terminan',a
 for(const outcome of ['success','401'])test(`restauración de sesión tardía (${outcome}) no restaura ni cierra otra cuenta`,async()=>{
   let pending;
   const {CustomerAuthService}=compile('src/app/core/services/customer-auth.service.ts',name=>{
-    if(name==='@angular/core')return {...angular,inject:()=>({warning:()=>{throw new Error('stale warning');}})};
+    if(name==='@angular/core')return {...angular,inject:()=>({warning:()=>{throw new Error('stale warning');},dismissAll(){},close(){},adoptGuestCart:()=>true,adoptGuestShipping:()=>true})};
     if(name.endsWith('api.config'))return {resolveApiBaseUrl:()=>'/api'};
     if(name.endsWith('api-client'))return {ApiRequestError,requestJson:()=>new Promise((resolve,reject)=>{pending={resolve,reject};})};
     return {};
   });
-  const auth=new CustomerAuthService({logout(){},setToken(){}});
+  const identity={version:angular.signal(0),activate(){this.version.update(n=>n+1);},beginTransition(){this.version.update(n=>n+1);},key:()=>'guest'};
+  const auth=new CustomerAuthService({logout(){},setToken(){}},identity);
   auth.token.set('A');auth.profile.set({userId:'A',email:'a@example.test',role:'customer'});
   const restore=auth.restoreSession();auth.logout();auth.token.set('B');auth.profile.set({userId:'B',email:'b@example.test',role:'customer'});
   if(outcome==='success')pending.resolve({userId:'A',email:'a@example.test',role:'customer'});else pending.reject(new ApiRequestError('expired',401));

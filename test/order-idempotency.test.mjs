@@ -4,12 +4,18 @@ import test from 'node:test';
 import ts from 'typescript';
 
 const rootUrl = new URL('../', import.meta.url);
-const source = readFileSync(new URL('src/app/core/utils/order-idempotency.ts', rootUrl), 'utf8');
-const compiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 }
-}).outputText;
-const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`;
-const { OrderIdempotencyIntent, buildClientOrderIntentFingerprint } = await import(moduleUrl);
+function toDataUrl(js) {
+  return `data:text/javascript;base64,${Buffer.from(js).toString('base64')}`;
+}
+function compile(source) {
+  return ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+}
+const identityUrl = toDataUrl(compile(readFileSync(new URL('src/app/core/utils/identity-storage.ts', rootUrl), 'utf8')));
+const compiled = compile(readFileSync(new URL('src/app/core/utils/order-idempotency.ts', rootUrl), 'utf8'))
+  .replace(/from ['"]\.\/identity-storage['"]/g, `from ${JSON.stringify(identityUrl)}`);
+const { OrderIdempotencyIntent, buildClientOrderIntentFingerprint } = await import(toDataUrl(compiled));
 
 class MemoryStorage {
   values = new Map();

@@ -20,7 +20,7 @@ import { NotificationSourceSelectorComponent } from '../../shared/ui/notificatio
         @if (service.error()) { <div class="state card" role="alert"><p>{{ service.error() }}</p><button class="btn btn-secondary" type="button" (click)="reload()">Reintentar</button></div> }
         <div [attr.aria-busy]="service.loading().history"><app-user-notification-list [items]="service.history()" /></div>
         @if (service.loading().history) { <p class="state" role="status">Cargando notificaciones…</p> }
-        @else if (!service.history().length && !service.error()) { <div class="state card"><h2>{{ selected() !== 'all' ? 'No hay avisos con este filtro' : service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h2><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
+        @else if (!service.history().length && !service.error()) { <div class="state card"><h2>{{ selected() !== 'all' ? 'No hay avisos con este filtro' : service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h2><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes de esta identidad.' }}</p></div> }
         @if (service.nextCursor()) { <div class="load-more"><button type="button" class="btn btn-secondary" [disabled]="service.loading().history || service.busy()" (click)="loadMore()">Cargar más</button></div> }
     </section>
   `,

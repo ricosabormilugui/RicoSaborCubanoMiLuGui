@@ -1,6 +1,6 @@
 import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -10,6 +10,7 @@ import { getPaymentInstructions, getPaymentMethodLabel, OrderService } from '../
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
+import { ActiveIdentityService } from '../../core/services/active-identity.service';
 import { MANUAL_PAYMENT_DETAILS } from '../../core/config/payment.config';
 import {
   DELIVERY_RULES,
@@ -418,17 +419,14 @@ export class CheckoutPageComponent {
     private readonly orderService: OrderService,
     public readonly customerAuth: CustomerAuthService,
     private readonly notifications: NotificationService,
-    private readonly deliveryState: DeliveryStateService
+    private readonly deliveryState: DeliveryStateService,
+    private readonly identity: ActiveIdentityService
   ) {
-    const email = this.customerAuth.profile()?.email ?? '';
-    this.form.patchValue({
-      email,
-      deliveryDate: this.deliveryState.date() ?? '',
-      deliverySlot: this.deliveryState.slot() ?? '',
-      deliveryType: this.deliveryState.type()
+    effect(() => {
+      this.identity.session();
+      untracked(() => this.resetPersonalForm());
     });
 
-    this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.form.controls.email.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((email) => void this.checkEmailRegistered(email ?? ""));
     this.form.controls.deliveryType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -447,6 +445,35 @@ export class CheckoutPageComponent {
         this.form.controls.paymentMethod.setValue('bizum');
       }
     });
+  }
+
+  private resetPersonalForm(): void {
+    const email = this.identity.identity()?.type === 'user' ? (this.customerAuth.profile()?.email ?? '') : '';
+    this.form.reset({
+      fullName: '',
+      phoneCountryCode: '34',
+      phoneNumber: '',
+      email,
+      deliveryType: this.deliveryState.type(),
+      deliveryDate: this.deliveryState.date() ?? '',
+      deliverySlot: this.deliveryState.slot() ?? '',
+      address: '',
+      postalCode: '',
+      reference: '',
+      notes: '',
+      marketingConsent: false,
+      legalConsent: false,
+      paymentMethod: 'bizum',
+      couponCode: ''
+    });
+    this.couponPreviewValid.set(false);
+    this.couponPreviewMessage.set('');
+    this.emailAlreadyRegistered.set(false);
+    this.orderId.set('');
+    this.destination.set('');
+    this.isLocalDraft.set(false);
+    this.notificationWarning.set('');
+    this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.reconcileDeliverySlot();
   }
 
@@ -609,12 +636,14 @@ export class CheckoutPageComponent {
   }
 
   private async checkEmailRegistered(email: string): Promise<void> {
+    const session = this.identity.session();
     const clean = String(email ?? "").trim().toLowerCase();
     if (!clean || this.customerAuth.isAuthenticated()) { this.emailAlreadyRegistered.set(false); return; }
     try {
       const response = await fetch(`${this.apiBaseUrl}/auth/email-exists?email=${encodeURIComponent(clean)}`);
-      if (!response.ok) return;
+      if (!response.ok || !this.identity.isCurrent(session)) return;
       const data = await response.json();
+      if (!this.identity.isCurrent(session)) return;
       this.emailAlreadyRegistered.set(Boolean(data.exists));
     } catch {}
   }
@@ -733,10 +762,13 @@ export class CheckoutPageComponent {
 
     const id = this.notifications.loading('Procesando pedido…', 'Estamos validando disponibilidad y stock.', { key: 'checkout' });
     const historySession = this.notifications.historySession();
+    const checkoutSession = this.identity.session();
     try {
       const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
       payload.requiresAdvancePayment = this.requiresAdvancePayment();
       const result = await this.orderService.submitOrder(payload);
+      if (!this.identity.isCurrent(checkoutSession)) return;
+
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
       this.isLocalDraft.set(result.channel === 'local');
@@ -767,10 +799,11 @@ export class CheckoutPageComponent {
       this.couponPreviewMessage.set('');
       this.deliveryState.clear();
     } catch (error) {
+      if (!this.identity.isCurrent(checkoutSession)) return;
       const message = getUserFriendlyError(error, 'No fue posible registrar el pedido. Intenta nuevamente.');
       this.notifications.updateError(id, 'No se pudo enviar el pedido', message, { saveToHistory: true, history: { sessionVersion: historySession, action: { label: 'Revisar pedido', url: '/checkout' } } });
     } finally {
-      this.loading.set(false);
+      if (this.identity.isCurrent(checkoutSession)) this.loading.set(false);
     }
   }
 
