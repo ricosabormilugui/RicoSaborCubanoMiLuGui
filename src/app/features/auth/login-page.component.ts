@@ -22,7 +22,7 @@ import { returnUrlQueryParams, safeReturnUrl } from '../../core/utils/safe-retur
           </button>
         </div>
       </div>
-      <a class="forgot-link" routerLink="/recuperar-contrasena">¿Has olvidado tu contraseña?</a>
+      <a class="forgot-link" routerLink="/recuperar-contrasena" [queryParams]="returnLinkParams">¿Has olvidado tu contraseña?</a>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
       <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro" [queryParams]="returnLinkParams">Regístrate aquí</a>.</p>

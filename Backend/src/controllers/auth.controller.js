@@ -152,7 +152,7 @@ export function createPasswordRecoveryHandlers(service = passwordRecoveryService
   return {
     async forgotPassword(req, res) {
       try {
-        await service.requestReset(req.body?.email);
+        await service.requestReset(req.body?.email, req.body?.returnUrl);
       } catch (error) {
         // Never attach the submitted email, reset URL or token to logs.
         logger.error("auth.password_reset.request_failed", {

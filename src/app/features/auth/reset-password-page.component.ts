@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/config/password-policy.config';
 import { NotificationService } from '../../core/services/notification.service';
 import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/services/password-recovery.service';
+import { returnUrlQueryParams } from '../../core/utils/safe-return-url';
 
 @Component({
   standalone: true,
@@ -15,13 +16,13 @@ import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/servi
 
       <div class="status invalid" role="alert" *ngIf="invalidToken()">
         <p>El enlace de recuperación no es válido o ha caducado.</p>
-        <a routerLink="/recuperar-contrasena">Solicitar un nuevo enlace</a>
+        <a routerLink="/recuperar-contrasena" [queryParams]="returnLinkParams">Solicitar un nuevo enlace</a>
       </div>
 
       <div class="status success" role="status" *ngIf="updated()">
         <h2>Contraseña actualizada correctamente</h2>
         <p>Ya puedes iniciar sesión con tu nueva contraseña.</p>
-        <a class="btn btn-primary" routerLink="/login">Ir a iniciar sesión</a>
+        <a class="btn btn-primary" routerLink="/login" [queryParams]="returnLinkParams">Ir a iniciar sesión</a>
       </div>
 
       <form *ngIf="!invalidToken() && !updated()" (ngSubmit)="submit()" novalidate>
@@ -44,7 +45,7 @@ import { PasswordRecoveryError, PasswordRecoveryService } from '../../core/servi
       </form>
 
       <p class="err" role="alert" *ngIf="error()">{{ error() }}</p>
-      <a class="back-link" routerLink="/login" *ngIf="!updated()">Volver a iniciar sesión</a>
+      <a class="back-link" routerLink="/login" [queryParams]="returnLinkParams" *ngIf="!updated()">Volver a iniciar sesión</a>
     </section>
   `,
   styles: [
@@ -73,19 +74,23 @@ export class ResetPasswordPageComponent {
   private readonly token: string;
 
   constructor(
-    route: ActivatedRoute,
+    private readonly route: ActivatedRoute,
     router: Router,
     private readonly recovery: PasswordRecoveryService,
     private readonly notifications: NotificationService
   ) {
-    const fragmentToken = new URLSearchParams(route.snapshot.fragment ?? '').get('token');
-    this.token = fragmentToken ?? route.snapshot.queryParamMap.get('token') ?? '';
+    const fragmentToken = new URLSearchParams(this.route.snapshot.fragment ?? '').get('token');
+    this.token = fragmentToken ?? this.route.snapshot.queryParamMap.get('token') ?? '';
     this.invalidToken.set(!this.token);
 
     if (this.token && globalThis.history) {
-      const cleanUrl = router.serializeUrl(router.createUrlTree(['/reset-password']));
+      const cleanUrl = router.serializeUrl(router.createUrlTree(['/reset-password'], { queryParams: this.returnLinkParams }));
       globalThis.history.replaceState(globalThis.history.state, '', cleanUrl);
     }
+  }
+
+  get returnLinkParams(): { returnUrl: string } | Record<string, never> {
+    return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
   async submit(): Promise<void> {

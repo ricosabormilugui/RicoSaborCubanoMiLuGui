@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
+import { returnUrlQueryParams } from '../utils/safe-return-url';
 
 interface ApiMessage {
   error?: string;
@@ -16,11 +17,11 @@ export class PasswordRecoveryError extends Error {
 export class PasswordRecoveryService {
   private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
 
-  async requestReset(email: string): Promise<string> {
+  async requestReset(email: string, returnUrl?: string | null): Promise<string> {
     const response = await fetch(`${this.apiBase}/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({ email, ...returnUrlQueryParams(returnUrl) })
     });
     const payload = await this.readPayload(response);
 

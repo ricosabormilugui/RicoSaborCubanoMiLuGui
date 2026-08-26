@@ -42,8 +42,15 @@ test('returnUrl interno seguro se acepta y el externo se rechaza', () => {
   assert.equal(safeReturnUrl(''), '/checkout');
   assert.equal(safeReturnUrl('/login'), '/checkout');
   assert.equal(safeReturnUrl('/registro'), '/checkout');
-  assert.deepEqual(returnUrlQueryParams('/favoritos'), { returnUrl: '/favoritos' });
-  assert.deepEqual(returnUrlQueryParams('https://externo.com'), {});
+  assert.equal(safeReturnUrl('/productos/test'), '/productos/test');
+  assert.deepEqual(returnUrlQueryParams('/productos/test'), { returnUrl: '/productos/test' });
+  assert.equal(isSafeReturnUrl('https://evil.com'), false);
+  assert.equal(isSafeReturnUrl('//evil.com'), false);
+  assert.equal(isSafeReturnUrl('javascript:alert(1)'), false);
+  assert.equal(isSafeReturnUrl('\\evil'), false);
+  assert.deepEqual(returnUrlQueryParams('https://evil.com'), {});
+  assert.deepEqual(returnUrlQueryParams('//evil.com'), {});
+  assert.deepEqual(returnUrlQueryParams('javascript:alert(1)'), {});
 });
 
 test('login y registro comparten helper y conservan returnUrl entre sí', () => {
@@ -55,10 +62,30 @@ test('login y registro comparten helper y conservan returnUrl entre sí', () => 
   assert.match(login, /from '\.\.\/\.\.\/core\/utils\/safe-return-url'/);
   assert.match(register, /from '\.\.\/\.\.\/core\/utils\/safe-return-url'/);
   assert.match(login, /routerLink="\/registro" \[queryParams\]="returnLinkParams"/);
+  assert.match(login, /routerLink="\/recuperar-contrasena" \[queryParams\]="returnLinkParams"/);
   assert.match(register, /routerLink="\/login" \[queryParams\]="returnLinkParams"/);
   assert.match(login, /navigateByUrl\(this\.destinationUrl\(\)\)/);
   assert.match(register, /navigateByUrl\(safeReturnUrl\(this\.route\.snapshot\.queryParamMap\.get\('returnUrl'\)\)\)/);
   assert.doesNotMatch(register, /navigateByUrl\('\/checkout'\)/);
   assert.match(guard, /queryParams: \{ returnUrl: state\.url \}/);
   assert.match(service, /queryParams: \{ returnUrl: safeReturnUrl\(current, '\/favoritos'\) \}/);
+});
+
+test('recuperación y reset conservan returnUrl hasta el login final', () => {
+  const login = readFileSync(resolve(root, 'src/app/features/auth/login-page.component.ts'), 'utf8');
+  const forgot = readFileSync(resolve(root, 'src/app/features/auth/forgot-password-page.component.ts'), 'utf8');
+  const reset = readFileSync(resolve(root, 'src/app/features/auth/reset-password-page.component.ts'), 'utf8');
+  const recovery = readFileSync(resolve(root, 'src/app/core/services/password-recovery.service.ts'), 'utf8');
+
+  assert.match(login, /routerLink="\/recuperar-contrasena" \[queryParams\]="returnLinkParams"/);
+  assert.match(forgot, /from '\.\.\/\.\.\/core\/utils\/safe-return-url'/);
+  assert.match(forgot, /routerLink="\/login" \[queryParams\]="returnLinkParams"/);
+  assert.match(forgot, /requestReset\(email, this\.route\.snapshot\.queryParamMap\.get\('returnUrl'\)\)/);
+  assert.match(reset, /from '\.\.\/\.\.\/core\/utils\/safe-return-url'/);
+  assert.match(reset, /routerLink="\/login" \[queryParams\]="returnLinkParams"/);
+  assert.match(reset, /routerLink="\/recuperar-contrasena" \[queryParams\]="returnLinkParams"/);
+  assert.match(reset, /createUrlTree\(\['\/reset-password'\], \{ queryParams: this\.returnLinkParams \}\)/);
+  assert.match(recovery, /returnUrlQueryParams/);
+  assert.match(recovery, /JSON\.stringify\(\{ email, \.\.\.returnUrlQueryParams\(returnUrl\) \}\)/);
+  assert.doesNotMatch(reset, /createUrlTree\(\['\/reset-password'\]\)/);
 });

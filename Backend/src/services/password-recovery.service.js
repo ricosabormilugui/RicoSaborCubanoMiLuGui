@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import {
   PASSWORD_RESET_TTL_MINUTES,
-  buildPasswordResetUrl
+  buildPasswordResetUrl,
+  sanitizePasswordResetReturnUrl
 } from "../config/password-recovery.config.js";
 import { hashPassword } from "../lib/auth.js";
 import { validatePassword } from "../lib/password-policy.js";
@@ -30,7 +31,7 @@ export function createPasswordRecoveryService({
   ttlMinutes = PASSWORD_RESET_TTL_MINUTES
 } = {}) {
   return {
-    async requestReset(email) {
+    async requestReset(email, returnUrl) {
       const rawToken = tokenGenerator();
       const tokenHash = tokenHasher(rawToken);
       const user = await repository.findUserByEmail(email);
@@ -46,7 +47,7 @@ export function createPasswordRecoveryService({
         await emailSender({
           to: user.email,
           fullName: user.fullName,
-          resetUrl: resetUrlBuilder(rawToken),
+          resetUrl: resetUrlBuilder(rawToken, sanitizePasswordResetReturnUrl(returnUrl)),
           expiresInMinutes: ttlMinutes
         });
       } catch (error) {

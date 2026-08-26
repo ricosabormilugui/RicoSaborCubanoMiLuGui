@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { PasswordRecoveryService } from '../../core/services/password-recovery.service';
+import { returnUrlQueryParams } from '../../core/utils/safe-return-url';
 
 @Component({
   standalone: true,
@@ -26,7 +27,7 @@ import { PasswordRecoveryService } from '../../core/services/password-recovery.s
         <p>{{ successMessage() }}</p>
       </div>
       <p class="err" role="alert" *ngIf="error()">{{ error() }}</p>
-      <a class="back-link" routerLink="/login">Volver a iniciar sesión</a>
+      <a class="back-link" routerLink="/login" [queryParams]="returnLinkParams">Volver a iniciar sesión</a>
     </section>
   `,
   styles: [
@@ -52,8 +53,13 @@ export class ForgotPasswordPageComponent {
 
   constructor(
     private readonly recovery: PasswordRecoveryService,
-    private readonly notifications: NotificationService
+    private readonly notifications: NotificationService,
+    private readonly route: ActivatedRoute
   ) {}
+
+  get returnLinkParams(): { returnUrl: string } | Record<string, never> {
+    return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
+  }
 
   async submit(): Promise<void> {
     const email = this.email.trim().toLowerCase();
@@ -65,7 +71,7 @@ export class ForgotPasswordPageComponent {
     this.loading.set(true);
     this.error.set('');
     try {
-      this.successMessage.set(await this.recovery.requestReset(email));
+      this.successMessage.set(await this.recovery.requestReset(email, this.route.snapshot.queryParamMap.get('returnUrl')));
       this.sent.set(true);
       this.notifications.success('Solicitud recibida', 'Revisa tu correo para continuar.');
     } catch {

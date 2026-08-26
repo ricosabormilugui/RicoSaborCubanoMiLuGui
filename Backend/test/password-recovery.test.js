@@ -3,7 +3,9 @@ import test from "node:test";
 import { hashPassword, verifyPassword } from "../src/lib/auth.js";
 import {
   PASSWORD_RECOVERY_GENERIC_MESSAGE,
-  PASSWORD_RESET_INVALID_MESSAGE
+  PASSWORD_RESET_INVALID_MESSAGE,
+  buildPasswordResetUrl,
+  sanitizePasswordResetReturnUrl
 } from "../src/config/password-recovery.config.js";
 import { createPasswordRecoveryHandlers } from "../src/controllers/auth.controller.js";
 import { passwordRecoveryRateLimit } from "../src/middleware/password-recovery-rate-limit.middleware.js";
@@ -41,6 +43,7 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
   const sentEmails = [];
   const notifications = [];
   const generatedTokens = ["token-seguro-uno", "token-seguro-dos", "token-seguro-tres"];
+  const returnUrls = [];
   let currentTime = new Date(now);
 
   const repository = {
@@ -82,7 +85,10 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
     emailSender: async (message) => sentEmails.push(message),
     notificationWriter: async (user) => notifications.push(String(user._id)),
     tokenGenerator: () => generatedTokens.shift(),
-    resetUrlBuilder: (token) => `https://rico.test/reset-password#token=${token}`,
+    resetUrlBuilder: (token, returnUrl) => {
+      returnUrls.push(returnUrl);
+      return `https://rico.test/reset-password#token=${token}`;
+    },
     clock: () => new Date(currentTime),
     ttlMinutes: 60
   });
@@ -93,6 +99,7 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
     service,
     sentEmails,
     notifications,
+    returnUrls,
     setTime(value) {
       currentTime = new Date(value);
     }
@@ -216,6 +223,39 @@ test("caso 10: el login acepta la contraseña nueva después del reset", async (
   });
 
   assert.equal(authenticated?._id, fixture.user._id);
+});
+
+test("returnUrl interno se adjunta al email y los destinos externos se descartan", async () => {
+  const fixture = createFixture();
+  const handlers = createPasswordRecoveryHandlers(fixture.service);
+
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com", returnUrl: "/favoritos" } }, mockResponse());
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com", returnUrl: "/productos/test" } }, mockResponse());
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com", returnUrl: "https://evil.com" } }, mockResponse());
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com", returnUrl: "//evil.com" } }, mockResponse());
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com", returnUrl: "javascript:alert(1)" } }, mockResponse());
+  await handlers.forgotPassword({ body: { email: "cliente@ejemplo.com" } }, mockResponse());
+
+  assert.deepEqual(fixture.returnUrls, ["/favoritos", "/productos/test", undefined, undefined, undefined, undefined]);
+});
+
+test("buildPasswordResetUrl pone returnUrl en query y el token sigue en el fragmento", () => {
+  const previous = process.env.FRONTEND_URL;
+  process.env.FRONTEND_URL = "https://rico.test";
+  try {
+    assert.equal(
+      buildPasswordResetUrl("tok", "/favoritos"),
+      "https://rico.test/reset-password?returnUrl=%2Ffavoritos#token=tok"
+    );
+    assert.equal(buildPasswordResetUrl("tok", "https://evil.com"), "https://rico.test/reset-password#token=tok");
+    assert.equal(buildPasswordResetUrl("tok", "//evil.com"), "https://rico.test/reset-password#token=tok");
+    assert.equal(buildPasswordResetUrl("tok"), "https://rico.test/reset-password#token=tok");
+    assert.equal(sanitizePasswordResetReturnUrl("/favoritos"), "/favoritos");
+    assert.equal(sanitizePasswordResetReturnUrl("javascript:alert(1)"), undefined);
+    assert.equal(sanitizePasswordResetReturnUrl("\\evil"), undefined);
+  } finally {
+    process.env.FRONTEND_URL = previous;
+  }
 });
 
 test("el rate limit responde de forma genérica al superar el máximo por email", () => {

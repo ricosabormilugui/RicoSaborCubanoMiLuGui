@@ -15,7 +15,32 @@ export const PASSWORD_RECOVERY_GENERIC_MESSAGE =
 export const PASSWORD_RESET_INVALID_MESSAGE =
   "El enlace de recuperación no es válido o ha caducado.";
 
-export function buildPasswordResetUrl(rawToken) {
+const AUTH_LOOP_PATHS = new Set(["/login", "/registro", "/recuperar-contrasena", "/reset-password"]);
+
+function decodeReturnUrl(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/** Same rules as the frontend `safeReturnUrl` helper. Unsafe values are dropped, never emailed. */
+export function sanitizePasswordResetReturnUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+
+  const path = decodeReturnUrl(raw).trim();
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return undefined;
+  if (/[\u0000-\u001F\u007F]/.test(path)) return undefined;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return undefined;
+
+  const pathname = path.split(/[?#]/, 1)[0] ?? path;
+  if (AUTH_LOOP_PATHS.has(pathname)) return undefined;
+  return path;
+}
+
+export function buildPasswordResetUrl(rawToken, returnUrl) {
   const configuredUrl = String(process.env.FRONTEND_URL ?? "").trim();
   if (!configuredUrl) {
     throw new Error("Missing environment variable: FRONTEND_URL");
@@ -25,6 +50,9 @@ export function buildPasswordResetUrl(rawToken) {
   if (!/^https?:$/.test(url.protocol)) {
     throw new Error("FRONTEND_URL must use http or https");
   }
+
+  const safeReturnUrl = sanitizePasswordResetReturnUrl(returnUrl);
+  if (safeReturnUrl) url.searchParams.set("returnUrl", safeReturnUrl);
 
   // The fragment is never sent to the web server or included in HTTP access logs.
   url.hash = new URLSearchParams({ token: rawToken }).toString();
