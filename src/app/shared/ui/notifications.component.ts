@@ -1,38 +1,31 @@
-import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
-import { NotificationService } from '../../core/services/notification.service';
+import { Component, ElementRef, afterEveryRender, inject } from '@angular/core';
+import { NgxSonnerToaster } from 'ngx-sonner';
+import { ThemeService } from '../../core/services/theme.service';
 
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule],
+  imports: [NgxSonnerToaster],
   template: `
-    <aside class="notify-wrap" aria-live="polite" aria-atomic="true">
-      <article
-        class="notify"
-        *ngFor="let item of notifications.notifications()"
-        [class]="'notify ' + item.type"
-      >
-        <button class="close" type="button" (click)="notifications.dismiss(item.id)">×</button>
-        <strong>{{ item.title }}</strong>
-        <p *ngIf="item.message">{{ item.message }}</p>
-      </article>
-    </aside>
+    @defer (on immediate) {
+      <ngx-sonner-toaster class="mixsabor-toaster" position="top-right"
+        [theme]="theme.mode()" [visibleToasts]="3" [closeButton]="true" />
+    }
   `,
-  styles: [
-    `.notify-wrap{position:fixed;top:78px;right:16px;display:grid;gap:.55rem;z-index:60;max-width:min(92vw,360px)}`,
-    `.notify{position:relative;padding:.7rem .85rem;border-radius:12px;border:1px solid var(--border-soft);background:var(--surface-0);color:var(--text-main);box-shadow:0 10px 24px var(--shadow-soft);animation:slideIn .2s ease}`,
-    `.notify strong{display:block;font-size:.92rem}`,
-    `.notify p{margin:.25rem 0 0;color:var(--text-soft);font-size:.88rem}`,
-    `.notify.success{border-color:color-mix(in srgb, var(--accent-green) 35%, var(--border-soft));background:color-mix(in srgb, var(--accent-green) 12%, var(--surface-0))}`,
-    `.notify.error{border-color:color-mix(in srgb, var(--error-text) 45%, var(--border-soft));background:color-mix(in srgb, var(--error-text) 15%, var(--surface-0))}`,
-    `.notify.info{border-color:color-mix(in srgb, var(--info-text) 40%, var(--border-soft));background:color-mix(in srgb, var(--info-text) 13%, var(--surface-0))}`,
-    `.notify.warning{border-color:color-mix(in srgb, var(--warning-text) 45%, var(--border-soft));background:color-mix(in srgb, var(--warning-text) 14%, var(--surface-0))}`,
-    `.close{position:absolute;top:6px;right:8px;border:0;background:transparent;color:var(--text-soft);cursor:pointer;font-size:1.05rem}`,
-    `@keyframes slideIn{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}`,
-    `@media (max-width:760px){.notify-wrap{left:12px;right:12px;top:max(64px,env(safe-area-inset-top));max-width:none}}`
-  ]
+  styles: [':host { display: contents; }']
 })
 export class NotificationsComponent {
-  readonly notifications = inject(NotificationService);
+  readonly theme = inject(ThemeService);
+
+  constructor() {
+    const host: HTMLElement = inject(ElementRef).nativeElement;
+    // ngx-sonner 3.1 has no label/role inputs; keep this adapter in the host.
+    afterEveryRender(() => {
+      host.querySelector('section[aria-label]')?.setAttribute('aria-label', 'Notificaciones (Alt + T)');
+      host.querySelectorAll('[data-close-button]').forEach(button => button.setAttribute('aria-label', 'Cerrar notificación'));
+      host.querySelectorAll('[data-sonner-toast]').forEach(item => {
+        item.setAttribute('role', item.getAttribute('data-type') === 'error' ? 'alert' : 'status');
+      });
+    });
+  }
 }

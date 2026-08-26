@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from './core/utils/user-friendly-error';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, NavigationStart, Router, RouterLink, RouterOutlet } from '@angular/router';
@@ -6,6 +7,8 @@ import { CustomerAuthService } from './core/services/customer-auth.service';
 import { NotificationService } from './core/services/notification.service';
 import { CatalogService } from './core/services/catalog.service';
 import { NotificationsComponent } from './shared/ui/notifications.component';
+import { ConfirmDialogComponent } from './shared/ui/confirm-dialog.component';
+import { NotificationBellComponent } from './shared/ui/notification-bell.component';
 import { matchesProductSearch } from './core/models/product-filter';
 import { Product } from './core/models/product.model';
 import { ThemeService } from './core/services/theme.service';
@@ -23,7 +26,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, CookieBannerComponent, IconComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent],
   template: `
     <div class="app-shell">
       <div class="top-banner">
@@ -50,6 +53,9 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
           </div>
 
           <div class="nav-right">
+            @if (customerAuth.isAuthenticated()) {
+              @defer (on immediate) { <app-notification-bell /> }
+            }
             <button class="icon-btn mobile-only" type="button" (click)="openSearch()" aria-label="Buscar">
               <app-icon name="search" />
             </button>
@@ -80,6 +86,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
                   </ng-container>
 
                   <ng-template #loggedMenu>
+                    <a routerLink="/mis-notificaciones" (click)="userMenuOpen.set(false)">Mis notificaciones</a>
                     <button type="button" (click)="goOrders()">Mis pedidos</button>
                     <button type="button" (click)="logoutCustomer()">Salir</button>
                   </ng-template>
@@ -104,6 +111,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
         <a routerLink="/mis-pedidos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
+        <a routerLink="/mis-notificaciones" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis notificaciones</a>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
         <button
@@ -197,7 +205,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
                 (change)="updateNewsletterConsent($event)" />
               <span>Acepto recibir promociones y comunicaciones comerciales. He leído la <a routerLink="/legal/privacidad">política de privacidad</a> y podré solicitar la baja en cualquier momento.</span>
             </label>
-            <p class="ok" *ngIf="newsletterNotice()">{{ newsletterNotice() }}</p>
             <p class="err" *ngIf="newsletterError()">{{ newsletterError() }}</p>
           </form>
         </div>
@@ -228,6 +235,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
       <app-cookie-banner />
       <app-notifications />
+      <app-confirm-dialog />
     </div>
   `,
   styles: [
@@ -249,8 +257,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.theme-btn{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;background:color-mix(in srgb, var(--surface-2) 80%, transparent);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);color:var(--text-main);border-radius:10px;cursor:pointer}`,
     `.user-menu{position:relative}`,
     `.dropdown{position:absolute;right:0;top:38px;display:grid;gap:4px;background:var(--surface-0);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);border-radius:10px;padding:8px;min-width:150px;z-index:60;animation:fadeIn .2s ease}`,
-    `.dropdown button{background:color-mix(in srgb, var(--surface-2) 40%, transparent);border:0;color:var(--text-main);padding:8px;border-radius:8px;text-align:left;cursor:pointer}`,
-    `.dropdown button:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
+    `.dropdown button,.dropdown a{font:inherit;text-decoration:none;background:color-mix(in srgb, var(--surface-2) 40%, transparent);border:0;color:var(--text-main);padding:8px;border-radius:8px;text-align:left;cursor:pointer}`,
+    `.dropdown button:hover,.dropdown a:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
     `.side-menu{position:fixed;left:0;top:0;width:min(280px,calc(100vw - 24px));max-width:100%;height:100%;background:var(--surface-0);transition:.3s;z-index:100;padding:20px;display:grid;align-content:start;gap:10px;transform:translateX(-100%);overflow-y:auto;overflow-x:hidden}`,
     `.side-menu.open{transform:translateX(0)}`,
     `.menu-header{display:flex;align-items:center;gap:8px;color:var(--text-main);background:color-mix(in srgb, var(--surface-2) 55%, transparent);padding:10px 12px;border-radius:10px;min-width:0}`,
@@ -325,7 +333,6 @@ export class AppComponent {
   readonly newsletterEmail = signal('');
   readonly newsletterConsent = signal(false);
   readonly newsletterLoading = signal(false);
-  readonly newsletterNotice = signal('');
   readonly newsletterError = signal('');
   readonly legalLinks = LEGAL_NAV_LINKS;
   readonly whatsappUrl = buildWhatsAppContactUrl();
@@ -377,7 +384,6 @@ export class AppComponent {
   async submitNewsletter(event?: Event): Promise<void> {
     event?.preventDefault();
     const email = this.newsletterEmail().trim().toLowerCase();
-    this.newsletterNotice.set('');
     this.newsletterError.set('');
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -397,13 +403,11 @@ export class AppComponent {
       const message = result.duplicated
         ? 'Este email ya estaba suscrito. Mantienes tu cupón si aplica.'
         : 'Suscripción guardada. Cupón registrado para validación manual.';
-      this.newsletterNotice.set(message);
       this.notifications.success('Newsletter', message);
       this.newsletterEmail.set('');
       this.newsletterConsent.set(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No fue posible registrar la suscripción.';
-      this.newsletterError.set(message);
+      const message = getUserFriendlyError(error, 'No fue posible registrar la suscripción.');
       this.notifications.error('Newsletter', message);
     } finally {
       this.newsletterLoading.set(false);

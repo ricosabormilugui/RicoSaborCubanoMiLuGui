@@ -50,7 +50,6 @@
         <button class="action-button secondary" type="submit">Crear categoría</button>
       </form>
 
-      <p class="category-message success" role="status" *ngIf="categoryNotice()">{{ categoryNotice() }}</p>
       <p class="category-message error" role="alert" *ngIf="categoryManagementError()">{{ categoryManagementError() }}</p>
 
       <div class="category-list" aria-label="Categorías existentes">
@@ -256,7 +255,7 @@
         <button class="wizard-button secondary" type="button" *ngIf="formStep() > 1" (click)="previousStep()">← Atrás</button>
         <span class="save-hint" *ngIf="formStep() < formSteps.length">Los cambios se guardarán al finalizar</span>
         <button class="wizard-button primary" type="button" *ngIf="formStep() < formSteps.length" (click)="nextStep()">Continuar →</button>
-        <button class="wizard-button primary" type="submit" *ngIf="formStep() === formSteps.length">{{ editId() ? 'Guardar cambios' : 'Crear producto' }}</button>
+        <button class="wizard-button primary" type="submit" [disabled]="savingProduct()" *ngIf="formStep() === formSteps.length">{{ editId() ? 'Guardar cambios' : 'Crear producto' }}</button>
       </footer>
     </form>
 
@@ -283,18 +282,4 @@
       </div>
     </section>
   </main>
-
-  <section id="delete-category-dialog" class="destructive-dialog" *ngIf="pendingDeleteCategory() as category" role="dialog" aria-modal="true" aria-labelledby="delete-category-title" aria-describedby="delete-category-description" (keydown)="trapDeleteDialogFocus($event)">
-    <button class="dialog-backdrop" type="button" tabindex="-1" aria-label="Cancelar eliminación" (click)="cancelCategoryDeletion()"></button>
-    <div class="dialog-card">
-      <span class="dialog-kicker">Acción destructiva</span>
-      <h2 id="delete-category-title">¿Eliminar la categoría “{{ category.label }}”?</h2>
-      <p id="delete-category-description">Esta acción eliminará la categoría de la lista disponible. No se eliminará ni reasignará ningún producto.</p>
-      <p class="category-message error" role="alert" *ngIf="categoryManagementError()">{{ categoryManagementError() }}</p>
-      <div class="dialog-actions">
-        <button id="delete-category-cancel" type="button" (click)="cancelCategoryDeletion()" [disabled]="deletingCategory()">Cancelar</button>
-        <button class="confirm-delete" type="button" (click)="confirmCategoryDeletion()" [disabled]="deletingCategory()">{{ deletingCategory() ? 'Eliminando…' : 'Eliminar categoría' }}</button>
-      </div>
-    </div>
-  </section>
 </ng-template>

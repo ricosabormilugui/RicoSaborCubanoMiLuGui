@@ -1,0 +1,15 @@
+<dialog #dialog class="confirm-dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"
+  (cancel)="onCancel($event)" (keydown)="trapFocus($event)">
+  @if (dialogs.current(); as options) {
+    <div class="dialog-content" [class.danger]="options.variant === 'danger'">
+      <div class="dialog-symbol" aria-hidden="true">{{ options.variant === 'danger' ? '!' : '?' }}</div>
+      <span class="dialog-kicker">{{ options.variant === 'danger' ? 'Acción destructiva' : 'Confirmar acción' }}</span>
+      <h2 id="confirm-title">{{ options.title }}</h2>
+      <p id="confirm-message">{{ options.message }}</p>
+      <div class="dialog-actions">
+        <button data-cancel autofocus type="button" class="btn" (click)="finish(false)">{{ options.cancelText }}</button>
+        <button type="button" class="btn" [class.btn-danger]="options.variant === 'danger'" [class.btn-primary]="options.variant !== 'danger'" (click)="finish(true)">{{ options.confirmText }}</button>
+      </div>
+    </div>
+  }
+</dialog>

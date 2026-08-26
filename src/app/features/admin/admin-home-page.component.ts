@@ -1,3 +1,5 @@
+import { NotificationService } from '../../core/services/notification.service';
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +17,7 @@ import { ProductCategoryService } from '../../core/services/product-category.ser
   styleUrls: ['./admin-home-page.component.css']
 })
 export class AdminHomePageComponent {
+  private readonly notifications = inject(NotificationService);
   private readonly productCategories = inject(ProductCategoryService);
   email = '';
   password = '';
@@ -22,7 +25,6 @@ export class AdminHomePageComponent {
 
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly notice = signal('');
   readonly categories = this.productCategories.categories;
   readonly brickSlots: Array<{ key: keyof Omit<HomeContent, 'categoryImages'>; label: string; hint: string }> = [
     { key: 'heroImageUrl', label: 'Hero', hint: 'Bloque principal: comida cubana casera y tartas por encargo' },
@@ -44,13 +46,12 @@ export class AdminHomePageComponent {
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
 
     try {
       await this.adminOrders.login(this.email, this.password);
       await this.loadHome();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -59,7 +60,6 @@ export class AdminHomePageComponent {
   logout(): void {
     this.auth.logout();
     this.form = emptyHomeContent();
-    this.notice.set('');
     this.error.set('');
   }
 
@@ -74,22 +74,23 @@ export class AdminHomePageComponent {
       ]);
       this.form = home;
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo cargar la portada.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo cargar la portada.'));
     } finally {
       this.loading.set(false);
     }
   }
 
   async saveHome(): Promise<void> {
+    if (this.loading()) return;
+    const id = this.notifications.loading('Guardando portada…', undefined, { key: 'home-save' });
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
 
     try {
       this.form = await this.adminHome.saveHomeContent(this.form);
-      this.notice.set('Imágenes de la portada guardadas.');
+      this.notifications.updateSuccess(id, 'Portada guardada');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo guardar la portada.');
+      this.notifications.updateError(id, 'No se pudo guardar la portada', getUserFriendlyError(error));
     } finally {
       this.loading.set(false);
     }

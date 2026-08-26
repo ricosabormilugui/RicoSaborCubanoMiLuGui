@@ -8,7 +8,9 @@ const read = (path) => readFileSync(new URL(path, rootUrl), 'utf8');
 test('la capa API distingue red, timeout, 401, 403, 409, 429 y 5xx', () => {
   const client = read('src/app/core/utils/api-client.ts');
   assert.match(client, /kind: ApiErrorKind/);
-  for (const status of [401, 403, 404, 409, 429, 500]) assert.match(client, new RegExp(`status === ${status}|status >= ${status}`));
+  const normalizer = read('src/app/core/utils/user-friendly-error.ts');
+  assert.match(client, /getUserFriendlyError\(\{ status, message: detail \}, fallback\)/);
+  for (const status of [401, 403, 404, 409, 429, 500]) assert.match(normalizer, new RegExp(`status === ${status}|status >= ${status}`));
   assert.match(client, /controller\.abort\(\)/);
   assert.match(client, /X-Request-Id/);
 });

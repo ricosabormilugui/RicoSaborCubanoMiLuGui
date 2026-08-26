@@ -1,5 +1,6 @@
+import { NotificationService } from '../../core/services/notification.service';
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { IconComponent } from '../../shared/ui/icon.component';
@@ -11,5 +12,13 @@ import { IconComponent } from '../../shared/ui/icon.component';
   styleUrls: ['./cart-page.component.css']
 })
 export class CartPageComponent {
+  private readonly notifications = inject(NotificationService);
   constructor(public readonly cart: CartService) {}
+
+  removeItem(productId: string): void {
+    const item = this.cart.items().find(item => item.productId === productId);
+    if (!item) return;
+    this.cart.remove(productId);
+    this.notifications.info('Producto eliminado del carrito', item.name, { key: 'cart-remove:' + productId });
+  }
 }

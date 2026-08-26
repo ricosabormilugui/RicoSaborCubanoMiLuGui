@@ -1,4 +1,6 @@
-import { ensureIndexes, getCollection } from "../lib/mongo.js";
+import { ensureIndexes, getCollection, runMongoTransaction } from "../lib/mongo.js";
+import { prepareNotifications } from "./notifications.repository.js";
+import { notifyOrderOwner } from "../services/user-notification.service.js";
 
 function getOrdersCollectionName() {
   return process.env.MONGODB_ORDERS_COLLECTION ?? process.env.ORDERS_COLLECTION ?? "orders";
@@ -163,30 +165,39 @@ export async function linkGuestOrdersByEmailToUser(email, userId) {
   return result.modifiedCount;
 }
 
-export async function updateOrderStatus(orderId, nextStatus, metadata = {}) {
-  const collection = await getOrdersCollection();
-  const now = new Date().toISOString();
-  const result = await collection.findOneAndUpdate(
-    { orderId },
-    {
-      $set: {
-        status: nextStatus,
-        ...metadata,
-        updatedAt: now
-      },
-      $push: {
-        statusHistory: {
+export async function updateOrderStatus(orderId, nextStatus, metadata = {}, {
+  collectionProvider = getOrdersCollection,
+  prepare = prepareNotifications,
+  runTransaction = runMongoTransaction,
+  notificationWriter = notifyOrderOwner
+} = {}) {
+  const collection = await collectionProvider();
+  await prepare();
+  return runTransaction(async session => {
+    const now = new Date().toISOString();
+    const result = await collection.findOneAndUpdate(
+      { orderId, status: { $ne: nextStatus } },
+      {
+        $set: {
           status: nextStatus,
-          at: now,
-          note: metadata?.statusNote ?? null,
-          signature: metadata?.deliverySignature ?? null
+          ...metadata,
+          updatedAt: now
+        },
+        $push: {
+          statusHistory: {
+            status: nextStatus,
+            at: now,
+            note: metadata?.statusNote ?? null,
+            signature: metadata?.deliverySignature ?? null
+          }
         }
-      }
-    },
-    { returnDocument: "after" }
-  );
+      },
+      { returnDocument: "after", session }
+    );
 
-  return result;
+    if (result) await notificationWriter(result, { session });
+    return result;
+  });
 }
 
 export async function appendOrderNotifications(orderId, notifications = []) {

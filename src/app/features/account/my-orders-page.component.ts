@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -49,7 +50,7 @@ export class MyOrdersPageComponent {
     try {
       this.orders.set(await this.customerOrders.listMyOrders());
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo cargar el historial.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo cargar el historial.'));
     }
   }
 }

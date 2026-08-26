@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +24,6 @@ import { NotificationService } from '../../core/services/notification.service';
       <a class="forgot-link" routerLink="/recuperar-contrasena">¿Has olvidado tu contraseña?</a>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
-      <p class="err" *ngIf="error()">{{ error() }}</p>
       <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a>.</p>
     </section>
   `,
@@ -49,7 +49,6 @@ export class LoginPageComponent {
   password = '';
   readonly showPassword = signal(false);
   readonly loading = signal(false);
-  readonly error = signal('');
 
   constructor(
     public readonly auth: CustomerAuthService,
@@ -63,14 +62,12 @@ export class LoginPageComponent {
 
   async login(): Promise<void> {
     this.loading.set(true);
-    this.error.set('');
     try {
       await this.auth.login(this.email, this.password);
       this.notifications.success('Sesión iniciada', 'Bienvenido de nuevo.');
       await this.router.navigateByUrl('/checkout');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
-      this.error.set(message);
+      const message = getUserFriendlyError(error, 'No se pudo iniciar sesión.');
       this.notifications.error('Error al iniciar sesión', message);
     } finally {
       this.loading.set(false);

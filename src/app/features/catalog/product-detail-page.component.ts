@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -116,7 +117,7 @@ export class ProductDetailPageComponent {
     const customization = buildCartCustomizationSelections(product, this.selectedCustomization());
     this.cart.add(product, customization, quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
-    this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
+    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
     return true;
   }
 
@@ -155,7 +156,7 @@ export class ProductDetailPageComponent {
     } catch (error) {
       if (identifier !== this.productParam()) return;
       if (!(error instanceof ApiRequestError) || error.status !== 404) {
-        this.detailError.set(error instanceof Error ? error.message : 'No se pudo cargar el producto.');
+        this.detailError.set(getUserFriendlyError(error, 'No se pudo cargar el producto.'));
       }
     } finally {
       if (identifier === this.productParam()) this.detailLoading.set(false);

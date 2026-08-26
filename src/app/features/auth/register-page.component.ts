@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -25,7 +26,6 @@ import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/conf
       </div>
       <p class="password-hint">{{ passwordPolicyMessage }}</p>
       <button class="btn btn-primary" (click)="register()" [disabled]="loading()">{{ loading() ? 'Creando...' : 'Crear cuenta' }}</button>
-      <p class="ok" *ngIf="success()">{{ success() }}</p>
       <p class="err" *ngIf="error()">{{ error() }}</p>
       <p class="auth-help">¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a>.</p>
     </section>
@@ -55,7 +55,6 @@ export class RegisterPageComponent {
 
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly success = signal('');
 
   constructor(
     private readonly auth: CustomerAuthService,
@@ -76,18 +75,15 @@ export class RegisterPageComponent {
 
     this.loading.set(true);
     this.error.set('');
-    this.success.set('');
     try {
       const result = await this.auth.register(this.fullName, this.email, this.password);
       const successMessage = result.linkedOrders > 0
         ? `Cuenta creada. Se vincularon ${result.linkedOrders} pedidos previos con tu email.`
         : 'Cuenta creada correctamente.';
-      this.success.set(successMessage);
       this.notifications.success('Registro completado', successMessage);
       await this.router.navigateByUrl('/checkout');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo crear la cuenta.';
-      this.error.set(message);
+      const message = getUserFriendlyError(error, 'No se pudo crear la cuenta.');
       this.notifications.error('Error al registrarte', message);
     } finally {
       this.loading.set(false);

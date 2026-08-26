@@ -1,5 +1,7 @@
-import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
+import { CommonModule } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord, ProductCustomizationGroupKey, ProductCustomizationGroupSettings } from '../../core/models/product.model';
@@ -25,9 +27,8 @@ import { BRAND_CONFIG } from '../../core/config/brand.config';
   styleUrls: ['./admin-products-page.component.css']
 })
 export class AdminProductsPageComponent {
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly productCategories = inject(ProductCategoryService);
-  private readonly document = inject(DOCUMENT);
-  private deleteDialogReturnFocus: HTMLElement | null = null;
   readonly brand = BRAND_CONFIG;
   email = '';
   password = '';
@@ -49,6 +50,7 @@ export class AdminProductsPageComponent {
   readonly productPresets = PRODUCT_CREATION_PRESETS;
 
   readonly loading = signal(false);
+  readonly savingProduct = signal(false);
   readonly error = signal('');
   readonly editId = signal<string>('');
   readonly formStep = signal(1);
@@ -57,9 +59,7 @@ export class AdminProductsPageComponent {
   readonly customizationEditorOpen = signal(false);
   readonly products = signal<ProductApiRecord[]>([]);
   readonly categories = this.productCategories.categories;
-  readonly categoryNotice = signal('');
   readonly categoryManagementError = signal('');
-  readonly pendingDeleteCategory = signal<ProductCategoryRecord | null>(null);
   readonly deletingCategory = signal(false);
   readonly editingCategoryId = signal('');
   newCategoryName = '';
@@ -123,7 +123,7 @@ export class AdminProductsPageComponent {
       await this.adminOrders.login(this.email, this.password);
       await this.loadProducts();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -144,10 +144,10 @@ export class AdminProductsPageComponent {
     ]);
 
     if (productsResult.status === 'fulfilled') this.products.set(productsResult.value);
-    else this.error.set(productsResult.reason instanceof Error ? productsResult.reason.message : 'No se pudieron cargar productos.');
+    else this.error.set(getUserFriendlyError(productsResult.reason, 'No se pudieron cargar productos.'));
 
     if (categoriesResult.status === 'rejected') {
-      this.categoryManagementError.set(categoriesResult.reason instanceof Error ? categoriesResult.reason.message : 'No se pudieron cargar categorías.');
+      this.categoryManagementError.set(getUserFriendlyError(categoriesResult.reason, 'No se pudieron cargar categorías.'));
     } else if (!this.editId() && !this.categoryOptions().some((category) => category.slug === normalizeCategorySlug(this.form.category))) {
       this.form.category = this.availableDefaultCategory();
     }
@@ -166,14 +166,13 @@ export class AdminProductsPageComponent {
     }
 
     this.categoryManagementError.set('');
-    this.categoryNotice.set('');
+    const id = this.notifications.loading('Creando categoría…', label, { key: 'category-save' });
     try {
       await this.productCategories.createCategory({ label });
       this.newCategoryName = '';
-      this.categoryNotice.set(`Categoría "${label}" creada.`);
-      this.notifications.success('Categoría creada', label);
+      this.notifications.updateSuccess(id, 'Categoría creada', label);
     } catch (error) {
-      this.categoryManagementError.set(error instanceof Error ? error.message : 'No se pudo crear la categoría.');
+      this.notifications.updateError(id, 'No se pudo crear la categoría.', getUserFriendlyError(error));
     }
   }
 
@@ -181,7 +180,6 @@ export class AdminProductsPageComponent {
     this.editingCategoryId.set(category._id);
     this.editingCategoryLabel = category.label;
     this.categoryManagementError.set('');
-    this.categoryNotice.set('');
   }
 
   cancelCategoryEdit(): void {
@@ -196,94 +194,43 @@ export class AdminProductsPageComponent {
       return;
     }
 
+    const id = this.notifications.loading('Guardando categoría…', label, { key: 'category-save' });
     try {
       await this.productCategories.updateCategory(category._id, { label });
       this.cancelCategoryEdit();
-      this.categoryNotice.set(`Categoría actualizada a "${label}".`);
-      this.notifications.success('Categoría actualizada', label);
+      this.notifications.updateSuccess(id, 'Categoría actualizada', label);
     } catch (error) {
-      this.categoryManagementError.set(error instanceof Error ? error.message : 'No se pudo actualizar la categoría.');
+      this.notifications.updateError(id, 'No se pudo actualizar la categoría.', getUserFriendlyError(error));
     }
   }
 
-  requestCategoryDeletion(category: ProductCategoryRecord): void {
-    this.categoryNotice.set('');
+  async requestCategoryDeletion(category: ProductCategoryRecord): Promise<void> {
+    if (this.deletingCategory()) return;
     if (Number(category.productCount ?? 0) > 0) {
-      const message = `No puedes eliminar esta categoría porque tiene ${category.productCount} ${category.productCount === 1 ? 'producto asociado' : 'productos asociados'}.`;
-      this.categoryManagementError.set(message);
-      this.notifications.warning('Categoría protegida', message);
+      this.notifications.warning('Categoría protegida', `No puedes eliminar esta categoría porque tiene ${category.productCount} productos asociados.`);
       return;
     }
-    this.categoryManagementError.set('');
-    this.deleteDialogReturnFocus = this.document.activeElement as HTMLElement | null;
-    this.pendingDeleteCategory.set(category);
-    globalThis.setTimeout(() => this.document.getElementById('delete-category-cancel')?.focus());
-  }
-
-  cancelCategoryDeletion(): void {
-    if (this.deletingCategory()) return;
-    this.pendingDeleteCategory.set(null);
-    this.restoreDeleteDialogFocus();
-  }
-
-  @HostListener('document:keydown.escape', ['$event'])
-  closeCategoryDeletionOnEscape(event: KeyboardEvent): void {
-    if (!this.pendingDeleteCategory() || this.deletingCategory()) return;
-    event.preventDefault();
-    this.cancelCategoryDeletion();
-  }
-
-  trapDeleteDialogFocus(event: KeyboardEvent): void {
-    if (event.key !== 'Tab') return;
-    const dialog = this.document.getElementById('delete-category-dialog');
-    const focusable = Array.from(dialog?.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"])') ?? []);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && this.document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && this.document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
-
-  private restoreDeleteDialogFocus(): void {
-    globalThis.setTimeout(() => {
-      const target = this.deleteDialogReturnFocus?.isConnected
-        ? this.deleteDialogReturnFocus
-        : this.document.getElementById('category-management-title');
-      target?.focus();
+    const confirmed = await this.confirmDialog.open({
+      title: `Eliminar categoría “${category.label}”`,
+      message: 'Esta acción eliminará la categoría de la lista disponible. No se eliminará ni reasignará ningún producto.',
+      confirmText: 'Eliminar categoría', variant: 'danger'
     });
-  }
-
-  async confirmCategoryDeletion(): Promise<void> {
-    const category = this.pendingDeleteCategory();
-    if (!category || this.deletingCategory()) return;
-
+    if (!confirmed) return;
     this.deletingCategory.set(true);
     this.categoryManagementError.set('');
+    const id = this.notifications.loading('Eliminando categoría…', category.label, { key: 'category-delete' });
     try {
       await this.productCategories.deleteCategory(category._id);
-      this.pendingDeleteCategory.set(null);
-      this.restoreDeleteDialogFocus();
       if (this.form.category === category.slug) this.form.category = '';
       if (this.categoryFilter() === category.slug) this.categoryFilter.set('');
-      this.categoryNotice.set(`Categoría "${category.label}" eliminada.`);
-      this.notifications.success('Categoría eliminada', category.label);
+      this.notifications.updateSuccess(id, 'Categoría eliminada', category.label);
     } catch (error) {
       const message = error instanceof ProductCategoryApiError && error.status === 409 && error.productCount !== undefined
-        ? `No puedes eliminar esta categoría porque tiene ${error.productCount} ${error.productCount === 1 ? 'producto asociado' : 'productos asociados'}.`
-        : error instanceof Error ? error.message : 'No se pudo eliminar la categoría.';
-      this.categoryManagementError.set(message);
-      this.notifications.error('No se eliminó la categoría', message);
+        ? `No puedes eliminar esta categoría porque tiene ${error.productCount} productos asociados.`
+        : getUserFriendlyError(error, 'No se pudo eliminar la categoría.');
+      this.notifications.updateError(id, 'No se eliminó la categoría', message);
       if (error instanceof ProductCategoryApiError && (error.status === 404 || error.status === 409)) {
         await this.productCategories.loadAdminCategories().catch(() => undefined);
-        if (error.status === 404) {
-          this.pendingDeleteCategory.set(null);
-          this.restoreDeleteDialogFocus();
-        }
       }
     } finally {
       this.deletingCategory.set(false);
@@ -615,6 +562,7 @@ export class AdminProductsPageComponent {
   }
 
   async saveProduct(): Promise<void> {
+    if (this.savingProduct()) return;
     this.markStepAttempted(1);
     this.markStepAttempted(3);
     const invalidStep = [1, 3].find((step) => !this.isStepValid(step));
@@ -624,6 +572,9 @@ export class AdminProductsPageComponent {
       return;
     }
 
+    this.savingProduct.set(true);
+    const editing = Boolean(this.editId());
+    const id = this.notifications.loading('Guardando producto…', this.form.name, { key: 'product-save' });
     try {
       if (this.editId()) {
         await this.adminProducts.updateProduct(this.editId(), this.normalizedFormPayload());
@@ -631,46 +582,55 @@ export class AdminProductsPageComponent {
         await this.adminProducts.createProduct(this.normalizedFormPayload());
       }
 
+      this.notifications.updateSuccess(id, editing ? 'Producto actualizado' : 'Producto creado');
       this.resetForm();
       await this.loadProducts();
       this.scrollToSection('product-management');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo guardar el producto.');
+      this.notifications.updateError(id, 'No se pudo guardar el producto', getUserFriendlyError(error));
+    } finally {
+      this.savingProduct.set(false);
     }
   }
 
   async togglePublished(product: ProductApiRecord): Promise<void> {
+    const id = this.notifications.loading('Actualizando publicación…', product.name, { key: 'togglePublished:' + product._id });
     try {
       await this.adminProducts.updateProduct(product._id, {
         ...this.buildProductPayload(product),
         published: !(product.published ?? true)
       });
+      this.notifications.updateSuccess(id, 'Publicación actualizada', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo cambiar publicación.');
+      this.notifications.updateError(id, 'No se pudo cambiar publicación.', getUserFriendlyError(error));
     }
   }
 
   async toggleAvailability(product: ProductApiRecord): Promise<void> {
+    const id = this.notifications.loading('Actualizando disponibilidad…', product.name, { key: 'toggleAvailability:' + product._id });
     try {
       await this.adminProducts.updateProduct(product._id, {
         ...this.buildProductPayload(product),
         available: !(product.available ?? true)
       });
+      this.notifications.updateSuccess(id, 'Disponibilidad actualizada', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo cambiar disponibilidad.');
+      this.notifications.updateError(id, 'No se pudo cambiar disponibilidad.', getUserFriendlyError(error));
     }
   }
 
   async removeProduct(product: ProductApiRecord): Promise<void> {
-    if (!globalThis.confirm(`Eliminar producto ${product.name}?`)) return;
+    if (!await this.confirmDialog.open({ title: 'Eliminar producto', message: `Se eliminará “${product.name}” de forma permanente. Esta acción no se puede deshacer.`, confirmText: 'Eliminar', variant: 'danger' })) return;
 
+    const id = this.notifications.loading('Eliminando producto…', product.name, { key: 'removeProduct:' + product._id });
     try {
       await this.adminProducts.deleteProduct(product._id);
+      this.notifications.updateSuccess(id, 'Producto eliminado', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo eliminar producto.');
+      this.notifications.updateError(id, 'No se pudo eliminar producto.', getUserFriendlyError(error));
     }
   }
 

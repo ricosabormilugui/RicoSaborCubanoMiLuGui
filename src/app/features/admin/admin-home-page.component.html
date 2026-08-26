@@ -28,7 +28,6 @@
       </div>
     </div>
 
-    <p class="ok" *ngIf="notice()">{{ notice() }}</p>
     <p class="err" *ngIf="error()">{{ error() }}</p>
 
     <form (ngSubmit)="saveHome()" novalidate>

@@ -39,6 +39,7 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
       }
     : null;
   const sentEmails = [];
+  const notifications = [];
   const generatedTokens = ["token-seguro-uno", "token-seguro-dos", "token-seguro-tres"];
   let currentTime = new Date(now);
 
@@ -79,6 +80,7 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
   const service = createPasswordRecoveryService({
     repository,
     emailSender: async (message) => sentEmails.push(message),
+    notificationWriter: async (user) => notifications.push(String(user._id)),
     tokenGenerator: () => generatedTokens.shift(),
     resetUrlBuilder: (token) => `https://rico.test/reset-password#token=${token}`,
     clock: () => new Date(currentTime),
@@ -90,6 +92,7 @@ function createFixture({ hasUser = true, now = new Date("2026-08-23T10:00:00.000
     repository,
     service,
     sentEmails,
+    notifications,
     setTime(value) {
       currentTime = new Date(value);
     }
@@ -132,6 +135,7 @@ test("caso 3: un token válido actualiza la contraseña", async () => {
   const result = await fixture.service.resetPassword("token-seguro-uno", "NuevaClave2");
 
   assert.equal(result.updated, true);
+  assert.deepEqual(fixture.notifications, ['user-1']);
   assert.equal(verifyPassword("NuevaClave2", fixture.user.passwordHash), true);
 });
 

@@ -1,0 +1,48 @@
+// Library overrides are scoped to the single root host, independent of pages.
+app-notifications [data-sonner-toaster] {
+  --normal-bg: var(--surface-0) !important;
+  --normal-text: var(--text-main) !important;
+  --normal-border: var(--border-soft) !important;
+  --border-radius: var(--radius-card);
+  --width: 380px !important;
+  z-index: 80;
+  top: calc(108px + env(safe-area-inset-top)) !important;
+  right: calc(16px + env(safe-area-inset-right)) !important;
+}
+app-notifications [data-sonner-toast][data-styled='true'] {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 10px;
+  padding: 18px 52px 18px 16px;
+  background: var(--surface-0);
+  color: var(--text-main);
+  border-color: var(--border-soft);
+  box-shadow: 0 12px 32px var(--shadow-soft);
+  font-size: .9rem;
+  max-height: calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  touch-action: pan-y;
+  [data-content] { min-width: 0; overflow-wrap: anywhere; }
+  [data-title] { font-weight: 700; }
+  [data-description] { color: var(--text-soft); white-space: pre-line; }
+  [data-icon] { align-self: start; margin-top: 3px; }
+  &[data-type='success'] [data-icon] { color: var(--ok-text); }
+  &[data-type='error'] [data-icon] { color: var(--error-text); }
+  &[data-type='warning'] [data-icon] { color: var(--warning-text); }
+  &[data-type='info'] [data-icon] { color: var(--info-text); }
+  [data-button] { grid-column: 2; justify-self: start; margin: 10px 0 0; min-height: 44px; height: auto; padding: 8px 14px; max-width: 100%; white-space: normal; background: var(--accent-green); color: var(--bg-main); font: inherit; border-radius: var(--radius-pill); }
+  [data-close-button] { left: auto; right: 4px; top: 4px; transform: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--text-soft); }
+  [data-close-button]:hover { background: var(--hover-surface); color: var(--text-main); }
+  button:focus-visible { outline: 3px solid var(--accent-green); outline-offset: -3px; }
+}
+@media (max-width: 760px) {
+  app-notifications [data-sonner-toaster] {
+    --width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    width: var(--width);
+    left: calc(12px + env(safe-area-inset-left)) !important;
+    right: calc(12px + env(safe-area-inset-right)) !important;
+    top: calc(90px + env(safe-area-inset-top)) !important;
+    transform: none;
+  }
+  app-notifications [data-sonner-toaster] [data-sonner-toast] { width: 100%; }
+}

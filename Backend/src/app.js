@@ -1,4 +1,5 @@
 import express from "express";
+import notificationsRouter from "./routes/notifications.routes.js";
 import ordersRouter from "./routes/orders.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
@@ -36,6 +37,7 @@ export function createApp({ databaseCheck, environment = process.env.NODE_ENV ??
   app.use("/api", newsletterRouter);
   app.use("/api", sitemapRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api", apiNotFound);
   app.use(apiNotFound);

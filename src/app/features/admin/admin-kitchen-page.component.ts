@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -162,7 +163,7 @@ export class AdminKitchenPageComponent implements OnDestroy {
       await this.adminOrders.login(this.email, this.password);
       this.startRealtimeRefresh();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión de cocina.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión de cocina.'));
     } finally {
       this.loading.set(false);
     }
@@ -181,7 +182,7 @@ export class AdminKitchenPageComponent implements OnDestroy {
       this.lastUpdated.set(new Date().toLocaleTimeString());
       this.error.set('');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo actualizar panel cocina.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo actualizar panel cocina.'));
     }
   }
 

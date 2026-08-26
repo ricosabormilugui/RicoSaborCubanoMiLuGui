@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -5,7 +6,6 @@ import { RouterLink } from '@angular/router';
 import { ContactFormPayload, ContactService } from '../../core/services/contact.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
-import { environment } from '../../../environments/environment';
 import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
@@ -38,15 +38,7 @@ import { IconComponent } from '../../shared/ui/icon.component';
           </button>
         </form>
 
-        <div class="app-alert app-alert-success" *ngIf="notice()">
-          <strong>✅ Solicitud enviada</strong>
-          <span>{{ notice() }}</span>
-        </div>
 
-        <div class="app-alert app-alert-error" *ngIf="error()">
-          <strong>❌ No se pudo enviar</strong>
-          <span>{{ error() }}</span>
-        </div>
 
         <p class="meta" *ngIf="lastContactId()">ID de solicitud: {{ lastContactId() }}</p>
         <div class="secondary-actions">
@@ -84,12 +76,9 @@ import { IconComponent } from '../../shared/ui/icon.component';
 export class ContactPageComponent {
   private readonly fb = inject(FormBuilder);
   private readonly contactService = inject(ContactService);
-  private readonly isProduction = environment.production;
   private readonly notifications = inject(NotificationService);
 
   readonly sending = signal(false);
-  readonly notice = signal('');
-  readonly error = signal('');
   readonly canRetry = signal(false);
   readonly lastContactId = signal('');
   readonly whatsappContactUrl = signal<string | null>(buildWhatsAppContactUrl());
@@ -117,8 +106,8 @@ export class ContactPageComponent {
   }
 
   private async submitInternal(isRetry: boolean): Promise<void> {
-    this.notice.set('');
-    this.error.set('');
+    if (this.sending()) return;
+    const id = this.notifications.loading('Enviando solicitud…', undefined, { key: 'contact-submit' });
     this.sending.set(true);
 
     try {
@@ -136,24 +125,15 @@ export class ContactPageComponent {
       this.canRetry.set(!anySent);
 
       if (anySent || result.duplicated) {
-        this.notice.set('Te responderemos en breve.');
-        this.notifications.success('Solicitud enviada', 'Te responderemos en breve.');
+        this.notifications.updateSuccess(id, 'Solicitud enviada', 'Te responderemos en breve.');
       } else {
-        const message = this.isProduction
-          ? 'Inténtalo de nuevo en unos segundos.'
-          : `Email: ${result.notifications.email.warning ?? 'sin detalle'}`;
-        this.error.set(message);
-        this.notifications.warning('Solicitud con incidencias', message);
+        this.notifications.warning('Solicitud guardada sin aviso por email', 'Puedes volver a intentar el envío.', { id, action: { label: 'Reintentar', handler: () => this.retryLastSubmission() } });
       }
 
       if (!isRetry) this.form.reset();
     } catch (error) {
       this.canRetry.set(true);
-      const message = this.isProduction
-        ? 'Inténtalo de nuevo en unos segundos.'
-        : (error instanceof Error ? error.message : 'Error inesperado.');
-      this.error.set(message);
-      this.notifications.error('No se pudo enviar la solicitud', message);
+      this.notifications.updateError(id, 'No se pudo enviar la solicitud', getUserFriendlyError(error), { action: { label: 'Reintentar', handler: () => this.retryLastSubmission() } });
     } finally {
       this.sending.set(false);
     }

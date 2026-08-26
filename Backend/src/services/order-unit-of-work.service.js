@@ -1,6 +1,7 @@
 import { markFirstOrderCouponUsed, upsertCustomerFromOrder } from "../repositories/customers.repository.js";
 import { saveOrder } from "../repositories/orders.repository.js";
 import { applyOrderStockAdjustments } from "../repositories/products.repository.js";
+import { notifyOrderOwner } from "./user-notification.service.js";
 
 export class CouponConsumptionError extends Error {
   constructor() {
@@ -18,7 +19,8 @@ export async function commitOrderUnitOfWork(order, {
   customerUpserter = upsertCustomerFromOrder,
   couponConsumer = markFirstOrderCouponUsed,
   stockAdjuster = applyOrderStockAdjustments,
-  orderSaver = saveOrder
+  orderSaver = saveOrder,
+  notificationWriter = notifyOrderOwner
 } = {}) {
   const linkedCustomer = await customerUpserter(order, { marketingConsent, session });
   if (linkedCustomer?._id) order.customerId = String(linkedCustomer._id);
@@ -34,5 +36,6 @@ export async function commitOrderUnitOfWork(order, {
 
   await stockAdjuster(order.items, { session });
   await orderSaver(order, { session });
+  await notificationWriter(order, { session });
   return order;
 }

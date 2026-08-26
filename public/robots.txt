@@ -6,6 +6,7 @@ Disallow: /api/
 Disallow: /checkout
 Disallow: /carrito
 Disallow: /mis-pedidos
+Disallow: /mis-notificaciones
 Disallow: /login
 Disallow: /registro
 Disallow: /recuperar-contrasena

@@ -3,6 +3,7 @@ import { resolveApiBaseUrl } from '../config/api.config';
 import { Product, ProductApiRecord, ProductReview } from '../models/product.model';
 import { normalizeCustomizationOptions } from '../utils/customization-pricing';
 import { requestJson } from '../utils/api-client';
+import { getUserFriendlyError } from '../utils/user-friendly-error';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
 const PRODUCTS_REQUEST_CACHE_MS = 5 * 60_000;
@@ -184,7 +185,7 @@ export class CatalogService {
     this.loadError.set('');
     this.loadingRequest = this.fetchProducts()
       .catch((error) => {
-        this.loadError.set(error instanceof Error ? error.message : 'No podemos actualizar el catálogo en este momento.');
+        this.loadError.set(getUserFriendlyError(error, 'No podemos actualizar el catálogo en este momento.'));
         if (!this.products().length) {
           this.products.set(fallbackProducts);
         }

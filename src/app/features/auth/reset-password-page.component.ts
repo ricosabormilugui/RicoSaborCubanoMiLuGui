@@ -116,7 +116,10 @@ export class ResetPasswordPageComponent {
       const message = error instanceof PasswordRecoveryError && error.code === 'PASSWORD_POLICY'
         ? error.message
         : 'No hemos podido actualizar la contraseña. Comprueba tu conexión e inténtalo de nuevo.';
-      this.error.set(message);
+      if (error instanceof PasswordRecoveryError && error.code === 'PASSWORD_POLICY') {
+        this.error.set(message);
+        return;
+      }
       this.notifications.error('No se pudo actualizar', message);
     } finally {
       this.loading.set(false);

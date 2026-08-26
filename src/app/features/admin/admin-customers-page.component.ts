@@ -1,5 +1,7 @@
+import { NotificationService } from '../../core/services/notification.service';
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
@@ -106,7 +108,6 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           </div>
         </form>
 
-        <p class="ok" *ngIf="notice()">{{ notice() }}</p>
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <div class="list-summary">
@@ -206,6 +207,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
   ]
 })
 export class AdminCustomersPageComponent {
+  private readonly notifications = inject(NotificationService);
   email = '';
   password = '';
   search = '';
@@ -217,7 +219,6 @@ export class AdminCustomersPageComponent {
 
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly notice = signal('');
   readonly customers = signal<AdminCustomer[]>([]);
   readonly metrics = signal<AdminCustomerMetrics>({ totalCustomers: 0, marketingCustomers: 0, customersWithOrders: 0 });
   readonly pagination = signal<AdminCustomerPagination>({ page: 1, limit: 50, total: 0, hasNextPage: false, hasPreviousPage: false });
@@ -236,13 +237,12 @@ export class AdminCustomersPageComponent {
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
 
     try {
       await this.adminOrders.login(this.email, this.password);
       await this.loadCustomers();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -281,7 +281,6 @@ export class AdminCustomersPageComponent {
   async loadCustomers(page = this.currentPage()): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
 
     try {
       const result = await this.adminCustomers.listCustomers({
@@ -297,7 +296,7 @@ export class AdminCustomersPageComponent {
       this.metrics.set(result.metrics);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudieron cargar clientes/newsletter.');
+      this.error.set(getUserFriendlyError(error, 'No se pudieron cargar clientes/newsletter.'));
     } finally {
       this.loading.set(false);
     }
@@ -321,9 +320,9 @@ export class AdminCustomersPageComponent {
 
     try {
       await navigator.clipboard.writeText(value);
-      this.notice.set(`${label} copiado.`);
+      this.notifications.success(`${label} copiado`);
     } catch {
-      this.error.set(`No se pudo copiar ${label.toLowerCase()}.`);
+      this.notifications.error(`No se pudo copiar ${label.toLowerCase()}`, 'Prueba a seleccionarlo y copiarlo manualmente.');
     }
   }
 

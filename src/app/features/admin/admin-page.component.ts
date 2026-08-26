@@ -1,5 +1,8 @@
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AdminOrder, AdminOrderStatus } from '../../core/models/admin-order.model';
@@ -47,7 +50,6 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
           </div>
         </div>
 
-        <p class="ok" *ngIf="notice()">{{ notice() }}</p>
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <article class="order" *ngFor="let order of orders()">
@@ -86,7 +88,7 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
                 <input
                   type="checkbox"
                   [checked]="isPaid(order)"
-                  (change)="togglePayment(order, $any($event.target).checked, paymentNote.value)" />
+                  (change)="onPaymentChange(order, $event, paymentNote.value)" />
                 <span>Pago confirmado</span>
               </label>
               <small class="payment-hint">{{ isPaid(order) ? 'Pagado' : 'Pendiente de pago' }} · Método: {{ paymentLabel(order) }}</small>
@@ -142,13 +144,14 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
   ]
 })
 export class AdminPageComponent {
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly notifications = inject(NotificationService);
   email = '';
   password = '';
   statusFilter: '' | AdminOrderStatus = '';
 
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly notice = signal('');
   readonly orders = signal<AdminOrder[]>([]);
 
   readonly orderCount = computed(() => this.orders().length);
@@ -162,12 +165,11 @@ export class AdminPageComponent {
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
     try {
       await this.adminOrders.login(this.email, this.password);
       await this.loadOrders();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -185,27 +187,29 @@ export class AdminPageComponent {
       const orders = await this.adminOrders.listOrders(this.statusFilter || undefined);
       this.orders.set(orders);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudieron cargar pedidos.');
+      this.error.set(getUserFriendlyError(error, 'No se pudieron cargar pedidos.'));
     } finally {
       this.loading.set(false);
     }
   }
 
   async updateStatus(orderId: string, status: string, statusNote: string, deliverySignature: string): Promise<void> {
-    this.notice.set('');
-    this.error.set('');
-
+    if (['cancelado', 'anulado'].includes(status) && !await this.confirmDialog.open({
+      title: status === 'cancelado' ? 'Cancelar pedido' : 'Anular pedido',
+      message: `Se cambiará el estado del pedido ${orderId}. Comprueba los datos antes de continuar.`,
+      confirmText: status === 'cancelado' ? 'Cancelar pedido' : 'Anular pedido', variant: 'danger'
+    })) return;
+    const id = this.notifications.loading('Actualizando pedido…', orderId, { key: 'order-status:' + orderId });
     try {
       const result = await this.adminOrders.updateStatus(orderId, status as AdminOrderStatus, statusNote, deliverySignature);
-      const { email } = result.notifications;
-      const message = email.sent
-        ? '✅ Estado actualizado correctamente\n📧 Notificación enviada por email'
-        : `⚠️ Estado actualizado\n❗ Email no enviado: ${email.warning ?? 'motivo no disponible'}`;
-
-      this.notice.set(message);
+      if (result.notifications.email.sent) {
+        this.notifications.updateSuccess(id, 'Pedido actualizado', 'Se ha enviado la notificación por email.');
+      } else {
+        this.notifications.warning('Pedido actualizado sin aviso por email', getUserFriendlyError(result.notifications.email.warning, 'No se pudo enviar el correo.'), { id });
+      }
       await this.loadOrders();
     } catch (error) {
-      this.error.set(`❌ No se pudo actualizar el pedido\n${error instanceof Error ? error.message : 'Error inesperado.'}`);
+      this.notifications.updateError(id, 'No se pudo actualizar el pedido', getUserFriendlyError(error));
     }
   }
 
@@ -213,37 +217,43 @@ export class AdminPageComponent {
     return (order.payment?.status ?? order.paymentStatus) === 'paid';
   }
 
+  onPaymentChange(order: AdminOrder, event: Event, note: string): void {
+    const input = event.target as HTMLInputElement;
+    const checked = input.checked;
+    // Keep the actual payment state visible while the confirmation/API is pending.
+    input.checked = this.isPaid(order);
+    void this.togglePayment(order, checked, note);
+  }
+
   async togglePayment(order: AdminOrder, checked: boolean, note: string): Promise<void> {
-    this.notice.set('');
-    this.error.set('');
-    if (!checked && this.isPaid(order)) {
-      const confirmed = globalThis.confirm('Vas a marcar este pedido como pendiente de pago. ¿Continuar?');
-      if (!confirmed) return;
-    }
+    if (!checked && this.isPaid(order) && !await this.confirmDialog.open({
+      title: 'Marcar como pendiente de pago', message: 'Vas a retirar la confirmación de pago de este pedido. ¿Deseas continuar?',
+      confirmText: 'Marcar pendiente', variant: 'danger'
+    })) return;
+    const id = this.notifications.loading('Actualizando pago…', order.orderId, { key: 'order-payment:' + order.orderId });
     try {
       const nextStatus = checked ? 'paid' : 'pending';
       const result = await this.adminOrders.updatePayment(order.orderId, nextStatus, note, checked);
-      this.notice.set(
-        checked
-          ? (result.notifications.email.sent ? '✅ Pago confirmado y email enviado.' : `⚠️ Pago confirmado. Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`)
-          : '✅ Pedido marcado nuevamente como pendiente de pago.'
-      );
+      if (checked && !result.notifications.email.sent) {
+        this.notifications.warning('Pago confirmado sin aviso por email', getUserFriendlyError(result.notifications.email.warning, 'No se pudo enviar el correo.'), { id });
+      } else {
+        this.notifications.updateSuccess(id, checked ? 'Pago confirmado' : 'Pedido pendiente de pago');
+      }
       await this.loadOrders();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo actualizar el pago.');
+      this.notifications.updateError(id, 'No se pudo actualizar el pago', getUserFriendlyError(error));
     }
   }
 
   async deleteOrder(orderId: string): Promise<void> {
-    if (!globalThis.confirm('¿Seguro que deseas eliminar este pedido? Esta acción no se puede deshacer.')) return;
-    this.notice.set('');
-    this.error.set('');
+    if (!await this.confirmDialog.open({ title: 'Eliminar pedido', message: `Se eliminará el pedido ${orderId}. Esta acción no se puede deshacer.`, confirmText: 'Eliminar', variant: 'danger' })) return;
+    const id = this.notifications.loading('Eliminando pedido…', orderId, { key: 'order-delete:' + orderId });
     try {
       await this.adminOrders.deleteOrder(orderId);
       this.orders.set(this.orders().filter((order) => order.orderId !== orderId));
-      this.notice.set('✅ Pedido eliminado correctamente.');
+      this.notifications.updateSuccess(id, 'Pedido eliminado');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo eliminar el pedido.');
+      this.notifications.updateError(id, 'No se pudo eliminar el pedido', getUserFriendlyError(error));
     }
   }
 

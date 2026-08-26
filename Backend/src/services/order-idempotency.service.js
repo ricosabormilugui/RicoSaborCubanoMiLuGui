@@ -71,7 +71,7 @@ function stableValue(value) {
 
 export function buildOrderRequestFingerprint(payload, auth) {
   const delivery = payload?.delivery ?? {};
-  const identity = auth?.role === "customer"
+  const identity = ["customer", "admin"].includes(auth?.role) && typeof auth?.sub === "string" && auth.sub
     ? { accountMode: "registered", userId: normalizeText(auth?.sub), email: normalizeText(auth?.email, { lower: true }) }
     : { accountMode: "guest", customerId: normalizeText(payload?.customerId) };
   const intention = {

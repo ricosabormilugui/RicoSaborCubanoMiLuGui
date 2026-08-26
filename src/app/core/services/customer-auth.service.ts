@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { NotificationService } from './notification.service';
+import { Injectable, signal, inject } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { AdminAuthService } from './admin-auth.service';
 import { ApiRequestError, requestJson } from '../utils/api-client';
@@ -11,12 +12,14 @@ export interface CustomerProfile {
 
 @Injectable({ providedIn: 'root' })
 export class CustomerAuthService {
+  private readonly notifications = inject(NotificationService);
   private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
   private readonly tokenKey = 'ricosabor-customer-token';
   private readonly profileKey = 'ricosabor-customer-profile';
 
   readonly token = signal<string>(this.readStorage(this.tokenKey));
   readonly profile = signal<CustomerProfile | null>(this.readProfile());
+  readonly sessionVersion = signal(0);
 
   constructor(private readonly adminAuth: AdminAuthService) {
     this.syncAdminSession();
@@ -81,12 +84,15 @@ export class CustomerAuthService {
   }
 
   async restoreSession(): Promise<void> {
-    if (!this.token()) return;
+    const token = this.token();
+    const version = this.sessionVersion();
+    if (!token) return;
 
     try {
       const data = await requestJson<CustomerProfile>(`${this.apiBase}/me`, {
-        headers: { Authorization: `Bearer ${this.token()}` }
+        headers: { Authorization: `Bearer ${token}` }
       }, 'No se pudo restaurar la sesión.');
+      if (token !== this.token() || version !== this.sessionVersion()) return;
       this.profile.set({
         userId: data.userId,
         email: data.email,
@@ -95,12 +101,17 @@ export class CustomerAuthService {
       this.persist();
       this.syncAdminSession();
     } catch (error) {
-      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) this.logout();
+      if (token !== this.token() || version !== this.sessionVersion()) return;
+      if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
+        this.logout();
+        this.notifications.warning('Sesión caducada', 'Inicia sesión nuevamente.', { key: 'session-expired' });
+      }
       // Network and 5xx errors keep the local session; they are not proof that it expired.
     }
   }
 
   logout(): void {
+    this.sessionVersion.update(version => version + 1);
     this.token.set('');
     this.profile.set(null);
     this.persist();
@@ -119,6 +130,7 @@ export class CustomerAuthService {
   }
 
   async login(email: string, password: string): Promise<void> {
+    const version = this.sessionVersion();
     const normalizedEmail = email.trim().toLowerCase();
     let data: { token: string; userId: string; role: 'customer' | 'admin' };
     try {
@@ -131,6 +143,8 @@ export class CustomerAuthService {
       if (error instanceof ApiRequestError && error.status === 401) throw new Error('Credenciales inválidas.');
       throw error;
     }
+    if (version !== this.sessionVersion()) return;
+    this.sessionVersion.update(value => value + 1);
     this.token.set(data.token ?? '');
     this.profile.set({
       userId: data.userId,

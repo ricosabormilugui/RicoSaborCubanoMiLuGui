@@ -114,7 +114,7 @@ export class HomePageComponent {
     const quantity = this.minimumQuantity(product);
     this.cart.add(product, [], quantity);
     const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
-    this.notifications.info('Producto añadido', `${product.name}${suffix} se agregó al carrito.`);
+    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
   }
 
   addAction(product: Product): AddToCartAction {

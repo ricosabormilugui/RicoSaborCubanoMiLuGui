@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
+import { customerGuard } from './core/guards/customer.guard';
 import { SeoMetaInput } from './core/services/seo.service';
 import { BRAND_CONFIG } from './core/config/brand.config';
 
@@ -116,6 +117,12 @@ export const appRoutes: Routes = [
     path: 'mis-pedidos',
     loadComponent: () => import('./features/account/my-orders-page.component').then((m) => m.MyOrdersPageComponent),
     data: { seo: privateSeo('Mis pedidos', `Consulta privada de pedidos asociados a tu cuenta de ${BRAND_CONFIG.name}.`, '/mis-pedidos') }
+  },
+  {
+    path: 'mis-notificaciones',
+    canActivate: [customerGuard],
+    loadComponent: () => import('./features/account/my-notifications-page.component').then((m) => m.MyNotificationsPageComponent),
+    data: { seo: privateSeo('Mis notificaciones', 'Avisos privados de tus pedidos y tu cuenta.', '/mis-notificaciones') }
   },
   {
     path: '**',

@@ -70,7 +70,6 @@ export class ForgotPasswordPageComponent {
       this.notifications.success('Solicitud recibida', 'Revisa tu correo para continuar.');
     } catch {
       const message = 'No hemos podido conectar con el servicio. Inténtalo de nuevo en unos minutos.';
-      this.error.set(message);
       this.notifications.error('No se pudo enviar', message);
     } finally {
       this.loading.set(false);

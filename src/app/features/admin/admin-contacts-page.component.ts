@@ -1,5 +1,7 @@
+import { NotificationService } from '../../core/services/notification.service';
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
@@ -43,7 +45,6 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
           </div>
         </div>
 
-        <p class="ok" *ngIf="notice()">{{ notice() }}</p>
         <p class="err" *ngIf="error()">{{ error() }}</p>
 
         <div class="crm-grid">
@@ -116,6 +117,7 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
   ]
 })
 export class AdminContactsPageComponent {
+  private readonly notifications = inject(NotificationService);
   email = '';
   password = '';
   search = '';
@@ -126,7 +128,6 @@ export class AdminContactsPageComponent {
   readonly loading = signal(false);
   readonly sendingReply = signal(false);
   readonly error = signal('');
-  readonly notice = signal('');
   readonly contacts = signal<AdminContact[]>([]);
   readonly selectedId = signal('');
   readonly selectedContact = signal<AdminContact | null>(null);
@@ -144,13 +145,12 @@ export class AdminContactsPageComponent {
   async login(): Promise<void> {
     this.loading.set(true);
     this.error.set('');
-    this.notice.set('');
 
     try {
       await this.adminOrders.login(this.email, this.password);
       await this.loadContacts();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -178,7 +178,7 @@ export class AdminContactsPageComponent {
         }
       }
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudieron cargar contactos.');
+      this.error.set(getUserFriendlyError(error, 'No se pudieron cargar contactos.'));
     } finally {
       this.loading.set(false);
     }
@@ -186,7 +186,6 @@ export class AdminContactsPageComponent {
 
   async openContact(id: string): Promise<void> {
     this.error.set('');
-    this.notice.set('');
     this.selectedId.set(id);
 
     try {
@@ -194,31 +193,32 @@ export class AdminContactsPageComponent {
       this.selectedContact.set(contact);
       this.syncContactWithActiveFilter(contact);
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo abrir el contacto.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo abrir el contacto.'));
     }
   }
 
   async sendReply(): Promise<void> {
+    if (this.sendingReply()) return;
     const contact = this.selectedContact();
     if (!contact) return;
 
-    this.notice.set('');
     this.error.set('');
     this.sendingReply.set(true);
+    const id = this.notifications.loading('Guardando respuesta…', undefined, { key: 'contact-reply' });
 
     try {
       const result = await this.adminContacts.replyContact(contact.id, this.replyMessage, this.sendEmail);
       this.selectedContact.set(result.contact);
       this.syncContactWithActiveFilter(result.contact);
 
-      const emailLine = result.notifications.email.sent
-        ? '📧 Respuesta enviada por email'
-        : `⚠️ Email no enviado: ${result.notifications.email.warning ?? 'sin detalle'}`;
-
-      this.notice.set(`✅ Respuesta guardada\n${emailLine}`);
+      if (this.sendEmail && !result.notifications.email.sent) {
+        this.notifications.warning('Respuesta guardada sin aviso por email', getUserFriendlyError(result.notifications.email.warning, 'No se pudo enviar el correo.'), { id });
+      } else {
+        this.notifications.updateSuccess(id, 'Respuesta guardada', this.sendEmail ? 'Se ha enviado la respuesta por email.' : undefined);
+      }
       this.replyMessage = '';
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo responder el contacto.');
+      this.notifications.updateError(id, 'No se pudo responder el contacto', getUserFriendlyError(error));
     } finally {
       this.sendingReply.set(false);
     }

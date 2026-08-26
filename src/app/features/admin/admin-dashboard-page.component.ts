@@ -1,3 +1,4 @@
+import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -247,7 +248,7 @@ export class AdminDashboardPageComponent {
       await this.adminOrders.login(this.email, this.password);
       await this.loadDashboard();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo iniciar sesión.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo iniciar sesión.'));
     } finally {
       this.loading.set(false);
     }
@@ -265,7 +266,7 @@ export class AdminDashboardPageComponent {
     try {
       this.dashboard.set(await this.adminDashboard.getDashboard(this.days));
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'No se pudo cargar el dashboard.');
+      this.error.set(getUserFriendlyError(error, 'No se pudo cargar el dashboard.'));
     } finally {
       this.loading.set(false);
     }

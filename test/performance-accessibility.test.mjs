@@ -57,12 +57,14 @@ test('menú y búsqueda gestionan semántica, foco, Escape e inert', () => {
 
 test('el diálogo destructivo de categorías gestiona foco, Tab y Escape', () => {
   const admin = read('src/app/features/admin/admin-products-page.component.ts');
-  const template = read('src/app/features/admin/admin-products-page.component.html');
-  assert.match(template, /id="delete-category-dialog"/);
-  assert.match(template, /id="delete-category-cancel"/);
-  assert.match(admin, /trapDeleteDialogFocus/);
-  assert.match(admin, /document:keydown\.escape/);
-  assert.match(admin, /restoreDeleteDialogFocus/);
+  const template = read('src/app/shared/ui/confirm-dialog.component.html');
+  const dialog = read('src/app/shared/ui/confirm-dialog.component.ts');
+  assert.match(admin, /await this.confirmDialog.open/);
+  assert.match(template, /aria-modal="true"/);
+  assert.match(template, /data-cancel autofocus/);
+  assert.match(template, /\(cancel\)="onCancel\(\$event\)"/);
+  assert.match(dialog, /trapFocus/);
+  assert.match(dialog, /returnFocus\.focus/);
 });
 
 test('checkout enfoca el primer control inválido tras validar', () => {

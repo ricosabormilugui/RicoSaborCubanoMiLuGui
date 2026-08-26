@@ -1,3 +1,5 @@
+import { getUserFriendlyError } from './user-friendly-error';
+
 export type ApiErrorKind = 'http' | 'network' | 'timeout';
 
 export class ApiRequestError extends Error {
@@ -21,13 +23,7 @@ function createRequestId(): string {
 }
 
 function messageForStatus(status: number, detail: string, fallback: string): string {
-  if (status === 401) return 'Tu sesión ha caducado. Inicia sesión de nuevo.';
-  if (status === 403) return 'No tienes permisos para realizar esta acción.';
-  if (status === 404) return detail || 'No se encontró el recurso solicitado.';
-  if (status === 409) return detail || 'La operación entra en conflicto con datos existentes.';
-  if (status === 429) return 'Has realizado demasiados intentos. Inténtalo de nuevo más tarde.';
-  if (status >= 500) return 'El servicio no está disponible temporalmente. Inténtalo de nuevo.';
-  return detail || fallback;
+  return getUserFriendlyError({ status, message: detail }, fallback);
 }
 
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 12_000): Promise<Response> {

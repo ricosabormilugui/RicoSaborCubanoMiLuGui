@@ -1,0 +1,25 @@
+:host { display: contents; }
+.confirm-dialog {
+  width: min(460px, calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  background: var(--surface-0);
+  color: var(--text-main);
+  box-shadow: 0 24px 70px var(--shadow-soft);
+}
+.confirm-dialog::backdrop { background: var(--overlay-bg); backdrop-filter: blur(4px); }
+.dialog-content { padding: clamp(20px, 5vw, 30px); overflow-wrap: anywhere; }
+.dialog-symbol { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 16px; border-radius: 50%; background: var(--info-bg); color: var(--info-text); font-size: 1.6rem; font-weight: 800; }
+.danger .dialog-symbol { background: var(--error-bg); color: var(--error-text); }
+.dialog-kicker { font-size: .75rem; color: var(--text-soft); text-transform: uppercase; letter-spacing: .08em; }
+h2 { margin: 8px 0; font-size: 1.35rem; }
+p { color: var(--text-soft); line-height: 1.6; margin: 0 0 24px; white-space: pre-line; }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.dialog-actions .btn { flex: 1 1 140px; min-height: 48px; white-space: normal; }
+.btn:focus-visible { outline: 3px solid var(--accent-green); outline-offset: 3px; }
+.btn:hover { filter: brightness(1.08); }

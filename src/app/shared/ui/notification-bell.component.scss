@@ -1,0 +1,14 @@
+:host{display:inline-flex;flex:0 0 44px}
+.bell{position:relative;display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:transparent;color:var(--text-main);cursor:pointer}
+.bell:hover{background:var(--surface-2)}
+.count{position:absolute;top:0;right:-2px;background:var(--accent-red);color:#fff;border:2px solid var(--surface-1);border-radius:99px;min-width:20px;padding:0 3px;font:800 10px/16px system-ui}
+dialog{position:fixed;inset:0 0 auto auto;margin:calc(108px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 0 12px;padding:0;width:min(430px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 132px - env(safe-area-inset-top) - env(safe-area-inset-bottom));border:1px solid var(--border-soft);border-radius:20px;background:var(--surface-1);color:var(--text-main);box-shadow:0 20px 70px #0005;overflow:auto;overscroll-behavior:contain}
+dialog::backdrop{background:#0003}
+header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:1.1rem 1.1rem .6rem}h2{margin:.2rem 0 0;font-size:1.25rem}.eyebrow{font-size:.65rem;letter-spacing:.12em;font-weight:800;color:var(--text-soft)}
+.close{width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:10px;background:var(--surface-2);color:var(--text-main);cursor:pointer}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem;padding:0 1.1rem .5rem;font-size:.8rem;color:var(--text-soft)}
+.toolbar button,.state button{font:inherit;font-weight:700;min-height:44px;background:none;border:0;color:var(--accent-green);cursor:pointer}.toolbar button:disabled{opacity:.5;cursor:default}
+.content{padding:0 .8rem .8rem}.state{text-align:center;padding:1.5rem .8rem;color:var(--text-soft);font-size:.9rem;line-height:1.5}.state h3{color:var(--text-main);margin:.6rem 0}.state p{margin:.5rem 0}
+footer{position:sticky;bottom:0;background:var(--surface-1);border-top:1px solid var(--border-soft);padding:.4rem 1rem}footer a{display:flex;align-items:center;justify-content:space-between;gap:.5rem;min-height:44px;color:var(--accent-green);font-size:.85rem;font-weight:800;text-decoration:none}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent-green);outline-offset:2px;border-radius:8px}
+@media(max-width:760px){dialog{margin-top:calc(88px + env(safe-area-inset-top));margin-right:max(12px,env(safe-area-inset-right));max-height:calc(100dvh - 100px - env(safe-area-inset-top) - env(safe-area-inset-bottom));width:calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));border-radius:16px}}

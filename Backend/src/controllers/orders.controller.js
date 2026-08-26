@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { prepareNotifications } from "../repositories/notifications.repository.js";
 import { sendOrderEmail } from "../services/email.service.js";
 import {
   appendOrderNotifications,
@@ -235,8 +236,8 @@ function requiresAdvancePaymentForItems(items = []) {
   );
 }
 
-function buildOrderIdentity(payload, auth) {
-  if (auth?.role === "customer") {
+export function buildOrderIdentity(payload, auth) {
+  if (["customer", "admin"].includes(auth?.role) && typeof auth?.sub === "string" && auth.sub) {
     return {
       accountMode: "registered",
       userId: auth.sub
@@ -244,7 +245,8 @@ function buildOrderIdentity(payload, auth) {
   }
 
   return {
-    accountMode: "guest"
+    accountMode: "guest",
+    userId: null
   };
 }
 
@@ -470,6 +472,8 @@ export async function createOrder(req, res) {
     requestFingerprint = buildOrderRequestFingerprint(payload, req.auth);
     idempotencyRef = safeIdempotencyReference(idempotencyKey);
 
+    if (buildOrderIdentity(payload, req.auth).userId) await prepareNotifications();
+
     const result = await executeIdempotentOrderCreation({
       idempotencyKey,
       requestFingerprint,
@@ -622,6 +626,8 @@ export async function updateOrderStatusForAdmin(req, res) {
         : null,
       updatedBy: req.auth?.email ?? "admin"
     });
+
+    if (!updated) return res.status(409).json({ message: "El pedido cambió. Actualiza la lista antes de continuar." });
 
     const notifications = notifyStatuses.has(status)
       ? await notifyCustomerOrderStatus(updated, {
