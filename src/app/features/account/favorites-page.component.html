@@ -16,7 +16,7 @@
   </div>
 
   <div class="empty-state" *ngIf="empty()" role="status">
-    <svg lucideHeart [size]="36" aria-hidden="true"></svg>
+    <svg lucideHeart [size]="36" [strokeWidth]="1.6" aria-hidden="true"></svg>
     <strong>Aún no tienes favoritos</strong>
     <span>Guarda los productos que más te gusten para encontrarlos rápidamente aquí.</span>
     <a class="btn btn-primary" routerLink="/productos">Explorar productos</a>

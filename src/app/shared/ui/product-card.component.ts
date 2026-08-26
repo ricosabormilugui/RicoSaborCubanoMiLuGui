@@ -42,7 +42,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
         [attr.aria-pressed]="favorite()"
         [attr.aria-label]="favorite() ? 'Quitar ' + product().name + ' de favoritos' : 'Guardar ' + product().name + ' en favoritos'"
         (click)="toggleFavorite($event)">
-        <svg lucideHeart [size]="18" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
+        <svg lucideHeart [size]="18" [strokeWidth]="1.6" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
       </button>
     </div>
     <div class="body">
@@ -58,15 +58,15 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
         }
         @if (!orderable()) {
           <button class="cta" type="button" disabled aria-label="Producto agotado">
-            <svg lucidePlus [size]="18" aria-hidden="true" />
+            <svg lucidePlus [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
           </button>
         } @else if (customizable()) {
           <a class="cta" [routerLink]="route()" [attr.aria-label]="'Personalizar ' + product().name">
-            <svg lucideArrowRight [size]="18" aria-hidden="true" />
+            <svg lucideArrowRight [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
           </a>
         } @else {
           <button class="cta" type="button" [attr.aria-label]="'Añadir ' + product().name + ' al carrito'" (click)="add()">
-            <svg lucidePlus [size]="18" aria-hidden="true" />
+            <svg lucidePlus [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
           </button>
         }
       </div>

@@ -14,6 +14,7 @@ import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import './catalog-page.lazy.css';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 

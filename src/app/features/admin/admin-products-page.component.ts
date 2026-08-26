@@ -19,6 +19,7 @@ import { defaultGroupSettings, readGroupSettings } from '../../core/utils/custom
 import { ProductCategoryApiError, ProductCategoryService } from '../../core/services/product-category.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import './admin-products-page.lazy.css';
 
 @Component({
   standalone: true,
