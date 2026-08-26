@@ -742,7 +742,7 @@ export class CheckoutPageComponent {
       this.isLocalDraft.set(result.channel === 'local');
       this.notificationWarning.set(result.warning ? getUserFriendlyError(result.warning, 'El pedido se ha guardado, pero no se pudo enviar el aviso por correo.') : '');
 
-      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: result.channel !== 'local', history: { sessionVersion: historySession } });
+      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: result.channel !== 'local', history: { sessionVersion: historySession, accountEquivalent: result.channel === 'backend' } });
       this.cart.clear();
       this.orderService.completeOrderIntent();
 

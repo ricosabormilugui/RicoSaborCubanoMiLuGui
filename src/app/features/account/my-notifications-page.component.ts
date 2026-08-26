@@ -1,24 +1,26 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NotificationCenterService, ActivityFilters } from '../../core/services/notification-center.service';
 import { UserNotificationListComponent } from '../../shared/ui/user-notification-list.component';
+import { NotificationSourceSelectorComponent } from '../../shared/ui/notification-source-selector.component';
 
 @Component({
-  standalone: true, imports: [UserNotificationListComponent],
+  standalone: true, imports: [UserNotificationListComponent, NotificationSourceSelectorComponent],
   template: `
     <section class="notification-history">
-      <header><div><p class="eyebrow">{{ service.isAccount() ? 'MI CUENTA' : 'EN ESTE DISPOSITIVO' }}</p><h1>{{ service.isAccount() ? 'Mis notificaciones' : 'Actividad reciente' }}</h1><p class="intro">{{ service.isAccount() ? 'Los avisos importantes, siempre a mano.' : 'Actividad de invitado guardada en este navegador. No se añade a ninguna cuenta.' }}</p></div>
-        <button type="button" class="btn btn-secondary" [disabled]="!service.unreadCount() || service.busy()" (click)="service.markAllRead()">Marcar todas leídas</button>
-        @if (!service.isAccount()) { <button type="button" class="btn btn-secondary" [disabled]="!service.localCount()" (click)="service.clearLocal()">Limpiar actividad</button> }
+      <header><div><p class="eyebrow">CENTRO DE AVISOS</p><h1>{{ service.isAccount() ? 'Mis notificaciones y actividad' : 'Actividad reciente' }}</h1><p class="intro">Los avisos importantes, siempre a mano.</p></div>
+        <button type="button" class="btn btn-secondary" [disabled]="!service.sourceUnreadCount() || service.busy()" (click)="service.markAllRead()">{{ service.isAccountSource() ? 'Marcar notificaciones como leídas' : 'Marcar actividad como leída' }}</button>
+        @if (!service.isAccountSource()) { <button type="button" class="btn btn-secondary" [disabled]="!service.localCount()" (click)="service.clearLocal()">Limpiar actividad</button> }
       </header>
+      <app-notification-source-selector />
       @if (service.storageWarning()) { <p class="state" role="status">{{ service.storageWarning() }}</p> }
         <div class="filters" role="group" aria-label="Filtrar notificaciones">
           @for (option of options(); track option.id) { <button type="button" [class.active]="selected() === option.id" [attr.aria-pressed]="selected() === option.id" [disabled]="service.busy()" (click)="filter(option.id)">{{ option.label }}</button> }
-          <span class="unread-count" aria-live="polite">{{ service.unreadCount() }} sin leer</span>
+          <span class="unread-count" aria-live="polite">{{ service.sourceUnreadCount() }} sin leer</span>
         </div>
         @if (service.error()) { <div class="state card" role="alert"><p>{{ service.error() }}</p><button class="btn btn-secondary" type="button" (click)="reload()">Reintentar</button></div> }
         <div [attr.aria-busy]="service.loading().history"><app-user-notification-list [items]="service.history()" /></div>
         @if (service.loading().history) { <p class="state" role="status">Cargando notificaciones…</p> }
-        @else if (!service.history().length && !service.error()) { <div class="state card"><h2>{{ selected() !== 'all' ? 'No hay avisos con este filtro' : service.isAccount() ? 'Estás al día' : 'No tienes actividad reciente' }}</h2><p>{{ service.isAccount() ? 'Cuando haya novedades, podrás consultarlas aquí.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
+        @else if (!service.history().length && !service.error()) { <div class="state card"><h2>{{ selected() !== 'all' ? 'No hay avisos con este filtro' : service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h2><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
         @if (service.nextCursor()) { <div class="load-more"><button type="button" class="btn btn-secondary" [disabled]="service.loading().history || service.busy()" (click)="loadMore()">Cargar más</button></div> }
     </section>
   `,
@@ -29,8 +31,8 @@ import { UserNotificationListComponent } from '../../shared/ui/user-notification
 export class MyNotificationsPageComponent {
   readonly service = inject(NotificationCenterService);
   readonly selected = signal('all');
-  readonly options = computed(() => [{ id: 'all', label: 'Todas' }, { id: 'unread', label: 'Sin leer' }, ...(this.service.isAccount() ? [{ id: 'order', label: 'Pedidos' }, { id: 'account', label: 'Cuenta' }] : [{ id: 'success', label: 'Completadas' }, { id: 'error', label: 'Errores' }])]);
-  constructor() { effect(() => { this.service.session(); untracked(() => { this.selected.set('all'); this.reload(); }); }); }
+  readonly options = computed(() => [{ id: 'all', label: 'Todas' }, { id: 'unread', label: 'Sin leer' }, ...(this.service.isAccountSource() ? [{ id: 'order', label: 'Pedidos' }, { id: 'account', label: 'Cuenta' }] : [{ id: 'success', label: 'Completadas' }, { id: 'error', label: 'Errores' }])]);
+  constructor() { effect(() => { this.service.session(); this.service.source(); untracked(() => { this.selected.set('all'); this.reload(); }); }); }
   filters(): ActivityFilters { return this.selected() === 'unread' ? { read: false } : this.selected() === 'all' ? {} : { type: this.selected() as ActivityFilters['type'] }; }
   filter(value: string): void { this.selected.set(value); this.reload(); }
   reload(): void { void this.service.load('history', this.filters()); void this.service.refreshCount(); }

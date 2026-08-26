@@ -1,6 +1,6 @@
 # Centro de notificaciones persistentes · MIXSABOR
 
-> Ampliación posterior: la campana ya admite invitados mediante una fuente local separada. Ver `docs/local-notification-history.md`. El comportamiento autenticado y el backend de este informe se mantienen; las referencias siguientes a una campana exclusivamente autenticada describen la fase original.
+> Ampliación posterior: la campana admite invitados mediante actividad local del dispositivo. Con sesión coexisten Actividad y Mi cuenta, con contadores y acciones separados; el badge suma sus pendientes. Ver `docs/local-notification-history.md` y `docs/notification-sources-correction.md`. El backend de este informe se mantiene; las referencias siguientes a una campana exclusivamente autenticada describen la fase original.
 
 Implementación local del 26/08/2026. Complementa los toasts y diálogos descritos en `docs/notifications.md`.
 

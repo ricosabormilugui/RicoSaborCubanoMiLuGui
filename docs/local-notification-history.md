@@ -1,4 +1,4 @@
-# Campana para invitados y actividad local · Entrega
+# Campana y actividad local del dispositivo · Entrega
 
 26/08/2026. Ampliación del centro privado existente; no sustituye MongoDB, los endpoints ni los toasts.
 
@@ -10,7 +10,7 @@ La campana se renderizaba solo con sesión. Panel, contador e historial usaban e
 
 La campana se muestra también sin cuenta. En modo invitado se titula **Actividad reciente**, usa una fuente local y ofrece los últimos cinco avisos. `/mis-notificaciones` reutiliza el historial para mostrar actividad del navegador sin exigir login. Conserva `noindex,nofollow` y su exclusión de robots. La eliminación del guard de esa ruta solo permite abrir la interfaz local: la API privada mantiene su autorización intacta.
 
-No se añade una sección de dispositivo para usuarios autenticados. Se prioriza una única fuente visible por contexto.
+Con sesión, el panel y el historial ofrecen **Actividad** y **Mi cuenta**, con contadores y acciones independientes. Iniciar sesión conserva la actividad del dispositivo y añade la fuente privada; nunca sustituye una por otra. La corrección y sus verificaciones se detallan en `docs/notification-sources-correction.md`.
 
 ## 3. Persistencia
 
@@ -53,7 +53,7 @@ Mismo tipo, título y mensaje normalizados dentro de **10 segundos**: se conserv
 
 ## 8. Toasts que se guardan
 
-Solo para invitado y mediante `saveToHistory: true`:
+Para invitados y usuarios autenticados, mediante `saveToHistory: true`:
 
 | Acción | Aviso local |
 | --- | --- |
@@ -61,7 +61,7 @@ Solo para invitado y mediante `saveToHistory: true`:
 | Quitar un producto | Producto eliminado del carrito; acción Ver carrito |
 | Aplicar cupón reconocido en la vista previa | Cupón preaplicado; se aclara que falta validación del servidor |
 | Aplicar cupón no reconocido | Cupón rechazado; acción Revisar pedido |
-| Pedido aceptado por backend/Netlify | Pedido recibido, sin ID ni contenido del pedido |
+| Pedido aceptado por backend/Netlify | Pedido recibido, sin ID ni contenido del pedido; se omite la copia local si el backend ya genera el aviso equivalente de la cuenta autenticada |
 | Fallo al enviar el pedido | No se pudo enviar el pedido; acción Revisar pedido |
 
 El modo de desarrollo que guarda un borrador local no genera actividad de pedido aceptado. No se modificó ese mecanismo preexistente.
@@ -72,13 +72,13 @@ Loading, cantidades, filtros, validación de campos, carrito vacío, cambios de 
 
 Se revisaron cupones, pagos y favoritos. No se añadió una función de favoritos inexistente ni se inventaron eventos de una pasarela de pago: los pagos actuales son manuales. La validación automática del cupón no genera avisos; solo el botón **Aplicar** emite feedback e historial. No se cambian cálculos ni reglas.
 
-## 10. Badge invitado
+## 10. Badge y fuentes
 
-Cuenta `read === false` mediante Signals. Cero oculta el badge, pero no la campana. Se mantiene el formato 1–99 y `99+`; el nombre accesible informa del total real. Se actualiza al guardar, leer, borrar y limpiar sin recargar.
+Mantiene `localUnreadCount` y `accountUnreadCount`; `totalUnreadCount` suma ambos con sesión y solo el local sin sesión. Cero oculta el badge, pero no la campana. Se mantiene el formato 1–99 y `99+`; el nombre accesible informa del total real. Se actualiza al guardar, leer, borrar y limpiar sin recargar. Cada selector muestra los pendientes de su fuente, no solo los de la página visible.
 
 ## 11. Lectura
 
-Marcar leída y Marcar todas leídas actualizan el estado y localStorage. Una acción de navegación marca leída antes de abrir su destino. No se marcan automáticamente todos los avisos por abrir el panel. Para cuentas se conserva la llamada PATCH existente.
+Marcar leída y **Marcar actividad como leída** actualizan el estado y localStorage con o sin sesión. **Marcar notificaciones como leídas** solo actualiza la cuenta mediante PATCH. Una acción de navegación marca leída antes de abrir su destino. No se marcan automáticamente todos los avisos por abrir el panel.
 
 ## 12. Eliminación
 
@@ -86,25 +86,25 @@ El botón Eliminar retira la entrada local, persiste el resultado y actualiza el
 
 ## 13. Limpiar actividad
 
-Disponible en el historial completo de invitados, con el `ConfirmDialogService` existente. Cancelar no modifica datos; confirmar limpia únicamente esta clave. Se comprueba que la sesión no haya cambiado durante la confirmación. No se usa `window.confirm` ni se añade borrado masivo de la cuenta. La acción se sitúa en la página completa para no apilar dos diálogos modales.
+Disponible en la sección **Actividad** del historial completo, con o sin sesión, mediante el `ConfirmDialogService` existente. Cancelar no modifica datos; confirmar limpia únicamente esta clave. Se comprueba que la sesión no haya cambiado durante la confirmación. No se usa `window.confirm` ni se añade borrado masivo de la cuenta. La acción se sitúa en la página completa para no apilar dos diálogos modales.
 
 ## 14. Login
 
-La misma UI cambia a notificaciones privadas de la cuenta. La actividad local queda oculta y se conserva por separado. No se copia ni migra a Mongo. Si hay token pero el perfil aún está restaurándose, tampoco se presenta la actividad invitada como si fuera de la cuenta.
+La actividad local permanece visible y disponible. Aparece el selector **Mi cuenta**, se carga su contador y los listados privados se solicitan al seleccionarlos. No se copia ni migra actividad a Mongo. La UI identifica la actividad como perteneciente al dispositivo, nunca a la cuenta.
 
 ## 15. Logout
 
-La fuente visible cambia inmediatamente a actividad local. Se mantiene la limpieza y el descarte de respuestas tardías del servicio privado existente. El panel abierto se cierra al cambiar de contexto y la página adapta título, filtros y lista.
+Solo se elimina el estado privado: listas, contador y caché. Se conserva toda la actividad local. Una selección privada vuelve inmediatamente a Actividad. Se mantiene el descarte de respuestas tardías del servicio privado existente. El panel abierto se cierra al cambiar de sesión y la página adapta título, filtros y lista. Si después entra B, conserva la misma actividad del dispositivo y ve exclusivamente los avisos privados de B.
 
 ## 16. Separación local/privado
 
-`NotificationCenterService` actúa como adaptador de UI. Selecciona una fuente según la sesión, no concatena listas. Usa un discriminante `source` y rechaza acciones cuyo origen no coincida con el contexto vigente. Las confirmaciones y la navegación comprueban que no se haya cambiado de sesión durante la espera.
+`NotificationCenterService` actúa como adaptador de UI. Mantiene ambas fuentes disponibles y permite seleccionar cuál consultar, sin concatenarlas ni mezclar su persistencia. Usa el discriminante `source` para dirigir cada acción al servicio correcto. La sesión solo condiciona el acceso a cuenta, no a local. Las confirmaciones y la navegación comprueban que no se haya cambiado de sesión durante la espera.
 
 En invitado, cargar listado y contador no llama endpoints privados. Las pruebas mantienen también los controles originales de JWT, IDOR y A/B. No se ha modificado ningún archivo de Backend en esta fase.
 
 ## 17. Evitar duplicados autenticados
 
-La política central de `NotificationService` no graba actividad local cuando hay sesión, incluso si un callsite usa `saveToHistory: true`. Así, un pedido autenticado conserva el toast inmediato y un único aviso autoritativo del backend.
+`NotificationService` graba actividad local con o sin sesión cuando se solicita `saveToHistory: true`. Solo el éxito de un pedido aceptado por el backend usa `history.accountEquivalent: true`: ese mismo evento crea una notificación transaccional de la cuenta, por lo que se omite su copia local autenticada. Un invitado sí conserva su aviso local; Netlify no activa esta excepción. No se deduplican fuentes distintas por mera coincidencia de texto ni se oculta actividad previa.
 
 El guardado local se carga de forma diferida y comprueba otra vez la versión de sesión antes de persistir. El envío asíncrono del pedido captura esa versión al empezar, evitando que una respuesta de una sesión anterior se guarde como actividad del invitado tras logout.
 
@@ -135,17 +135,17 @@ Para mantener el presupuesto de carga inicial, el diálogo de confirmación glob
 
 ## 19. Pruebas añadidas
 
-13 pruebas en `test/local-notifications.test.mjs` y una prueba de cupón en `test/notifications.test.mjs`. Cubren guardar/recargar, lecturas, borrado/limpieza, límite, caducidad, deduplicación, evento storage de otra pestaña, JSON corrupto, cuota/bloqueo, esquema y datos sensibles, ausencia de API en invitado, separación A/B/logout, confirmación interrumpida por login, paginación, opt-in y respuesta asíncrona obsoleta.
+16 pruebas en `test/local-notifications.test.mjs` y una prueba de cupón en `test/notifications.test.mjs`. Cubren guardar/recargar, lecturas, borrado/limpieza, límite, caducidad, deduplicación, evento storage de otra pestaña, JSON corrupto, cuota/bloqueo, esquema y datos sensibles, ausencia de API en invitado, coexistencia local/cuenta, 2 + 3 = 5 pendientes, acciones autenticadas por origen, separación A/B/logout con el servicio privado real, confirmación interrumpida por login, paginación, opt-in autenticado, equivalencia explícita y respuesta asíncrona obsoleta.
 
-La revisión de navegador utilizó los componentes y servicios reales en una instancia aislada, autenticación/backend ficticios y localStorage real de ese origen. Se comprobaron estado vacío, toast→historial reactivo, deduplicación, recarga, lectura individual/masiva persistida, eliminación, cancelar/confirmar limpieza, cero llamadas privadas en invitado, A/B/logout, ausencia de copia local del pedido autenticado y temas claro/oscuro. En 320×740, panel de 296 px entre márgenes de 12 px y sin desbordamiento horizontal. No hubo errores de consola en esta revisión.
+La revisión de navegador utilizó los componentes y servicios reales en una instancia aislada, autenticación/backend ficticios y localStorage real de ese origen. La corrección verificó ambos selectores en panel e historial, 2 + 3 = 5, guardado local autenticado, lectura individual/masiva por fuente, eliminación local, cancelar/confirmar limpieza sin alterar cuenta, cero llamadas privadas en invitado y A/logout/B. Se revisaron temas claro/oscuro. En 320×740, panel de 296 px entre márgenes de 12 px, scroll interior y sin desbordamiento horizontal; Escape devuelve el foco a la campana. No hubo errores de consola en esta revisión.
 
 La instancia y los archivos de QA se retiraron antes del build final. No se usaron credenciales, cuentas ni pedidos reales.
 
 ## 20. Total de pruebas
 
-- Frontend: **105/105**, incluidas todas las pruebas anteriores.
+- Frontend: **108/108**, incluidas todas las pruebas anteriores.
 - Backend: **97/97**, sin modificaciones en esta fase.
-- Total: **202 pruebas correctas**.
+- Total: **205 pruebas correctas**.
 
 ## 21. Build
 
@@ -158,6 +158,8 @@ La instancia y los archivos de QA se retiraron antes del build final. No se usar
 - `src/app/core/services/notification-center.service.ts`
 - `test/local-notifications.test.mjs`
 - `docs/local-notification-history.md`
+- `src/app/shared/ui/notification-source-selector.component.ts`
+- `docs/notification-sources-correction.md`
 
 ## 23. Archivos modificados
 
@@ -165,6 +167,7 @@ La instancia y los archivos de QA se retiraron antes del build final. No se usar
 - `src/app/core/notifications/notification.types.ts`
 - `src/app/core/services/notification.service.ts`
 - `src/app/shared/ui/notification-bell.component.ts`
+- `src/app/shared/ui/notification-bell.component.scss`
 - `src/app/shared/ui/user-notification-list.component.ts`
 - `src/app/features/account/my-notifications-page.component.ts`
 - `src/app/features/home/home-page.component.ts`

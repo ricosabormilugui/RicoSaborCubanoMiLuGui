@@ -181,4 +181,4 @@ Se ejecutan métodos reales de TypeScript con las dependencias externas de pági
 - Sin despliegue ni cambios en precios, stock, estructura de pedidos, reglas de checkout o contratos del backend.
 # Actividad local opcional
 
-El servicio de toasts admite `saveToHistory: true` con una política exclusiva para invitados. No copia por defecto la descripción del toast. La API existente y los toasts temporales se conservan. Ver `docs/local-notification-history.md` para la política, componentes reutilizados, privacidad, pruebas y ejemplos.
+El servicio de toasts admite `saveToHistory: true` con o sin sesión. No copia por defecto la descripción del toast. La actividad del dispositivo y los avisos privados de cuenta coexisten en selectores separados; el badge suma sus pendientes. Solo se omite una copia local autenticada con equivalencia de evento explícita (`history.accountEquivalent`). La API existente y los toasts temporales se conservan. Ver `docs/local-notification-history.md` y `docs/notification-sources-correction.md` para política, privacidad, pruebas y ejemplos.

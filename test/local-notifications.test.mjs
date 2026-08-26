@@ -101,12 +101,57 @@ test('invitado usa únicamente localStorage; acciones y badge no llaman API priv
   const privateService=new UserNotificationsService(h.auth,{}, {events:{pipe:()=>({subscribe(){}})}});
   await privateService.load('recent');await privateService.refreshCount();assert.equal(await privateService.markAllRead(),false);
 });
-test('login usa backend, logout recupera actividad local y nunca migra ni combina listas',async()=>{
-  const h=context();h.local.add(event());const guest=h.center.recent()[0];h.account.recent.set([{id:'private-A',read:false}]);h.account.unreadCount.set(7);
-  h.auth.switch('A');assert.equal(h.center.recent()[0].source,'account');assert.equal(h.center.unreadCount(),7);assert.equal(await h.center.remove(guest),false);
-  await h.center.markAllRead();assert.deepEqual(h.calls,['read-all']);assert.equal(h.local.unreadCount(),1);
-  const privateItem=h.center.recent()[0];h.auth.switch(null);assert.equal(h.center.recent()[0].source,'local');assert.equal(h.center.unreadCount(),1);assert.equal(await h.center.remove(privateItem),false);
-  h.account.recent.set([{id:'private-B',read:true}]);h.auth.switch('B');assert.equal(h.center.recent()[0].id,'private-B');assert.equal(h.local.items().length,1);
+test('login conserva ambas fuentes: dos locales más tres de cuenta suman cinco pendientes',async()=>{
+  const h=context();h.local.add(event());h.local.add(event('Cupón preaplicado'));const device=h.local.items();
+  h.account.recent.set([{id:'private-A',read:false}]);h.account.history.set(h.account.recent());h.account.unreadCount.set(3);
+  h.auth.switch('A');assert.deepEqual(h.center.recent(),device);assert.equal(h.center.localUnreadCount(),2);assert.equal(h.center.accountUnreadCount(),3);assert.equal(h.center.totalUnreadCount(),5);
+  assert.equal(h.center.accountRecent()[0].source,'account');assert.deepEqual(h.center.localRecent(),device);
+  h.center.selectSource('account');await h.center.load('history');assert.equal(h.center.history()[0].id,'private-A');assert.equal(h.center.sourceUnreadCount(),3);
+  h.center.selectSource('local');await h.center.load('history');assert.deepEqual(h.center.history(),device);assert.equal(h.center.sourceUnreadCount(),2);assert.equal(h.center.unreadCount(),5);
+  assert.deepEqual(h.calls,['load']);assert.deepEqual(h.local.items(),device);
+});
+
+test('acciones locales autenticado y acciones privadas se dirigen únicamente a su origen',async()=>{
+  const h=context();h.local.add(event('Uno'));h.local.add(event('Dos'));h.auth.switch('A');h.account.unreadCount.set(3);
+  await h.center.markRead(h.local.items()[0]);assert.equal(h.center.unreadCount(),4);assert.equal(h.center.accountUnreadCount(),3);
+  await h.center.markAllRead();assert.equal(h.local.unreadCount(),0);assert.equal(h.center.unreadCount(),3);assert.deepEqual(h.calls,[]);
+  await h.center.remove(h.local.items()[0]);assert.equal(h.local.items().length,1);
+  h.local.add(event('Tres'));h.center.selectSource('account');const privateItem={id:'private-A',read:false,source:'account'};
+  await h.center.markRead(privateItem);await h.center.markAllRead();await h.center.remove(privateItem);
+  assert.deepEqual(h.calls,['read','read-all','delete']);assert.equal(h.local.unreadCount(),1);
+  h.setAnswer(true);await h.center.clearLocal();assert.equal(h.local.items().length,0);assert.equal(h.center.accountUnreadCount(),3);assert.deepEqual(h.calls,['read','read-all','delete']);
+});
+
+test('logout conserva dispositivo; A y B solo ven su estado privado, incluso con respuestas tardías',async()=>{
+  const h=context(),pending=[],effects=[];
+  const actualLoad=loader({
+    '@angular/core':{...angular,effect:fn=>effects.push(fn)},
+    '../utils/api-client':{ApiRequestError:class extends Error{},requestJson:(url,init)=>new Promise(resolve=>pending.push({url,init,resolve}))}
+  });
+  const {UserNotificationsService}=actualLoad('src/app/core/services/user-notifications.service.ts');
+  const {NotificationCenterService}=actualLoad('src/app/core/services/notification-center.service.ts');
+  const account=new UserNotificationsService(h.auth,{}, {events:{pipe:()=>({subscribe(){}})}});
+  const center=new NotificationCenterService(h.auth,account,h.local,h.confirm);h.local.add(event());const device=h.local.items();
+  h.auth.switch('A');center.selectSource('account');
+  const a=center.load('recent');pending.shift().resolve({notifications:[{id:'private-A',read:false}],nextCursor:null});await a;
+  const count=center.refreshCount();pending.shift().resolve({unreadCount:3});await count;assert.equal(center.unreadCount(),4);
+  const late=center.load('history');const lateRequest=pending.shift();
+  h.auth.switch(null);assert.equal(center.source(),'local');assert.deepEqual(center.accountRecent(),[]);assert.equal(center.unreadCount(),1);assert.deepEqual(center.recent(),device);
+  effects[0]();assert.deepEqual(account.recentState().notifications,[]);assert.deepEqual(account.historyState().notifications,[]);assert.equal(account.countState(),0);
+  center.selectSource('account');await center.load('recent');await center.refreshCount();assert.equal(pending.length,0);assert.equal(center.source(),'local');
+  h.auth.switch('B');assert.deepEqual(center.recent(),device);assert.equal(center.accountUnreadCount(),0);center.selectSource('account');
+  const b=center.load('recent');const bRequest=pending.shift();assert.equal(bRequest.init.headers.Authorization,'Bearer token-B');bRequest.resolve({notifications:[{id:'private-B',read:false}],nextCursor:null});await b;
+  lateRequest.resolve({notifications:[{id:'private-A-secret',read:false}],nextCursor:null});await late;
+  assert.deepEqual(center.accountRecent().map(item=>item.id),['private-B']);assert.deepEqual(account.history(),[]);assert.deepEqual(center.localRecent(),device);
+});
+
+test('errores y carga de cuenta no bloquean actividad; filtros y vacíos son independientes',async()=>{
+  const h=context();h.auth.switch('A');h.account.error=()=> 'Error de cuenta';h.account.loading=()=>({recent:true,history:true});h.account.busy=()=>true;
+  h.account.history.set([{id:'private-A',read:false}]);h.account.unreadCount.set(3);
+  assert.deepEqual(h.center.history(),[]);assert.equal(h.center.error(),'');assert.equal(h.center.loading().history,false);assert.equal(h.center.busy(),false);assert.equal(h.center.sourceUnreadCount(),0);assert.equal(h.center.unreadCount(),3);
+  h.center.selectSource('account');assert.equal(h.center.history()[0].id,'private-A');assert.equal(h.center.error(),'Error de cuenta');assert.equal(h.center.busy(),true);
+  h.center.selectSource('local');h.local.add(event());await h.center.load('history',{type:'error'});assert.deepEqual(h.center.history(),[]);
+  await h.center.load('history',{});assert.equal(h.center.history().length,1);assert.deepEqual(h.calls,[]);
 });
 test('limpiar requiere ConfirmDialog y no opera si cambia la sesión durante la confirmación',async()=>{
   const h=context();h.local.add(event());await h.center.clearLocal();assert.equal(h.local.items().length,1);
@@ -120,15 +165,18 @@ test('filtros y paginación local reutilizan el historial sin limitar el badge a
   await h.center.markRead(h.center.history()[0]);await h.center.load('history',{read:true});assert.equal(h.center.history().length,1);
 });
 
-test('NotificationService opt-in, copy segura, dedupe y supresión autenticada/entre sesiones',async()=>{
+test('NotificationService guarda opt-in con sesión; solo excluye equivalencia explícita o sesión obsoleta',async()=>{
   const h=context();const {NotificationService}=load('src/app/core/services/notification.service.ts');
   const service=new NotificationService({get:token=>token===NotificationHistoryService?h.local:h.auth});service.dispatch=()=>{};
   service.info('Temporal');service.loading('Cargando',undefined,{saveToHistory:true});
   service.success('Producto añadido','Nombre personal, secret@example.test',{saveToHistory:true});
   await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,1);assert.equal(h.local.items()[0].message,'');
-  h.auth.switch('A');service.success('Pedido recibido',undefined,{saveToHistory:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,1);
+  h.auth.switch('A');service.success('Cupón preaplicado',undefined,{saveToHistory:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,2);
+  service.success('Pedido recibido',undefined,{saveToHistory:true,history:{accountEquivalent:true}});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,2);
+  service.success('Pedido recibido',undefined,{saveToHistory:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,3);
   const version=service.historySession();h.auth.switch(null);service.error('Operación de A',undefined,{saveToHistory:true,history:{sessionVersion:version}});
-  service.success('Otra actividad',undefined,{saveToHistory:true});h.auth.switch('B');await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,1);
+  service.success('Otra actividad',undefined,{saveToHistory:true});h.auth.switch('B');await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,3);
+  h.auth.switch(null);service.success('Pedido invitado',undefined,{saveToHistory:true,history:{accountEquivalent:true}});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,4);
 });
 
 test('integraciones seleccionadas: carrito y pedido; campana y ruta también admiten invitados',()=>{

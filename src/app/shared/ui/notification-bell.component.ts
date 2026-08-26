@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, ElementRef, OnDestroy, afterRenderEffect, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, afterRenderEffect, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { LucideBell } from '@lucide/angular';
@@ -7,10 +7,11 @@ import { NotificationCenterService } from '../../core/services/notification-cent
 import { notificationBadge } from '../../core/notifications/user-notification.types';
 import { UserNotificationListComponent } from './user-notification-list.component';
 import { IconComponent } from './icon.component';
+import { NotificationSourceSelectorComponent } from './notification-source-selector.component';
 
 @Component({
   selector: 'app-notification-bell', standalone: true,
-  imports: [LucideBell, RouterLink, UserNotificationListComponent, IconComponent],
+  imports: [LucideBell, RouterLink, UserNotificationListComponent, IconComponent, NotificationSourceSelectorComponent],
   template: `
     <button #trigger type="button" class="bell" (click)="show(trigger)" [attr.aria-label]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" aria-haspopup="dialog" aria-controls="notification-panel" [attr.aria-expanded]="opened()">
       <svg lucideBell [size]="22" />
@@ -18,13 +19,14 @@ import { IconComponent } from './icon.component';
     </button>
     <dialog #panel id="notification-panel" aria-labelledby="notification-panel-title" (cancel)="$event.preventDefault(); close()" (keydown.escape)="$event.preventDefault(); $event.stopPropagation(); close()" (keydown)="trapFocus($event)" (click)="backdrop($event)">
       @if (opened() && panelOwner === service.session()) {
-        <header><div><span class="eyebrow">{{ service.isAccount() ? 'TU CUENTA' : 'EN ESTE DISPOSITIVO' }}</span><h2 id="notification-panel-title">{{ service.isAccount() ? 'Notificaciones' : 'Actividad reciente' }}</h2></div><button autofocus class="close" type="button" aria-label="Cerrar notificaciones" (click)="close()"><app-icon name="close" /></button></header>
-        <div class="toolbar"><span aria-live="polite">{{ service.unreadCount() }} sin leer</span><button type="button" [disabled]="!service.unreadCount() || service.busy()" (click)="service.markAllRead()">Marcar todas leídas</button></div>
+        <header><div><span class="eyebrow">CENTRO DE AVISOS</span><h2 id="notification-panel-title">{{ service.isAccount() ? 'Notificaciones' : 'Actividad reciente' }}</h2></div><button autofocus class="close" type="button" aria-label="Cerrar notificaciones" (click)="close()"><app-icon name="close" /></button></header>
+        <app-notification-source-selector />
+        <div class="toolbar"><span aria-live="polite">{{ service.sourceUnreadCount() }} sin leer</span><button type="button" [disabled]="!service.sourceUnreadCount() || service.busy()" (click)="service.markAllRead()">{{ service.isAccountSource() ? 'Marcar notificaciones como leídas' : 'Marcar actividad como leída' }}</button></div>
         <div class="content" [attr.aria-busy]="service.loading().recent">
           @if (service.storageWarning()) { <p class="state" role="status">{{ service.storageWarning() }}</p> }
           @if (service.error()) { <div role="alert" class="state"><p>{{ service.error() }}</p><button type="button" (click)="reload()">Reintentar</button></div> }
           @if (service.loading().recent) { <p class="state" role="status">Cargando notificaciones…</p> }
-          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>{{ service.isAccount() ? 'Estás al día' : 'No tienes actividad reciente' }}</h3><p>{{ service.isAccount() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
+          @else if (!service.error() && !service.recent().length) { <div class="state"><svg lucideBell [size]="32" /><h3>{{ service.isAccountSource() ? 'No hay notificaciones de cuenta' : 'No tienes actividad reciente' }}</h3><p>{{ service.isAccountSource() ? 'Aquí aparecerán las novedades de tus pedidos y tu cuenta.' : 'Aquí aparecerán las acciones importantes realizadas desde este dispositivo.' }}</p></div> }
           <app-user-notification-list [items]="service.recent()" />
         </div>
         <footer><a routerLink="/mis-notificaciones" (click)="close()">{{ service.isAccount() ? 'Ver todas las notificaciones' : 'Ver toda la actividad' }} <span aria-hidden="true">→</span></a></footer>
@@ -51,6 +53,11 @@ export class NotificationBellComponent implements OnDestroy {
       }
     });
     effect(() => { if (this.opened() && this.panelOwner !== this.service.session()) this.close(); });
+    effect(() => {
+      const opened = this.opened();
+      this.service.source();
+      if (opened) untracked(() => this.reload());
+    });
     inject(Router).events.pipe(takeUntilDestroyed()).subscribe(event => { if (event instanceof NavigationStart) this.close(); });
   }
   show(trigger: HTMLElement): void {
@@ -63,7 +70,6 @@ export class NotificationBellComponent implements OnDestroy {
     this.panel()?.nativeElement.showModal();
     const panel = this.panel()?.nativeElement;
     if (panel) panel.scrollTop = 0;
-    this.reload();
   }
   reload(): void { void this.service.load('recent'); void this.service.refreshCount(); }
   close(): void {

@@ -14,10 +14,10 @@ export class NotificationService {
     if (!options.saveToHistory || type === 'loading' || !injector) return;
     const auth = injector.get(CustomerAuthService);
     const version = options.history?.sessionVersion ?? auth.sessionVersion();
-    if (auth.isAuthenticated() || version !== auth.sessionVersion()) return;
+    if (version !== auth.sessionVersion() || (auth.isAuthenticated() && options.history?.accountEquivalent)) return;
     const createdAt = Date.now();
     void import('./notification-history.service').then(({ NotificationHistoryService }) => {
-      if (!auth.isAuthenticated() && auth.sessionVersion() === version) injector.get(NotificationHistoryService).add({ type, title, message: options.history?.message, action: options.history?.action }, createdAt);
+      if (auth.sessionVersion() === version) injector.get(NotificationHistoryService).add({ type, title, message: options.history?.message, action: options.history?.action }, createdAt);
     }).catch(() => { /* A storage/chunk failure must not prevent immediate feedback. */ });
   }
   // Keep the toast library out of the initial SPA bundle. Calls made while it
