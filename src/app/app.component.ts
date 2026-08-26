@@ -58,6 +58,14 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
               <app-icon name="search" />
             </button>
 
+            <button
+              class="icon-btn mobile-only"
+              type="button"
+              (click)="openAccount()"
+              [attr.aria-label]="customerAuth.isAuthenticated() ? 'Mi cuenta' : 'Iniciar sesión'">
+              <app-icon name="user" />
+            </button>
+
             <button class="cart-box" type="button" (click)="openCart()" aria-label="Carrito">
               <app-icon name="cart" />
               <span class="badge" *ngIf="cart.totalItems()">{{ cart.totalItems() }}</span>
@@ -108,7 +116,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
         <a routerLink="/" (click)="closeMenu()">Inicio</a>
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
-        <a routerLink="/mis-pedidos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis pedidos</a>
         <a routerLink="/mis-notificaciones" (click)="closeMenu()">{{ customerAuth.isAuthenticated() ? 'Mis notificaciones' : 'Actividad reciente' }}</a>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
@@ -121,13 +128,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
           <span>{{ theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
         </button>
 
-        <ng-container *ngIf="!customerAuth.isAuthenticated(); else accountLinks">
-          <a routerLink="/login" (click)="closeMenu()">Iniciar sesión</a>
-          <a routerLink="/registro" (click)="closeMenu()">Registro</a>
-        </ng-container>
-        <ng-template #accountLinks>
-          <button type="button" class="menu-action" (click)="logoutCustomer()">Salir cliente</button>
-        </ng-template>
+        <a routerLink="/registro" (click)="closeMenu()" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
+        <button type="button" class="menu-action" (click)="logoutCustomer()" *ngIf="customerAuth.isAuthenticated()">Salir cliente</button>
 
         <div class="menu-divider" *ngIf="isAdmin()"></div>
         <a routerLink="/admin/dashboard" (click)="closeMenu()" *ngIf="isAdmin()">Admin dashboard</a>
@@ -303,7 +305,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
     `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px}.nav-grid{gap:4px}.nav-right{gap:2px}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px;flex:0 0 44px}.nav-grid{gap:4px}.nav-right{gap:2px;flex-wrap:nowrap}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none}}`,
     `@media (prefers-reduced-motion:reduce){.dropdown{animation:none}.icon-btn,.result{transition:none}}`,
     `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}}`
@@ -528,6 +530,11 @@ export class AppComponent {
   openCart(): void {
     this.closeMenu();
     void this.router.navigateByUrl('/carrito');
+  }
+
+  openAccount(): void {
+    if (this.customerAuth.isAuthenticated()) this.goOrders();
+    else this.goLogin();
   }
 
   goLogin(): void {
