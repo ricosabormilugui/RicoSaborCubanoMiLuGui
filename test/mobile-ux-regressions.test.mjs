@@ -37,6 +37,20 @@ test('home renders the public admin categories at a bounded size and keeps favor
   assert.match(styles, /flex:\s*0 0 min\(68vw, 220px\)/);
 });
 
+test('catalog product cards stay compact and two-up from the mobile base', async () => {
+  const styles = await read('src/app/features/catalog/catalog-page.component.css');
+  const template = await read('src/app/features/catalog/catalog-page.component.html');
+
+  assert.match(styles, /\.grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /\.image-link\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(styles, /\.product img\s*\{[^}]*object-fit:\s*cover/s);
+  assert.match(styles, /-webkit-line-clamp:\s*2/);
+  assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*10/);
+  assert.doesNotMatch(template, /product-description/);
+  assert.doesNotMatch(template, /Ver detalles/);
+  assert.match(template, /variant="compact"/);
+});
+
 test('the mobile footer centers the real brand logo', async () => {
   const source = await read('src/app/app.component.ts');
 

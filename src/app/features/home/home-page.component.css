@@ -390,7 +390,7 @@
 .product-card {
   display: grid;
   align-content: start;
-  gap: 0.45rem;
+  gap: 0.32rem;
   min-width: 0;
 }
 
@@ -411,7 +411,7 @@
 
 .mini-tag {
   color: var(--text-soft);
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -419,12 +419,13 @@
 
 .product-name {
   display: -webkit-box;
-  min-height: 2.5em;
   overflow: hidden;
   color: var(--text-main);
+  font-size: 0.9rem;
   font-weight: 800;
   line-height: 1.25;
   text-decoration: none;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -436,7 +437,7 @@
 
 .product-card strong {
   color: var(--text-main);
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .reviews {
@@ -642,12 +643,12 @@
 
   .product-card {
     flex: 0 0 min(68vw, 220px);
-    gap: 0.35rem;
+    gap: 0.28rem;
     scroll-snap-align: start;
   }
 
   .product-card strong {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
   .best-sellers .section-link {
