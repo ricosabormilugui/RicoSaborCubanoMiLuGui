@@ -13,7 +13,7 @@ import {
   Vector3,
   WebGLRenderer
 } from 'three';
-import { AUTH_VISUAL_SUCCESS_MS, AuthVisualState } from './auth-visual.model';
+import { AUTH_VISUAL_LOGO_PX, AUTH_VISUAL_SUCCESS_MS, AuthVisualState } from './auth-visual.model';
 
 const NAVY = [0.0, 0.36, 0.58];
 const CREAM = [0.74, 0.68, 0.52];
@@ -52,25 +52,27 @@ void main() {
   float nA = sin(uTime * 0.17 + aSeed.y * 6.28318) * 0.018 * uEnergy * (1.0 - uReduced);
   xy += vec2(nR * xy.x - nA * xy.y, nR * xy.y + nA * xy.x);
 
-  float absorb = smoothstep(0.0, 0.192, uSuccess);
-  float concentrate = smoothstep(0.154, 0.346, uSuccess);
-  float morph = smoothstep(0.269, 0.5, uSuccess);
-  float logoFade = smoothstep(0.423, 0.654, uSuccess);
-  xy *= mix(1.0, 0.56, absorb);
+  float absorb = smoothstep(0.0, 0.168, uSuccess);
+  float concentrate = smoothstep(0.142, 0.323, uSuccess);
+  float morph = smoothstep(0.245, 0.490, uSuccess);
+  float logoFade = smoothstep(0.400, 0.632, uSuccess);
+  float pull = mix(0.84, 0.58, smoothstep(R_EYE, R_MAX, r));
+  xy *= mix(1.0, pull, absorb);
   float dP = length(xy - uPerturb.xy);
   xy += normalize(xy - uPerturb.xy + 0.0008) * uPerturb.z * smoothstep(0.62, 0.0, dP) * (1.0 - uSuccess);
 
-  vec3 live = vec3(xy + uPointer * 0.05 * (0.35 + r * 0.18), p.z * mix(1.0, 0.18, uSuccess));
+  vec3 live = vec3(xy + uPointer * 0.05 * (0.35 + r * 0.18), p.z * mix(1.0, 0.55, uSuccess));
   vec3 pos = mix(live, aTarget, morph * aMorph);
 
   vec4 mv = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = max(1.1, aSize * uSize / max(0.8, -mv.z));
+  gl_PointSize = max(1.05, aSize * uSize * 0.155);
   vColor = aColor;
   float inner = smoothstep(R_MAX, R_WALL, r);
-  float idleAlpha = mix(0.26, 0.58, inner);
-  idleAlpha *= mix(1.0, 0.06, step(r, R_EYE * 0.92));
-  float successAlpha = mix(idleAlpha, mix(0.12, 0.78, smoothstep(1.15, 0.32, r)), concentrate);
+  float idleAlpha = mix(0.24, 0.48, inner);
+  idleAlpha *= mix(1.0, 0.04, step(r, R_EYE * 0.96));
+  idleAlpha *= smoothstep(R_MAX * 1.04, R_MAX * 0.70, r);
+  float successAlpha = mix(idleAlpha, mix(0.10, 0.70, smoothstep(1.15, 0.38, r)), concentrate);
   vAlpha = mix(idleAlpha, successAlpha, uSuccess);
   vAlpha *= mix(1.0, 0.35, logoFade * aMorph);
   vAlpha *= mix(1.0, 0.22, logoFade * (1.0 - aMorph) * smoothstep(0.55, 1.6, r));
@@ -129,7 +131,7 @@ export function generateVortex(count: number): {
     const a = theta + (hash(i, 3.3) - 0.5) * width + Math.sin(theta * 3.05 + arm) * 0.05;
     const x = Math.cos(a) * r;
     const y = Math.sin(a) * r * 0.93;
-    const z = (hash(i, 5.5) - 0.5) * 0.2 * (1.05 - t);
+    const z = (hash(i, 5.5) - 0.5) * 0.1 * (1.05 - t);
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
@@ -149,7 +151,7 @@ export function generateVortex(count: number): {
     colors[i * 3] = col[0] * jitter;
     colors[i * 3 + 1] = col[1] * jitter;
     colors[i * 3 + 2] = col[2] * jitter;
-    sizes[i] = (inner ? 1.12 : 0.88) * (0.7 + hash(i, 1.1) * 0.55);
+    sizes[i] = (inner ? 0.90 : 0.86) * (0.68 + hash(i, 1.1) * 0.42);
     seeds[i * 3] = hash(i, 0.3);
     seeds[i * 3 + 1] = hash(i, 1.3);
     seeds[i * 3 + 2] = hash(i, 2.3);
@@ -253,6 +255,7 @@ export class AuthParticleVortexRenderer {
     this.points = points;
 
     this.resize();
+    this.alignVortex();
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(options.host);
     document.addEventListener('visibilitychange', this.onVis);
@@ -372,7 +375,17 @@ export class AuthParticleVortexRenderer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.alignVortex();
     if (this.reduced) this.renderFrame(0);
+  }
+
+  private alignVortex(): void {
+    if (!this.points || !this.camera || !this.host) return;
+    const rect = this.host.getBoundingClientRect();
+    const aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+    const visibleH = 2 * Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.position.z;
+    const visibleW = visibleH * aspect;
+    this.points.position.set((0.46 - 0.5) * visibleW, (0.5 - 0.49) * visibleH, 0);
   }
 
   private onVisibility(): void {
@@ -414,7 +427,11 @@ export class AuthParticleVortexRenderer {
       const morphAttr = this.geometry.getAttribute('aMorph') as BufferAttribute;
       const pos = this.geometry.getAttribute('position') as BufferAttribute;
       const morphCount = Math.min(this.count, Math.floor(this.count * 0.38));
-      const span = 1.18;
+      const hostH = Math.max(1, this.host?.getBoundingClientRect().height || 800);
+      const dist = this.camera?.position.z || 6.15;
+      const fov = this.camera?.fov || 32;
+      const visibleH = 2 * Math.tan((fov * Math.PI) / 360) * dist;
+      const span = (AUTH_VISUAL_LOGO_PX / hostH) * visibleH;
       for (let i = 0; i < this.count; i++) {
         if (i < morphCount) {
           const point = i % Math.floor(hits.length / 2);

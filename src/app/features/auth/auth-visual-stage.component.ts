@@ -1,5 +1,5 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, effect, inject, input, signal, viewChild } from '@angular/core';
-import { AUTH_FLOATING_PRODUCTS, AuthVisualState, AuthVisualSuccessKind } from './auth-visual.model';
+import { AUTH_FLOATING_PRODUCTS, AUTH_VISUAL_LOGO_PX, AuthVisualState, AuthVisualSuccessKind } from './auth-visual.model';
 
 type ParticleVortex = {
   setState(state: AuthVisualState): void;
@@ -27,6 +27,7 @@ export class AuthVisualStageComponent {
   readonly logoSrc = input.required<string>();
   readonly brandName = input('MIXSABOR');
   readonly products = AUTH_FLOATING_PRODUCTS;
+  readonly logoSize = AUTH_VISUAL_LOGO_PX;
   readonly failed = signal(false);
   readonly ready = signal(false);
 

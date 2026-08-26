@@ -24,11 +24,12 @@ const successSlice = (source) => source.slice(source.indexOf('try {'), source.in
 const catchSlice = (source) => source.slice(source.indexOf('} catch'));
 
 test('la escena auth usa productos locales configurables y un success acotado', () => {
-  const { AUTH_FLOATING_PRODUCTS, AUTH_VISUAL_SUCCESS_MS, AUTH_VISUAL_SUCCESS_REDUCED_MS } = load('src/app/features/auth/auth-visual.model.ts');
+  const { AUTH_FLOATING_PRODUCTS, AUTH_VISUAL_SUCCESS_MS, AUTH_VISUAL_SUCCESS_REDUCED_MS, AUTH_VISUAL_LOGO_PX } = load('src/app/features/auth/auth-visual.model.ts');
 
-  assert.equal(AUTH_VISUAL_SUCCESS_MS, 1300);
+  assert.equal(AUTH_VISUAL_SUCCESS_MS, 1550);
   assert.equal(AUTH_VISUAL_SUCCESS_REDUCED_MS, 400);
-  assert.ok(AUTH_VISUAL_SUCCESS_MS >= 1250 && AUTH_VISUAL_SUCCESS_MS <= 1350);
+  assert.equal(AUTH_VISUAL_LOGO_PX, 186);
+  assert.ok(AUTH_VISUAL_SUCCESS_MS >= 1500 && AUTH_VISUAL_SUCCESS_MS <= 1600);
   assert.ok(AUTH_VISUAL_SUCCESS_REDUCED_MS >= 350 && AUTH_VISUAL_SUCCESS_REDUCED_MS <= 450);
   assert.ok(AUTH_VISUAL_SUCCESS_REDUCED_MS < AUTH_VISUAL_SUCCESS_MS);
   assert.ok(AUTH_FLOATING_PRODUCTS.length >= 5 && AUTH_FLOATING_PRODUCTS.length <= 7);
@@ -73,8 +74,11 @@ test('el panel visual desktop monta la escena y no carga fotos CMS', () => {
   assert.match(layout, /waitForSuccess/);
   assert.match(layout, /if \(!this\.showVisual\(\)\) return true/);
   assert.match(layout, /reducedMotion\(\) \? AUTH_VISUAL_SUCCESS_REDUCED_MS : AUTH_VISUAL_SUCCESS_MS/);
-  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /550ms/);
-  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /800ms/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /620ms/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /950ms/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /186px/);
+  assert.match(read('src/app/features/auth/auth-visual-stage.component.css'), /mask-image/);
+  assert.doesNotMatch(read('src/app/features/auth/auth-visual-stage.component.css'), /mix-blend-mode:\s*multiply/);
   assert.match(renderer, /return 4200/);
   assert.match(renderer, /return 5600/);
   assert.match(renderer, /return 7200/);

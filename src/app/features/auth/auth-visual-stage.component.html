@@ -6,10 +6,10 @@
   [class.is-fallback]="failed()">
   <div class="vortex-ambient" aria-hidden="true"></div>
   <div class="vortex-haze" aria-hidden="true"></div>
+  <canvas #gl class="vortex-canvas" aria-hidden="true"></canvas>
+  <div class="vortex-fallback" aria-hidden="true"></div>
   <div class="vortex-compose">
     <div class="vortex-field" aria-hidden="true">
-      <canvas #gl class="vortex-canvas" aria-hidden="true"></canvas>
-      <div class="vortex-fallback" aria-hidden="true"></div>
       @for (item of products; track item.id) {
         <span
           class="item-track"
@@ -37,7 +37,7 @@
     <div class="stage-center">
       @if (state() === 'success') {
         <div class="stage-success">
-          <img class="stage-logo" [src]="logoSrc()" [alt]="brandName()" width="160" height="160" />
+          <img class="stage-logo" [src]="logoSrc()" [alt]="brandName()" [attr.width]="logoSize" [attr.height]="logoSize" />
         </div>
       }
     </div>

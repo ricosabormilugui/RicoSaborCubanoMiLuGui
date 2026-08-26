@@ -28,5 +28,6 @@ export const AUTH_FLOATING_PRODUCTS: FloatingProduct[] = [
   { id: 'pie', src: '/assets/auth/products/pie.webp', alt: '', depth: 'back', size: 100, cycle: VORTEX_CYCLE, delay: 25, rotate: 8, staticX: 48, staticY: 76, parked: false }
 ];
 
-export const AUTH_VISUAL_SUCCESS_MS = 1300;
+export const AUTH_VISUAL_SUCCESS_MS = 1550;
 export const AUTH_VISUAL_SUCCESS_REDUCED_MS = 400;
+export const AUTH_VISUAL_LOGO_PX = 186;

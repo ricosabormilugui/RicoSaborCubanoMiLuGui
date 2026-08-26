@@ -22,39 +22,35 @@
 .vortex-ambient,
 .vortex-haze {
   position: absolute;
+  inset: 0;
   pointer-events: none;
   z-index: 0;
 }
 
 .vortex-ambient {
-  inset: 0 0 4% 0;
   background:
-    radial-gradient(ellipse 62% 56% at 36% 42%,
-      color-mix(in srgb, var(--brand-cream) 16%, transparent),
-      transparent 64%),
-    radial-gradient(ellipse 48% 42% at 64% 62%,
-      color-mix(in srgb, var(--brand-blue) 28%, transparent),
-      transparent 72%),
-    radial-gradient(ellipse 28% 24% at 48% 38%,
-      color-mix(in srgb, var(--brand-red) 6%, transparent),
-      transparent 70%);
-  filter: blur(34px);
+    radial-gradient(ellipse 58% 52% at 46% 49%,
+      color-mix(in srgb, var(--brand-cream) 10%, transparent),
+      transparent 68%),
+    radial-gradient(ellipse 44% 40% at 62% 64%,
+      color-mix(in srgb, var(--brand-blue) 22%, transparent),
+      transparent 74%),
+    radial-gradient(ellipse 26% 22% at 48% 38%,
+      color-mix(in srgb, var(--brand-red) 5%, transparent),
+      transparent 72%);
+  filter: blur(38px);
   transform: translate3d(calc(var(--visual-x, 0px) * 0.08), calc(var(--visual-y, 0px) * 0.08), 0);
 }
 
 .vortex-haze {
-  left: 2%;
-  top: 8%;
-  width: 90%;
-  height: 84%;
-  border-radius: 48% 52% 46% 54%;
+  z-index: 0;
   background:
-    radial-gradient(ellipse 68% 62% at 46% 48%,
-      transparent 0 8%,
-      color-mix(in srgb, var(--brand-blue) 14%, transparent) 26%,
-      color-mix(in srgb, var(--brand-blue) 22%, transparent) 50%,
-      transparent 78%);
-  filter: blur(22px);
+    radial-gradient(ellipse 64% 58% at 46% 49%,
+      transparent 0 14%,
+      color-mix(in srgb, var(--brand-blue) 12%, transparent) 34%,
+      color-mix(in srgb, var(--brand-blue) 18%, transparent) 52%,
+      transparent 76%);
+  filter: blur(28px);
   transform: translate3d(calc(var(--visual-x, 0px) * 0.16), calc(var(--visual-y, 0px) * 0.16), 0);
 }
 
@@ -66,7 +62,9 @@
   aspect-ratio: 1;
   translate: -50% -50%;
   container-type: size;
-  z-index: 1;
+  z-index: 2;
+  background: transparent;
+  pointer-events: none;
 }
 
 .vortex-field {
@@ -82,23 +80,27 @@
   width: 100%;
   height: 100%;
   display: block;
+  background: transparent;
 }
 
-.vortex-canvas { z-index: 1; }
+.vortex-canvas {
+  z-index: 1;
+  -webkit-mask-image: radial-gradient(ellipse 82% 76% at 46% 49%, #000 22%, transparent 78%);
+  mask-image: radial-gradient(ellipse 82% 76% at 46% 49%, #000 22%, transparent 78%);
+}
 
 .vortex-fallback {
   z-index: 0;
   opacity: 1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 49%,
-      color-mix(in srgb, var(--brand-blue) 16%, transparent) 0 9%,
-      transparent 18%),
-    radial-gradient(ellipse 70% 62% at 48% 50%,
-      color-mix(in srgb, var(--brand-blue) 30%, transparent) 18%,
-      color-mix(in srgb, var(--brand-red) 8%, transparent) 42%,
-      transparent 68%);
-  filter: blur(18px);
+    radial-gradient(ellipse 58% 52% at 46% 49%,
+      color-mix(in srgb, var(--brand-blue) 18%, transparent) 0 18%,
+      color-mix(in srgb, var(--brand-red) 6%, transparent) 40%,
+      transparent 70%);
+  filter: blur(22px);
+  -webkit-mask-image: radial-gradient(ellipse 82% 76% at 46% 49%, #000 22%, transparent 78%);
+  mask-image: radial-gradient(ellipse 82% 76% at 46% 49%, #000 22%, transparent 78%);
   transition: opacity 280ms ease;
 }
 
@@ -109,17 +111,15 @@
   position: absolute;
   left: 50%;
   top: 49%;
-  width: 14.5%;
-  height: 14.5%;
+  width: 11%;
+  height: 11%;
   translate: -50% -50%;
   z-index: 2;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--brand-blue) 14%, transparent),
-      color-mix(in srgb, var(--brand-cream) 5%, transparent) 44%,
-      transparent 76%);
-  box-shadow: inset 0 0 12px color-mix(in srgb, var(--brand-blue) 20%, transparent);
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--brand-blue) 6%, transparent) 0 38%,
+    transparent 78%);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -129,13 +129,11 @@
   z-index: 4;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 72% 66% at 50% 49%,
-      transparent 0 16%,
-      color-mix(in srgb, var(--brand-blue) 10%, transparent) 38%,
-      color-mix(in srgb, var(--brand-blue) 16%, transparent) 62%,
-      transparent 86%);
-  mix-blend-mode: multiply;
-  opacity: 0.42;
+    radial-gradient(ellipse 70% 64% at 50% 49%,
+      transparent 0 22%,
+      color-mix(in srgb, var(--brand-blue) 7%, transparent) 48%,
+      transparent 78%);
+  opacity: 0.38;
 }
 
 .item-track {
@@ -193,8 +191,8 @@
 .stage-success { display: grid; justify-items: center; }
 
 .stage-logo {
-  width: 160px;
-  height: 160px;
+  width: 186px;
+  height: 186px;
   object-fit: contain;
   filter: drop-shadow(0 0 0 transparent);
 }
@@ -217,22 +215,20 @@
 }
 
 .stage[data-state='success'] .vortex-eye {
-  scale: 1.12;
-  background:
-    radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--brand-cream) 22%, transparent),
-      color-mix(in srgb, var(--brand-cream) 6%, transparent) 48%,
-      transparent 78%);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--brand-cream) 16%, transparent);
-  transition: scale 250ms ease 200ms, background 250ms ease 200ms, box-shadow 250ms ease 200ms;
+  scale: 1;
+  background: radial-gradient(circle at 50% 50%,
+    color-mix(in srgb, var(--brand-cream) 8%, transparent) 0 42%,
+    transparent 80%);
+  box-shadow: none;
+  transition: background 250ms ease 220ms;
 }
 
 .stage[data-state='success'] .stage-success {
-  animation: success-in 300ms cubic-bezier(.22, .7, .3, 1) 550ms both;
+  animation: success-in 360ms cubic-bezier(.22, .7, .3, 1) 620ms both;
 }
 
 .stage[data-state='success'] .stage-logo {
-  animation: success-glow 250ms ease 800ms both;
+  animation: success-glow 250ms ease 950ms both;
 }
 
 @keyframes flow-vortex {
@@ -332,13 +328,35 @@
   from { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--brand-cream) 0%, transparent)); }
   to {
     filter:
-      drop-shadow(0 6px 18px color-mix(in srgb, var(--brand-cream) 34%, transparent))
-      drop-shadow(0 0 22px color-mix(in srgb, var(--brand-red) 14%, transparent));
+      drop-shadow(0 8px 22px color-mix(in srgb, var(--brand-cream) 32%, transparent))
+      drop-shadow(0 0 26px color-mix(in srgb, var(--brand-red) 12%, transparent));
   }
 }
 
 @media (min-width: 1600px) {
   .vortex-compose { width: min(88%, 82vh); left: 47%; }
+}
+
+:host-context([data-theme='light']) .vortex-ambient {
+  background:
+    radial-gradient(ellipse 54% 48% at 46% 49%,
+      color-mix(in srgb, var(--brand-blue) 14%, transparent),
+      transparent 70%),
+    radial-gradient(ellipse 40% 36% at 62% 64%,
+      color-mix(in srgb, var(--brand-blue) 18%, transparent),
+      transparent 76%),
+    radial-gradient(ellipse 22% 20% at 48% 38%,
+      color-mix(in srgb, var(--brand-red) 4%, transparent),
+      transparent 72%);
+}
+
+:host-context([data-theme='light']) .vortex-haze {
+  background:
+    radial-gradient(ellipse 64% 58% at 46% 49%,
+      transparent 0 16%,
+      color-mix(in srgb, var(--brand-blue) 16%, transparent) 36%,
+      color-mix(in srgb, var(--brand-blue) 22%, transparent) 54%,
+      transparent 78%);
 }
 
 @media (prefers-reduced-motion: reduce) {
