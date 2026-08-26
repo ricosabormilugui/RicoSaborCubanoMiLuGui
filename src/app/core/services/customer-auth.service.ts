@@ -7,6 +7,7 @@ import { ActiveIdentityService, StaleIdentityError, canonicalUserId } from './ac
 import { CartService } from './cart.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
 import { DeliveryStateService } from './delivery-state.service';
+import { FavoritesService } from './favorites.service';
 import { transferGuestOrderIntent } from '../utils/order-idempotency';
 
 export interface CustomerProfile {
@@ -20,6 +21,7 @@ export class CustomerAuthService {
   private readonly notifications = inject(NotificationService);
   private readonly cart = inject(CartService);
   private readonly delivery = inject(DeliveryStateService);
+  private readonly favorites = inject(FavoritesService);
   private readonly confirm = inject(ConfirmDialogService);
   private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
   private readonly tokenKey = 'ricosabor-customer-token';
@@ -33,6 +35,7 @@ export class CustomerAuthService {
     this.sessionVersion = this.identity.version;
     this.publishIdentity();
     this.syncAdminSession();
+    if (this.token()) this.favorites.bindSession(this.token(), () => this.logout());
   }
 
   private publishIdentity(): void {
@@ -45,16 +48,18 @@ export class CustomerAuthService {
     this.identity.beginTransition();
   }
 
-  private becomeUser(profile: CustomerProfile, token: string, adoptGuest: boolean): void {
+  private async becomeUser(profile: CustomerProfile, token: string, adoptGuest: boolean): Promise<void> {
     this.invalidatePersonalMemory();
     this.token.set(token);
     this.profile.set(profile);
     this.identity.activate({ type: 'user', userId: profile.userId });
     this.persist();
     this.syncAdminSession();
+    this.favorites.bindSession(token, () => this.logout());
     if (!adoptGuest) return;
     this.cart.adoptGuestCart();
     this.delivery.adoptGuestShipping();
+    await this.favorites.syncAuthenticatedFavorites();
     transferGuestOrderIntent(profile.userId);
   }
 
@@ -137,6 +142,8 @@ export class CustomerAuthService {
       if (this.identity.key() !== `user:${userId}`) this.publishIdentity();
       this.persist();
       this.syncAdminSession();
+      this.favorites.bindSession(token, () => this.logout());
+      await this.favorites.syncAuthenticatedFavorites();
     } catch (error) {
       if (token !== this.token() || version !== this.sessionVersion()) return;
       if (error instanceof ApiRequestError && (error.status === 401 || error.status === 403)) {
@@ -148,6 +155,7 @@ export class CustomerAuthService {
   }
 
   logout(): void {
+    this.favorites.bindSession('');
     this.invalidatePersonalMemory();
     this.token.set('');
     this.profile.set(null);
@@ -187,7 +195,7 @@ export class CustomerAuthService {
     if (version !== this.sessionVersion()) throw new StaleIdentityError();
     const userId = canonicalUserId(data.userId);
     if (!userId || !data.token) throw new Error('No se pudo iniciar sesión.');
-    this.becomeUser({
+    await this.becomeUser({
       userId,
       email: normalizedEmail,
       role: data.role === 'admin' ? 'admin' : 'customer'

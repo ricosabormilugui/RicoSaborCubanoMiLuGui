@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
+import { customerGuard } from './core/guards/customer.guard';
 import { SeoMetaInput } from './core/services/seo.service';
 import { BRAND_CONFIG } from './core/config/brand.config';
 
@@ -111,6 +112,12 @@ export const appRoutes: Routes = [
     path: 'reset-password',
     loadComponent: () => import('./features/auth/reset-password-page.component').then((m) => m.ResetPasswordPageComponent),
     data: { seo: privateSeo('Nueva contraseña', `Define de forma privada una nueva contraseña para tu cuenta de ${BRAND_CONFIG.name}.`, '/reset-password') }
+  },
+  {
+    path: 'favoritos',
+    loadComponent: () => import('./features/account/favorites-page.component').then((m) => m.FavoritesPageComponent),
+    canActivate: [customerGuard],
+    data: { seo: privateSeo('Mis favoritos', 'Consulta los productos que has guardado para volver a pedirlos.', '/favoritos') }
   },
   {
     path: 'mis-pedidos',

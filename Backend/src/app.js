@@ -8,6 +8,7 @@ import homeRouter from "./routes/home.routes.js";
 import contactRouter from "./routes/contact.routes.js";
 import newsletterRouter from "./routes/newsletter.routes.js";
 import sitemapRouter from "./routes/sitemap.routes.js";
+import favoritesRouter from "./routes/favorites.routes.js";
 import { createHealthRouter } from "./routes/health.routes.js";
 import { requestContext, requestLogger } from "./middleware/request-context.middleware.js";
 import { cors, securityHeaders } from "./middleware/security.middleware.js";
@@ -38,6 +39,7 @@ export function createApp({ databaseCheck, environment = process.env.NODE_ENV ??
   app.use("/api", sitemapRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/customer/favorites", favoritesRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api", apiNotFound);
   app.use(apiNotFound);

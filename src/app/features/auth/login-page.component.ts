@@ -2,7 +2,7 @@ import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -53,6 +53,7 @@ export class LoginPageComponent {
   constructor(
     public readonly auth: CustomerAuthService,
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
     private readonly notifications: NotificationService
   ) {}
 
@@ -65,7 +66,7 @@ export class LoginPageComponent {
     try {
       await this.auth.login(this.email, this.password);
       this.notifications.success('Sesión iniciada', 'Bienvenido de nuevo.');
-      await this.router.navigateByUrl('/checkout');
+      await this.router.navigateByUrl(safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')));
     } catch (error) {
       const message = getUserFriendlyError(error, 'No se pudo iniciar sesión.');
       this.notifications.error('Error al iniciar sesión', message);
@@ -73,4 +74,10 @@ export class LoginPageComponent {
       this.loading.set(false);
     }
   }
+}
+
+function safeReturnUrl(value: string | null): string {
+  const path = String(value ?? '').trim();
+  if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/login')) return '/checkout';
+  return path;
 }

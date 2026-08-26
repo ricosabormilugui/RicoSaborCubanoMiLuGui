@@ -1,0 +1,44 @@
+<section class="favorites-page" [attr.aria-busy]="isInitialLoading()">
+  <header class="hero">
+    <span class="hero-eyebrow">Tu selección</span>
+    <h1>Mis favoritos</h1>
+    <p>Los productos que guardas con el corazón, listos para volver a pedirlos.</p>
+  </header>
+
+  <div class="app-alert app-alert-warning" role="status" *ngIf="catalog.loadError()">
+    <span>{{ catalog.loadError() }} Mostramos los datos disponibles en este dispositivo.</span>
+    <button class="btn btn-secondary" type="button" (click)="retryProducts()">Reintentar</button>
+  </div>
+
+  <div class="section-head" *ngIf="!empty()">
+    <h2 class="section-title">Guardados</h2>
+    <p class="results-count">{{ products().length }} {{ products().length === 1 ? 'producto' : 'productos' }}</p>
+  </div>
+
+  <div class="empty-state" *ngIf="empty()" role="status">
+    <svg lucideHeart [size]="36" aria-hidden="true"></svg>
+    <strong>Aún no tienes favoritos</strong>
+    <span>Guarda los productos que más te gusten para encontrarlos rápidamente aquí.</span>
+    <a class="btn btn-primary" routerLink="/productos">Explorar productos</a>
+  </div>
+
+  <div class="grid skeleton-grid" *ngIf="isInitialLoading()" aria-label="Cargando favoritos">
+    <article class="product skeleton-card" *ngFor="let item of skeletonCards">
+      <div class="skeleton-media"></div>
+      <div class="content">
+        <span class="skeleton-line skeleton-name"></span>
+        <div class="actions">
+          <span class="skeleton-line skeleton-price"></span>
+          <span class="skeleton-button"></span>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <div class="grid" *ngIf="!isInitialLoading() && products().length">
+    <app-product-card
+      *ngFor="let product of products(); trackBy: trackProduct"
+      [product]="product"
+      [addAction]="addAction(product)" />
+  </div>
+</section>

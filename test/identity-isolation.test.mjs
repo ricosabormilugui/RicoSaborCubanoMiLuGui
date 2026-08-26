@@ -89,14 +89,32 @@ function names(cart) {
   return cart.items().map(entry => entry.productId);
 }
 
+function bindRemote(h, store = new Map()) {
+  h.favorites.useRemoteAdapter({
+    async get() {
+      if (typeof store.throwGet === 'function') throw store.throwGet();
+      const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
+      return [...(store.get(userId) ?? [])];
+    },
+    async put(ids) {
+      if (typeof store.throwPut === 'function') throw store.throwPut();
+      const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
+      store.set(userId, [...ids]);
+      return [...ids];
+    }
+  });
+  return store;
+}
+
 function harness() {
   const storage = installStorage();
   const identity = new ActiveIdentityService();
   identity.activate(GUEST_IDENTITY);
   const cart = new CartService(identity);
   const delivery = new DeliveryStateService(identity);
+  const favorites = new FavoritesService(identity);
   const activity = new NotificationHistoryService(storage.local, identity);
-  return { identity, cart, delivery, activity, storage };
+  return { identity, cart, delivery, favorites, activity, storage };
 }
 
 function login(h, userId) {
@@ -283,19 +301,135 @@ test('IdentityRequestService también descarta el body si la identidad cambia du
   globalThis.fetch = originalFetch;
 });
 
-test('favoritos se namespacian por identidad y no se copian en login ni logout', () => {
+test('favoritos: login hidrata el backend y no mezcla leftovers guest', async () => {
   const h = harness();
-  const favorites = new FavoritesService(h.identity);
-  assert.equal(favorites.toggle('p1'), true);
-  assert.equal(favorites.isFavorite('p1'), true);
-  assert.match(h.storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), /"p1"/);
-  login(h, 'B');
-  assert.equal(favorites.isFavorite('p1'), false);
-  assert.equal(favorites.toggle('p2'), true);
+  const remote = bindRemote(h);
+  remote.set('U1', ['B', 'C']);
+  h.storage.local.setItem(getStorageKey('favorites', GUEST_IDENTITY), JSON.stringify({ version: 1, ids: ['A', 'B'] }));
+  h.storage.local.setItem(getStorageKey('favorites', { type: 'user', userId: 'U1' }), JSON.stringify({ version: 1, ids: ['C', 'D'] }));
+  assert.equal(h.favorites.toggle('A'), false);
+  h.identity.beginTransition();
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), true);
+  assert.deepEqual(h.favorites.ids(), ['B', 'C']);
+  assert.deepEqual(remote.get('U1'), ['B', 'C']);
+  assert.equal(h.storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), null);
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), true);
+  assert.deepEqual(h.favorites.ids(), ['B', 'C']);
+});
+
+test('favoritos: fallo GET no interpreta la colección como vacía', async () => {
+  const h = harness();
+  const remote = bindRemote(h);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  assert.equal(h.favorites.toggle('local'), true);
+  remote.throwGet = () => new Error('offline');
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), false);
+  assert.deepEqual(h.favorites.ids(), ['local']);
+});
+
+test('favoritos: hidratar sesión restaura backend y add/remove persisten el estado canónico', async () => {
+  const h = harness();
+  const remote = bindRemote(h);
+  remote.set('U1', ['X']);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), true);
+  assert.deepEqual(h.favorites.ids(), ['X']);
+  assert.equal(h.favorites.toggle('Y'), true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(remote.get('U1'), ['X', 'Y']);
+  assert.equal(h.favorites.toggle('X'), false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(h.favorites.ids(), ['Y']);
+  assert.deepEqual(remote.get('U1'), ['Y']);
+  remote.throwPut = () => new Error('offline');
+  assert.equal(h.favorites.toggle('Z'), true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(h.favorites.ids(), ['Y']);
+  assert.deepEqual(remote.get('U1'), ['Y']);
+});
+
+test('favoritos: logout deja la UI vacía y no crea namespace guest', () => {
+  const h = harness();
+  bindRemote(h);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  h.favorites.toggle('A');
+  h.favorites.toggle('B');
+  h.favorites.bindSession('');
   logout(h);
-  assert.equal(favorites.isFavorite('p1'), true);
-  assert.equal(favorites.isFavorite('p2'), false);
-  assert.match(h.storage.local.getItem(getStorageKey('favorites', { type: 'user', userId: 'B' })), /"p2"/);
+  assert.deepEqual(h.favorites.ids(), []);
+  assert.equal(h.favorites.isFavorite('B'), false);
+  assert.equal(h.storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), null);
+  assert.deepEqual(h.favorites.readIdentityFavorites({ type: 'user', userId: 'U1' }), ['A', 'B']);
+});
+
+test('favoritos guest: el corazón no guarda ni crea mixsabor.guest.favorites', () => {
+  const h = harness();
+  h.storage.local.setItem(getStorageKey('favorites', GUEST_IDENTITY), JSON.stringify({ version: 1, ids: ['stale'] }));
+  const cleaned = new FavoritesService(h.identity);
+  assert.equal(cleaned.toggle('p1'), false);
+  assert.deepEqual(cleaned.ids(), []);
+  assert.equal(cleaned.isFavorite('p1'), false);
+  assert.equal(h.storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), null);
+  assert.equal(h.favorites.toggle('p2'), false);
+  assert.deepEqual(h.favorites.ids(), []);
+});
+
+test('favoritos: pruneMissing ignora catálogo vacío y solo limpia huérfanos conocidos', () => {
+  const h = harness();
+  bindRemote(h);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  h.favorites.toggle('keep');
+  h.favorites.toggle('gone');
+  h.favorites.pruneMissing([]);
+  assert.deepEqual(h.favorites.ids(), ['keep', 'gone']);
+  h.favorites.pruneMissing(['keep']);
+  assert.deepEqual(h.favorites.ids(), ['keep']);
+});
+
+test('favoritos: usuarios distintos no se ven y A recupera los suyos', () => {
+  const h = harness();
+  bindRemote(h);
+  login(h, 'A');
+  h.favorites.bindSession('token-A');
+  h.favorites.toggle('A1');
+  h.favorites.toggle('A2');
+  h.favorites.bindSession('');
+  logout(h);
+  login(h, 'B');
+  h.favorites.bindSession('token-B');
+  h.favorites.toggle('C1');
+  assert.deepEqual(h.favorites.ids(), ['C1']);
+  assert.equal(h.favorites.isFavorite('A1'), false);
+  h.favorites.bindSession('');
+  logout(h);
+  login(h, 'A');
+  h.favorites.bindSession('token-A');
+  assert.deepEqual(h.favorites.ids(), ['A1', 'A2']);
+});
+
+test('favoritos backend: A y B quedan aislados al hidratar desde el servidor', async () => {
+  const h = harness();
+  const remote = bindRemote(h);
+  remote.set('A', ['A1', 'A2']);
+  remote.set('B', ['C1']);
+  h.identity.activate({ type: 'user', userId: 'A' });
+  h.favorites.bindSession('token-A');
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), true);
+  assert.deepEqual(h.favorites.ids(), ['A1', 'A2']);
+  h.favorites.bindSession('');
+  logout(h);
+  assert.deepEqual(h.favorites.ids(), []);
+  h.identity.activate({ type: 'user', userId: 'B' });
+  h.favorites.bindSession('token-B');
+  assert.equal(await h.favorites.syncAuthenticatedFavorites(), true);
+  assert.deepEqual(h.favorites.ids(), ['C1']);
+  assert.equal(h.favorites.isFavorite('A1'), false);
 });
 
 test('claves globales de tema y cookies no se namespacian; pedidos locales ya no se persisten', () => {
@@ -318,18 +452,34 @@ test('claves globales de tema y cookies no se namespacian; pedidos locales ya no
   assert.match(checkout, /if \(!this\.identity\.isCurrent\(checkoutSession\)\) return/);
 });
 
-test('CustomerAuthService.login adopta el carrito guest y logout no lo copia', async () => {
+test('CustomerAuthService.login hidrata favoritos del backend y logout no los copia', async () => {
   const storage = installStorage();
   const identity = new ActiveIdentityService();
   identity.activate(GUEST_IDENTITY);
   const cart = new CartService(identity);
   const delivery = new DeliveryStateService(identity);
   cart.add(product('G1'));
+  const favorites = new FavoritesService(identity);
+  assert.equal(favorites.toggle('G1'), false);
+  const remote = new Map([['B', ['X']]]);
+  favorites.useRemoteAdapter({
+    async get() {
+      const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
+      return [...(remote.get(userId) ?? [])];
+    },
+    async put(ids) {
+      const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
+      remote.set(userId, [...ids]);
+      return [...ids];
+    }
+  });
   let pending;
   const compiled = loader({
     '@angular/core': { ...angular, inject: () => ({
       dismissAll() {},
       close() {},
+      bindSession: (token, onExpired) => favorites.bindSession(token, onExpired),
+      syncAuthenticatedFavorites: () => favorites.syncAuthenticatedFavorites(),
       adoptGuestCart: () => cart.adoptGuestCart(),
       adoptGuestShipping: () => delivery.adoptGuestShipping(),
       warning() {}
@@ -347,8 +497,13 @@ test('CustomerAuthService.login adopta el carrito guest y logout no lo copia', a
   assert.equal(identity.key(), 'user:B');
   assert.deepEqual(names(cart), ['G1']);
   assert.deepEqual(cart.readIdentityCart(GUEST_IDENTITY), []);
+  assert.deepEqual(favorites.ids(), ['X']);
+  assert.deepEqual(remote.get('B'), ['X']);
+  assert.equal(storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), null);
   auth.logout();
   assert.equal(identity.key(), 'guest');
   assert.deepEqual(names(cart), []);
+  assert.deepEqual(favorites.ids(), []);
+  assert.deepEqual(favorites.readIdentityFavorites({ type: 'user', userId: 'B' }), ['X']);
   assert.equal(storage.local.getItem('theme-mode'), null);
 });

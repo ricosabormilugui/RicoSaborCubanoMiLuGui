@@ -195,6 +195,6 @@ test('integraciones seleccionadas: carrito y pedido; campana y ruta también adm
   for(const path of ['home/home-page.component.ts','catalog/catalog-page.component.ts','catalog/product-detail-page.component.ts','cart/cart-page.component.ts'])assert.match(read('src/app/features/'+path),/saveToHistory: true/);
   const app=read('src/app/app.component.ts');assert.match(app,/@defer \(on immediate\) \{ <app-notification-bell \/> \}/);
   assert.doesNotMatch(app,/@if \(customerAuth.isAuthenticated\(\)\)\s*\{\s*@defer/);
-  assert.doesNotMatch(read('src/app/app.routes.ts'),/canActivate: \[customerGuard\]/);
+  assert.doesNotMatch(read('src/app/app.routes.ts'), /path: 'mis-notificaciones'[\s\S]{0,350}canActivate/);
   assert.match(read('src/app/features/checkout/checkout-page.component.ts'),/historySession = this.notifications.historySession\(\)/);
 });

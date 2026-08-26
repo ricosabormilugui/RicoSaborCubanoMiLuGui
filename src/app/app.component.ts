@@ -92,6 +92,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
                   </ng-container>
 
                   <ng-template #loggedMenu>
+                    <a routerLink="/favoritos" (click)="userMenuOpen.set(false)">Mis favoritos</a>
                     <a routerLink="/mis-notificaciones" (click)="userMenuOpen.set(false)">Mis notificaciones</a>
                     <button type="button" (click)="goOrders()">Mis pedidos</button>
                     <button type="button" (click)="logoutCustomer()">Salir</button>
@@ -115,6 +116,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
         <a routerLink="/" (click)="closeMenu()">Inicio</a>
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
+        <a routerLink="/favoritos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis favoritos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
         <a routerLink="/mis-notificaciones" (click)="closeMenu()">{{ customerAuth.isAuthenticated() ? 'Mis notificaciones' : 'Actividad reciente' }}</a>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>

@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { parseFavoriteIds } from "../config/favorites.config.js";
 import { ensureIndexes, getCollection } from "../lib/mongo.js";
 
 function getUsersCollectionName() {
@@ -40,6 +41,7 @@ export async function createUser({ fullName, email, passwordHash, role = "custom
     email: normalizeUserEmail(email),
     passwordHash,
     role,
+    favorites: [],
     createdAt: new Date().toISOString()
   };
 
@@ -47,10 +49,65 @@ export async function createUser({ fullName, email, passwordHash, role = "custom
   return { ...user, _id: result.insertedId };
 }
 
-export async function findUserById(id) {
-  const collection = await getUsersCollection();
-  return collection.findOne({ _id: new ObjectId(id) });
+function toUserObjectId(id) {
+  const value = String(id ?? "").trim();
+  if (!value || !ObjectId.isValid(value)) return null;
+  try {
+    return new ObjectId(value);
+  } catch {
+    return null;
+  }
 }
+
+export async function findUserById(id) {
+  const objectId = toUserObjectId(id);
+  if (!objectId) return null;
+  const collection = await getUsersCollection();
+  return collection.findOne({ _id: objectId });
+}
+
+function readFavoritesField(user) {
+  return parseFavoriteIds(user?.favorites).ids ?? [];
+}
+
+export function createUserFavoritesStore(getCollection = getUsersCollection) {
+  return {
+    async read(userId) {
+      const objectId = toUserObjectId(userId);
+      if (!objectId) return null;
+      const collection = await getCollection();
+      const user = await collection.findOne({ _id: objectId }, { projection: { favorites: 1 } });
+      if (!user) return null;
+      return readFavoritesField(user);
+    },
+    async write(userId, favorites) {
+      const objectId = toUserObjectId(userId);
+      if (!objectId) return null;
+      const parsed = parseFavoriteIds(favorites);
+      if (parsed.error) {
+        const error = new Error(parsed.error);
+        error.status = 400;
+        error.expose = true;
+        throw error;
+      }
+      const collection = await getCollection();
+      const result = await collection.findOneAndUpdate(
+        { _id: objectId },
+        {
+          $set: {
+            favorites: parsed.ids,
+            updatedAt: new Date().toISOString()
+          }
+        },
+        { returnDocument: "after", projection: { favorites: 1 } }
+      );
+      if (!result) return null;
+      return readFavoritesField(result);
+    }
+  };
+}
+
+export const userFavoritesStore = createUserFavoritesStore();
 
 export async function promoteUserToAdmin(email) {
   const normalizedEmail = normalizeUserEmail(email);
