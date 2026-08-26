@@ -71,6 +71,7 @@ function loader(overrides = {}) {
 const load = loader();
 const { ActiveIdentityService, getStorageKey, GUEST_IDENTITY, StaleIdentityError } = load('src/app/core/services/active-identity.service.ts');
 const { CartService } = load('src/app/core/services/cart.service.ts');
+const { FavoritesService } = load('src/app/core/services/favorites.service.ts');
 const { DeliveryStateService } = load('src/app/core/services/delivery-state.service.ts');
 const { NotificationHistoryService } = load('src/app/core/services/notification-history.service.ts');
 const { IdentityRequestService } = load('src/app/core/services/identity-request.service.ts');
@@ -280,6 +281,21 @@ test('IdentityRequestService también descarta el body si la identidad cambia du
   identity.activate({ type: 'user', userId: 'C' });
   await assert.rejects(response.json(), error => error instanceof StaleIdentityError);
   globalThis.fetch = originalFetch;
+});
+
+test('favoritos se namespacian por identidad y no se copian en login ni logout', () => {
+  const h = harness();
+  const favorites = new FavoritesService(h.identity);
+  assert.equal(favorites.toggle('p1'), true);
+  assert.equal(favorites.isFavorite('p1'), true);
+  assert.match(h.storage.local.getItem(getStorageKey('favorites', GUEST_IDENTITY)), /"p1"/);
+  login(h, 'B');
+  assert.equal(favorites.isFavorite('p1'), false);
+  assert.equal(favorites.toggle('p2'), true);
+  logout(h);
+  assert.equal(favorites.isFavorite('p1'), true);
+  assert.equal(favorites.isFavorite('p2'), false);
+  assert.match(h.storage.local.getItem(getStorageKey('favorites', { type: 'user', userId: 'B' })), /"p2"/);
 });
 
 test('claves globales de tema y cookies no se namespacian; pedidos locales ya no se persisten', () => {

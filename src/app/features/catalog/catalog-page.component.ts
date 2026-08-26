@@ -5,21 +5,21 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { isProductCustomizable, Product } from '../../core/models/product.model';
+import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
-import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
-import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, ProductCardComponent, IconComponent],
   templateUrl: './catalog-page.component.html',
   styleUrls: ['./catalog-page.component.css']
 })
@@ -34,7 +34,6 @@ export class CatalogPageComponent implements OnDestroy {
   readonly sortBy = signal<CatalogSort>('featured');
   readonly routeCategory = signal('');
   readonly filtersOpen = signal(false);
-  readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=700';
   readonly skeletonCards = Array.from({ length: 6 });
 
   readonly selectedCategoryRecord = computed(() => this.productCategories.categories().find((item) => item.slug === this.routeCategory()));
@@ -195,21 +194,8 @@ export class CatalogPageComponent implements OnDestroy {
     return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
   }
 
-  productImageAlt(product: Product): string {
-    const category = this.categoryLabel(product.category);
-    return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`;
-  }
-
   retryProducts(): void {
     void this.catalog.loadProducts({ force: true });
-  }
-
-  imageUrl(source: string, width: number): string {
-    return optimizedImageUrl(source, width);
-  }
-
-  imageSrcset(source: string, widths: readonly number[]): string | null {
-    return responsiveImageSrcset(source, widths);
   }
 
   trackProduct(_index: number, product: Product): string {
@@ -254,6 +240,7 @@ export class CatalogPageComponent implements OnDestroy {
   }
 
   addToCart(product: Product): void {
+    if (!isProductOrderable(product)) return;
     if (this.isCustomizable(product)) {
       void this.router.navigate(this.productRoute(product));
       return;

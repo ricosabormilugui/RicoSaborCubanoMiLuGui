@@ -5,13 +5,13 @@ import { CartService } from '../../core/services/cart.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { isProductCustomizable, Product } from '../../core/models/product.model';
+import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
 import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
-import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
 import { HomeContentService } from '../../core/services/home-content.service';
 import { SeoService } from '../../core/services/seo.service';
-import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
@@ -19,7 +19,7 @@ import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/respo
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, AddToCartButtonComponent, IconComponent],
+  imports: [CommonModule, RouterLink, ProductCardComponent, IconComponent],
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.css']
 })
@@ -34,7 +34,6 @@ export class HomePageComponent {
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
   readonly brand = BRAND_CONFIG;
-  readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=1200';
   readonly localZone = SHIPPING_ZONES[0];
   readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
   readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
@@ -81,15 +80,6 @@ export class HomePageComponent {
     return getProductRoute(product);
   }
 
-  categoryLabel(value: string): string {
-    return this.productCategories.labelFor(value) || getProductCategoryLabel(value);
-  }
-
-  productImageAlt(product: Product): string {
-    const category = this.categoryLabel(product.category);
-    return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${this.brand.name}`;
-  }
-
   imageUrl(source: string, width: number): string {
     return optimizedImageUrl(source, width);
   }
@@ -107,6 +97,7 @@ export class HomePageComponent {
   }
 
   addToCart(product: Product): void {
+    if (!isProductOrderable(product)) return;
     if (this.isCustomizable(product)) {
       void this.router.navigate(this.productRoute(product));
       return;

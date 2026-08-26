@@ -87,6 +87,11 @@ export interface ProductApiRecord {
   soldCount?: number;
 }
 
+export function isProductOrderable(product: Product | null | undefined): boolean {
+  if (!product) return false;
+  return product.available !== false && (!product.trackStock || Number(product.stock ?? 0) > 0);
+}
+
 export function isProductCustomizable(product: Product | null | undefined): boolean {
   if (!product) return false;
   const customizationOptions = product.customizationOptions;

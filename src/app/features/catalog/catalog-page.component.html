@@ -112,10 +112,9 @@
         <article class="product skeleton-card" *ngFor="let item of skeletonCards">
           <div class="skeleton-media"></div>
           <div class="content">
-            <span class="skeleton-line skeleton-tag"></span>
             <span class="skeleton-line skeleton-name"></span>
-            <span class="skeleton-line skeleton-price"></span>
             <div class="actions">
+              <span class="skeleton-line skeleton-price"></span>
               <span class="skeleton-button"></span>
             </div>
           </div>
@@ -123,32 +122,11 @@
       </div>
 
       <div class="grid" *ngIf="!isInitialLoading() && filteredProducts().length">
-        <article class="product" *ngFor="let product of filteredProducts(); let first = first; let index = index; trackBy: trackProduct">
-          <a class="image-link" [routerLink]="productRoute(product)" [attr.aria-label]="'Ver detalle de ' + product.name">
-            <img [src]="imageUrl(product.imageUrl || fallbackImage, 900)" [attr.srcset]="imageSrcset(product.imageUrl, [360, 540, 720, 900])" sizes="(min-width: 1100px) 25vw, (min-width: 768px) 33vw, 50vw" [alt]="productImageAlt(product)" width="700" height="520" [attr.loading]="index < 4 ? 'eager' : 'lazy'" [attr.fetchpriority]="first ? 'high' : null" decoding="async" />
-            <span class="product-badges">
-              <span class="product-badge badge-custom" *ngIf="isCustomizable(product)">Personalizable</span>
-              <span class="product-badge badge-best" *ngIf="product.isBestSeller">Más vendido</span>
-              <span class="product-badge badge-featured" *ngIf="product.featured && !product.isBestSeller">Destacado</span>
-            </span>
-          </a>
-          <div class="content">
-            <span class="tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
-            <a class="product-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
-            <div class="price-block">
-              <span *ngIf="isCustomizable(product)">Desde</span>
-              <span *ngIf="!isCustomizable(product) && product.unitLabel">por {{ product.unitLabel }}</span>
-              <strong>{{ product.price | currency:'EUR' }}</strong>
-            </div>
-            <small class="sale-note" *ngIf="minimumQuantity(product) > 1">Mín. {{ minimumQuantity(product) }} uds.</small>
-            <div class="actions">
-              <button *ngIf="isCustomizable(product); else addProduct" class="btn btn-primary btn-sm" type="button" (click)="addToCart(product)">Personalizar</button>
-              <ng-template #addProduct>
-                <app-add-to-cart-button variant="compact" [action]="addAction(product)" label="Añadir" [ariaLabel]="'Añadir ' + product.name + ' al carrito'" />
-              </ng-template>
-            </div>
-          </div>
-        </article>
+        <app-product-card
+          *ngFor="let product of filteredProducts(); let index = index; trackBy: trackProduct"
+          [product]="product"
+          [addAction]="addAction(product)"
+          [priority]="index < 4" />
       </div>
     </section>
 
@@ -160,20 +138,11 @@
         </div>
         <span>Los productos que nuestros clientes vuelven a elegir.</span>
       </div>
-      <div class="mini-grid">
-        <article class="mini-product" *ngFor="let product of bestSellers(); trackBy: trackProduct">
-          <a [routerLink]="productRoute(product)">
-            <img [src]="imageUrl(product.imageUrl || fallbackImage, 240)" [attr.srcset]="imageSrcset(product.imageUrl, [120, 180, 240])" sizes="74px" [alt]="productImageAlt(product)" width="148" height="148" loading="lazy" decoding="async" />
-          </a>
-          <div>
-            <a class="mini-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
-            <strong>{{ product.price | currency:'EUR' }}</strong>
-            <button *ngIf="isCustomizable(product); else addBestSeller" class="btn btn-primary" type="button" (click)="addToCart(product)">Personalizar</button>
-            <ng-template #addBestSeller>
-              <app-add-to-cart-button variant="compact" [action]="addAction(product)" label="Añadir" [ariaLabel]="'Añadir ' + product.name + ' al carrito'" />
-            </ng-template>
-          </div>
-        </article>
+      <div class="grid">
+        <app-product-card
+          *ngFor="let product of bestSellers(); trackBy: trackProduct"
+          [product]="product"
+          [addAction]="addAction(product)" />
       </div>
     </section>
   </ng-container>

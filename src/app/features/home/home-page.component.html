@@ -152,18 +152,11 @@
       <a class="section-link" routerLink="/productos">Ver todos los productos</a>
     </div>
     <div class="product-grid">
-      <article class="product-card" *ngFor="let product of bestSellers(); trackBy: trackProduct">
-        <a class="product-image" [routerLink]="productRoute(product)" [attr.aria-label]="'Ver detalle de ' + product.name">
-          <img [src]="imageUrl(product.imageUrl || fallbackImage, 480)" [attr.srcset]="imageSrcset(product.imageUrl, [240, 360, 480])" sizes="(min-width: 900px) 25vw, 80vw" [alt]="productImageAlt(product)" width="480" height="480" loading="lazy" decoding="async" />
-        </a>
-        <span class="mini-tag" *ngIf="product.category">{{ categoryLabel(product.category) }}</span>
-        <a class="product-name" [routerLink]="productRoute(product)">{{ product.name }}</a>
-        <strong>{{ product.price | currency:'EUR' }}</strong>
-        <button *ngIf="isCustomizable(product); else addBestSeller" class="btn btn-secondary btn-sm" type="button" (click)="addToCart(product)">Personalizar</button>
-        <ng-template #addBestSeller>
-          <app-add-to-cart-button variant="compact" [action]="addAction(product)" label="Añadir" [ariaLabel]="'Añadir ' + product.name + ' al carrito'" />
-        </ng-template>
-      </article>
+      <app-product-card
+        *ngFor="let product of bestSellers(); trackBy: trackProduct"
+        [product]="product"
+        [addAction]="addAction(product)"
+        [sizes]="'(min-width: 900px) 25vw, 50vw'" />
     </div>
   </section>
 

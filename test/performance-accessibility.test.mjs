@@ -37,12 +37,15 @@ test('las imágenes Cloudinary usan formato/calidad automáticos, ancho limitado
   const utility = read('src/app/core/utils/responsive-image.ts');
   const home = read('src/app/features/home/home-page.component.html');
   const catalog = read('src/app/features/catalog/catalog-page.component.html');
+  const card = read('src/app/shared/ui/product-card.component.ts');
   assert.match(utility, /f_auto,q_auto,c_limit,w_/);
   assert.match(utility, /responsiveImageSrcset/);
   assert.match(utility, /if \(!value\) return null/);
   assert.match(home, /fetchpriority="high"/);
   assert.match(home, /srcset/);
-  assert.match(catalog, /fetchpriority/);
+  assert.match(catalog, /app-product-card/);
+  assert.match(card, /fetchpriority/);
+  assert.match(card, /responsiveImageSrcset/);
 });
 
 test('menú y búsqueda gestionan semántica, foco, Escape e inert', () => {

@@ -14,11 +14,12 @@ test('the global header keeps the logo before the burger and exposes no global d
   assert.match(source, /brand-logo-header\{height:clamp\(50px,14vw,54px\)\}/);
 });
 
-test('home renders the public admin categories at a bounded size and keeps favorites scrollable', async () => {
-  const [component, template, styles] = await Promise.all([
+test('home renders the public admin categories at a bounded size and two product cards per row on mobile', async () => {
+  const [component, template, styles, card] = await Promise.all([
     read('src/app/features/home/home-page.component.ts'),
     read('src/app/features/home/home-page.component.html'),
-    read('src/app/features/home/home-page.component.css')
+    read('src/app/features/home/home-page.component.css'),
+    read('src/app/shared/ui/product-card.component.ts')
   ]);
 
   assert.doesNotMatch(component, /filter\(\(category\) => Boolean\(category\.imageUrl\)\)/);
@@ -29,26 +30,29 @@ test('home renders the public admin categories at a bounded size and keeps favor
   assert.match(template, /class="collection-photo" \*ngIf="category\.imageUrl"/);
   assert.match(template, /\[class\.no-image\]="!category\.imageUrl"/);
   assert.match(template, /\[attr\.loading\]="category\.priority \? 'eager' : 'lazy'"/);
+  assert.match(template, /app-product-card/);
   assert.match(styles, /flex:\s*0 0 clamp\(168px, 18vw, 240px\)/);
   assert.match(styles, /max-width:\s*240px/);
-  assert.match(styles, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
-  assert.match(styles, /\.product-image img\s*\{[^}]*height:\s*100%/s);
-  assert.match(styles, /\.product-grid\s*\{[^}]*overflow-x:\s*auto/s);
-  assert.match(styles, /flex:\s*0 0 min\(68vw, 220px\)/);
+  assert.match(styles, /\.product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(card, /\.product-image img\s*\{[^}]*height:\s*100%/s);
 });
 
 test('catalog product cards stay compact and two-up from the mobile base', async () => {
   const styles = await read('src/app/features/catalog/catalog-page.component.css');
   const template = await read('src/app/features/catalog/catalog-page.component.html');
+  const card = await read('src/app/shared/ui/product-card.component.ts');
 
   assert.match(styles, /\.grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /\.image-link\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
-  assert.match(styles, /\.product img\s*\{[^}]*object-fit:\s*cover/s);
-  assert.match(styles, /-webkit-line-clamp:\s*2/);
+  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(card, /object-fit:\s*cover/);
+  assert.match(card, /-webkit-line-clamp:\s*2/);
+  assert.match(card, /@media \(hover: hover\) and \(pointer: fine\)/);
   assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*10/);
   assert.doesNotMatch(template, /product-description/);
   assert.doesNotMatch(template, /Ver detalles/);
-  assert.match(template, /variant="compact"/);
+  assert.match(template, /app-product-card/);
+  assert.doesNotMatch(template, /variant="compact"/);
 });
 
 test('the mobile footer centers the real brand logo', async () => {
