@@ -85,10 +85,16 @@ test('auth y contacto no dependen del placeholder como nombre accesible', () => 
   assert.match(contact, /aria-label="Mensaje"/);
 });
 
-test('el tema se determina antes de cargar la aplicación', () => {
+test('el tema se determina antes de cargar la aplicación y no usa el esquema del sistema', () => {
   const index = read('src/index.html');
+  const theme = read('src/app/core/services/theme.service.ts');
   assert.match(index, /localStorage\.getItem\('theme-mode'\)/);
   assert.match(index, /document\.documentElement\.setAttribute\('data-theme', theme\)/);
+  assert.match(index, /data-theme="light"/);
+  assert.doesNotMatch(index, /prefers-color-scheme/);
+  assert.doesNotMatch(theme, /prefers-color-scheme/);
+  assert.match(theme, /DEFAULT_THEME: ThemeMode = 'light'/);
+  assert.match(theme, /THEME_STORAGE_KEY = 'theme-mode'/);
 });
 
 test('productos y categorías reutilizan la carga durante cinco minutos', () => {

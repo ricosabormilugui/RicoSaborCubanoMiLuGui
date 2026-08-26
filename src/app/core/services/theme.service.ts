@@ -3,7 +3,16 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 
 export type ThemeMode = 'dark' | 'light';
 
-const THEME_STORAGE_KEY = 'theme-mode';
+export const THEME_STORAGE_KEY = 'theme-mode';
+export const DEFAULT_THEME: ThemeMode = 'light';
+
+export function parseThemeMode(value: string | null | undefined): ThemeMode | null {
+  return value === 'light' || value === 'dark' ? value : null;
+}
+
+export function resolveThemeMode(value: string | null | undefined): ThemeMode {
+  return parseThemeMode(value) ?? DEFAULT_THEME;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
@@ -12,17 +21,15 @@ export class ThemeService {
   private readonly storedTheme = this.readStoredTheme();
   private hasExplicitPreference = this.storedTheme !== null;
 
-  readonly mode = signal<ThemeMode>(this.storedTheme ?? this.getPreferredTheme());
+  readonly mode = signal<ThemeMode>(this.storedTheme ?? DEFAULT_THEME);
 
   constructor() {
     effect(() => this.applyTheme(this.mode()));
     this.listenForExternalChanges();
-    this.listenForSystemPreferenceChanges();
   }
 
   toggle(): void {
-    this.hasExplicitPreference = true;
-    this.mode.set(this.mode() === 'dark' ? 'light' : 'dark');
+    this.setTheme(this.mode() === 'dark' ? 'light' : 'dark');
   }
 
   setTheme(theme: ThemeMode): void {
@@ -30,14 +37,9 @@ export class ThemeService {
     this.mode.set(theme);
   }
 
-  private getPreferredTheme(): ThemeMode {
-    return this.windowRef?.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  }
-
   private readStoredTheme(): ThemeMode | null {
     try {
-      const stored = this.windowRef?.localStorage.getItem(THEME_STORAGE_KEY);
-      return stored === 'light' || stored === 'dark' ? stored : null;
+      return parseThemeMode(this.windowRef?.localStorage.getItem(THEME_STORAGE_KEY));
     } catch {
       return null;
     }
@@ -70,23 +72,9 @@ export class ThemeService {
     this.windowRef?.addEventListener('storage', (event) => {
       if (event.key !== THEME_STORAGE_KEY) return;
 
-      if (event.newValue === 'light' || event.newValue === 'dark') {
-        this.hasExplicitPreference = true;
-        this.mode.set(event.newValue);
-        return;
-      }
-
-      this.hasExplicitPreference = false;
-      this.mode.set(this.getPreferredTheme());
-    });
-  }
-
-  private listenForSystemPreferenceChanges(): void {
-    const media = this.windowRef?.matchMedia?.('(prefers-color-scheme: light)');
-    media?.addEventListener?.('change', (event) => {
-      if (!this.hasExplicitPreference) {
-        this.mode.set(event.matches ? 'light' : 'dark');
-      }
+      const stored = parseThemeMode(event.newValue);
+      this.hasExplicitPreference = stored !== null;
+      this.mode.set(stored ?? DEFAULT_THEME);
     });
   }
 }

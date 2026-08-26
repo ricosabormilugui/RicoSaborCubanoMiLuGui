@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <title>MIXSABOR | Sabores que se encuentran</title>
@@ -11,14 +11,13 @@
     <link rel="icon" type="image/png" sizes="232x232" href="/assets/branding/favicon_mixsabor_dark.png" />
     <script>
       (() => {
+        let theme = 'light';
         try {
           const stored = localStorage.getItem('theme-mode');
-          const theme = stored === 'light' || stored === 'dark'
-            ? stored
-            : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-          document.documentElement.setAttribute('data-theme', theme);
-          document.documentElement.style.colorScheme = theme;
+          if (stored === 'light' || stored === 'dark') theme = stored;
         } catch {}
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
       })();
     </script>
     <link rel="canonical" href="https://mixsabor.milugui.com/" />
