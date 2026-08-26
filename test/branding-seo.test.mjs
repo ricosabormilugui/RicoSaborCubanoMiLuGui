@@ -43,7 +43,7 @@ test('caso 6: rutas privadas generan noindex y robots las excluye', () => {
   const routes = read('src/app/app.routes.ts');
   const robots = read('public/robots.txt');
   assert.match(routes, /robots: 'noindex,nofollow'/);
-  for (const path of ['/admin', '/login', '/registro', '/recuperar-contrasena', '/reset-password', '/carrito', '/checkout', '/mis-pedidos']) {
+  for (const path of ['/admin', '/login', '/registro', '/recuperar-contrasena', '/reset-password', '/carrito', '/checkout', '/mis-pedidos', '/favoritos']) {
     assert.match(routes, new RegExp(`['\"]${path.replace('/', '\\/')}['\"]`));
     assert.match(robots, new RegExp(`Disallow: ${path.replace('/', '\\/')}`));
   }
@@ -93,7 +93,7 @@ test('Open Graph, Twitter Cards, sitemap dinámico y robots están presentes', (
   assert.match(seo, /og:site_name/);
   assert.match(seo, /twitter:card/);
   assert.match(sitemap, /"\/productos"/);
-  assert.doesNotMatch(sitemap, /"\/(admin|login|registro|checkout|carrito|mis-pedidos)"/);
+  assert.doesNotMatch(sitemap, /"\/(admin|login|registro|checkout|carrito|mis-pedidos|favoritos)"/);
   assert.match(netlify, /from = "\/sitemap\.xml"/);
   assert.match(robots, /Disallow: \/api\//);
   assert.match(robots, /Sitemap: https:\/\/mixsabor\.milugui\.com\/sitemap\.xml/);

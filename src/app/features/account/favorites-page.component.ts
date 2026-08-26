@@ -45,9 +45,10 @@ export class FavoritesPageComponent {
       const products = this.catalog.products();
       const loading = this.catalog.loading();
       const loadError = this.catalog.loadError();
+      const liveCatalog = this.catalog.hasLiveCatalog();
       untracked(() => {
-        if (loading || loadError || !products.length) return;
-        this.favorites.pruneMissing(products.map((product) => product.id));
+        if (loading || loadError || !liveCatalog || !products.length) return;
+        void this.favorites.pruneMissing(products.map((product) => product.id));
       });
     });
   }

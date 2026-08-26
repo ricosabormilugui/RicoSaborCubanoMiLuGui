@@ -1,13 +1,17 @@
 import { Injectable, Injector, OnDestroy, computed, linkedSignal } from '@angular/core';
-import { MAX_FAVORITES, uniqueFavoriteIds } from '../config/favorites.config';
+import { Router } from '@angular/router';
+import { FAVORITES_LIMIT_MESSAGE, MAX_FAVORITES, uniqueFavoriteIds } from '../config/favorites.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { ActiveIdentityService, GUEST_IDENTITY, StorageIdentity, getStorageKey } from './active-identity.service';
 import { ApiRequestError, requestJson } from '../utils/api-client';
 import { getUserFriendlyError } from '../utils/user-friendly-error';
+import { safeReturnUrl } from '../utils/safe-return-url';
 
 export type FavoritesRemote = {
   get(): Promise<string[]>;
-  put(ids: string[]): Promise<string[]>;
+  add(id: string): Promise<string[]>;
+  remove(id: string): Promise<string[]>;
+  removeMany(ids: string[]): Promise<string[]>;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -71,13 +75,13 @@ export class FavoritesService implements OnDestroy {
     const removing = current.includes(id);
     const next = removing ? current.filter((item) => item !== id) : uniqueFavoriteIds([current, [id]]);
     if (!removing && next.length > MAX_FAVORITES) {
-      this.notify('warning', 'Favoritos', `Puedes guardar hasta ${MAX_FAVORITES} productos. Quita alguno para añadir otro.`, 'favorites-limit');
+      this.notify('warning', 'Favoritos', FAVORITES_LIMIT_MESSAGE, 'favorites-limit');
       return false;
     }
 
     const previous = current;
     this.applyIds(next);
-    void this.persistRemote(next, previous);
+    void this.persistMutation(removing ? 'remove' : 'add', id, previous);
     return next.includes(id);
   }
 
@@ -103,15 +107,34 @@ export class FavoritesService implements OnDestroy {
     return true;
   }
 
-  pruneMissing(knownIds: readonly string[]): void {
-    if (!this.canUseRemote()) return;
+  async pruneMissing(knownIds: readonly string[]): Promise<boolean> {
+    if (!this.canUseRemote()) return false;
     const known = new Set(knownIds.map((item) => String(item ?? '').trim()).filter(Boolean));
-    if (!known.size) return;
+    if (!known.size) return false;
 
     const current = this.storedIds();
+    const orphans = current.filter((id) => !known.has(id));
+    if (!orphans.length) return false;
+
+    const previous = current;
     const next = current.filter((id) => known.has(id));
-    if (next.length === current.length) return;
     this.applyIds(next);
+
+    const generation = ++this.persistGeneration;
+    try {
+      const saved = await this.removeManyRemote(orphans);
+      if (generation !== this.persistGeneration || !this.canUseRemote()) return false;
+      this.applyIds(saved);
+      return true;
+    } catch (error) {
+      if (generation !== this.persistGeneration || !this.canUseRemote()) return false;
+      if (this.consumeAuthExpiry(error)) return false;
+      const recovered = await this.recoverAfterFailure(previous);
+      if (!recovered) {
+        this.notify('error', 'Favoritos', getUserFriendlyError(error, 'No se pudo actualizar tu lista de favoritos.'), 'favorites-sync');
+      }
+      return false;
+    }
   }
 
   private canUseRemote(): boolean {
@@ -127,18 +150,31 @@ export class FavoritesService implements OnDestroy {
     this.writeCurrent(ids);
   }
 
-  private async persistRemote(next: string[], previous: string[]): Promise<void> {
+  private async persistMutation(operation: 'add' | 'remove', id: string, previous: string[]): Promise<void> {
     const generation = ++this.persistGeneration;
     try {
-      const saved = await this.putRemote(next);
+      const saved = operation === 'add' ? await this.addRemote(id) : await this.removeRemote(id);
       if (generation !== this.persistGeneration || !this.canUseRemote()) return;
       this.applyIds(saved);
     } catch (error) {
       if (generation !== this.persistGeneration || !this.canUseRemote()) return;
       if (this.consumeAuthExpiry(error)) return;
       this.applyIds(previous);
-      this.notify('error', 'Favoritos', getUserFriendlyError(error, 'No se pudo actualizar tu lista de favoritos.'), 'favorites-sync');
+      const limitReached = error instanceof ApiRequestError && error.status === 409;
+      this.notify(
+        limitReached ? 'warning' : 'error',
+        'Favoritos',
+        getUserFriendlyError(error, limitReached ? FAVORITES_LIMIT_MESSAGE : 'No se pudo actualizar tu lista de favoritos.'),
+        limitReached ? 'favorites-limit' : 'favorites-sync'
+      );
     }
+  }
+
+  private async recoverAfterFailure(previous: string[]): Promise<boolean> {
+    const synced = await this.syncAuthenticatedFavorites();
+    if (synced) return true;
+    this.applyIds(previous);
+    return false;
   }
 
   private requireAuthentication(): void {
@@ -154,13 +190,16 @@ export class FavoritesService implements OnDestroy {
     );
   }
 
-  private async openLogin(): Promise<void> {
+  private openLogin(): void {
     const injector = this.injector;
     if (!injector) return;
-    const { Router } = await import('@angular/router');
-    const router = injector.get(Router);
-    const current = router.url && router.url !== '/login' ? router.url : '/favoritos';
-    await router.navigate(['/login'], { queryParams: { returnUrl: current } });
+    try {
+      const router = injector.get(Router);
+      const current = router.url && !router.url.startsWith('/login') ? router.url : '/favoritos';
+      void router.navigate(['/login'], { queryParams: { returnUrl: safeReturnUrl(current, '/favoritos') } });
+    } catch {
+      // Navigation is optional feedback; blocking the click is enough.
+    }
   }
 
   private notify(
@@ -178,7 +217,7 @@ export class FavoritesService implements OnDestroy {
   }
 
   private consumeAuthExpiry(error: unknown): boolean {
-    if (!(error instanceof ApiRequestError) || ![401, 403].includes(error.status)) return false;
+    if (!(error instanceof ApiRequestError) || error.status !== 401) return false;
     const expire = this.onAuthExpired;
     this.onAuthExpired = undefined;
     this.token = '';
@@ -197,18 +236,38 @@ export class FavoritesService implements OnDestroy {
     return uniqueFavoriteIds([Array.isArray(data.favorites) ? data.favorites : []]);
   }
 
-  private async putRemote(ids: string[]): Promise<string[]> {
-    if (this.remoteAdapter) return uniqueFavoriteIds([await this.remoteAdapter.put(ids)]);
+  private async addRemote(id: string): Promise<string[]> {
+    if (this.remoteAdapter) return uniqueFavoriteIds([await this.remoteAdapter.add(id)]);
+    const data = await requestJson<{ favorites?: unknown }>(`${this.endpoint}/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${this.token}` }
+    }, 'No se pudieron guardar tus favoritos.');
+    return uniqueFavoriteIds([Array.isArray(data.favorites) ? data.favorites : [id]]);
+  }
+
+  private async removeRemote(id: string): Promise<string[]> {
+    if (this.remoteAdapter) return uniqueFavoriteIds([await this.remoteAdapter.remove(id)]);
+    const data = await requestJson<{ favorites?: unknown }>(`${this.endpoint}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${this.token}` }
+    }, 'No se pudieron guardar tus favoritos.');
+    return uniqueFavoriteIds([Array.isArray(data.favorites) ? data.favorites : []]);
+  }
+
+  private async removeManyRemote(ids: string[]): Promise<string[]> {
+    if (this.remoteAdapter) return uniqueFavoriteIds([await this.remoteAdapter.removeMany(ids)]);
     const data = await requestJson<{ favorites?: unknown }>(this.endpoint, {
-      method: 'PUT',
+      method: 'DELETE',
       cache: 'no-store',
       headers: {
         Authorization: `Bearer ${this.token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ favorites: ids })
+      body: JSON.stringify({ ids })
     }, 'No se pudieron guardar tus favoritos.');
-    return uniqueFavoriteIds([Array.isArray(data.favorites) ? data.favorites : ids]);
+    return uniqueFavoriteIds([Array.isArray(data.favorites) ? data.favorites : []]);
   }
 
   private discardGuestFavorites(): void {

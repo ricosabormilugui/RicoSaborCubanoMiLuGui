@@ -3,6 +3,7 @@
  *  that each ID exists. The server rejects over-limit writes instead of truncating. */
 export const MAX_FAVORITES = 200;
 export const MAX_FAVORITE_ID_LENGTH = 128;
+export const FAVORITES_LIMIT_MESSAGE = `Has alcanzado el límite de ${MAX_FAVORITES} favoritos.`;
 
 export function uniqueFavoriteIds(groups: Iterable<Iterable<unknown>>): string[] {
   const seen = new Set<string>();

@@ -176,6 +176,8 @@ export class CatalogService {
   readonly products = signal<Product[]>(this.readCachedProducts());
   readonly loading = signal(false);
   readonly loadError = signal('');
+  /** True only after a successful catalog fetch in this session. Cache and fallback are not trusted for pruning. */
+  readonly hasLiveCatalog = signal(false);
 
   async loadProducts({ force = false } = {}): Promise<void> {
     if (this.loadingRequest) return this.loadingRequest;
@@ -184,7 +186,11 @@ export class CatalogService {
     this.loading.set(true);
     this.loadError.set('');
     this.loadingRequest = this.fetchProducts()
+      .then(() => {
+        this.hasLiveCatalog.set(true);
+      })
       .catch((error) => {
+        this.hasLiveCatalog.set(false);
         this.loadError.set(getUserFriendlyError(error, 'No podemos actualizar el catálogo en este momento.'));
         if (!this.products().length) {
           this.products.set(fallbackProducts);

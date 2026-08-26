@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { returnUrlQueryParams, safeReturnUrl } from '../../core/utils/safe-return-url';
 
 @Component({
   standalone: true,
@@ -24,7 +25,7 @@ import { NotificationService } from '../../core/services/notification.service';
       <a class="forgot-link" routerLink="/recuperar-contrasena">¿Has olvidado tu contraseña?</a>
       <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
       <p class="ok" *ngIf="auth.isAuthenticated()">Sesión activa como {{ auth.profile()?.email }}</p>
-      <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro">Regístrate aquí</a>.</p>
+      <p class="auth-help">¿No tienes cuenta? <a routerLink="/registro" [queryParams]="returnLinkParams">Regístrate aquí</a>.</p>
     </section>
   `,
   styles: [
@@ -57,8 +58,16 @@ export class LoginPageComponent {
     private readonly notifications: NotificationService
   ) {}
 
+  get returnLinkParams(): { returnUrl: string } | Record<string, never> {
+    return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
+  }
+
   togglePassword(): void {
     this.showPassword.set(!this.showPassword());
+  }
+
+  private destinationUrl(): string {
+    return safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
   }
 
   async login(): Promise<void> {
@@ -66,7 +75,7 @@ export class LoginPageComponent {
     try {
       await this.auth.login(this.email, this.password);
       this.notifications.success('Sesión iniciada', 'Bienvenido de nuevo.');
-      await this.router.navigateByUrl(safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')));
+      await this.router.navigateByUrl(this.destinationUrl());
     } catch (error) {
       const message = getUserFriendlyError(error, 'No se pudo iniciar sesión.');
       this.notifications.error('Error al iniciar sesión', message);
@@ -74,10 +83,4 @@ export class LoginPageComponent {
       this.loading.set(false);
     }
   }
-}
-
-function safeReturnUrl(value: string | null): string {
-  const path = String(value ?? '').trim();
-  if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/login')) return '/checkout';
-  return path;
 }

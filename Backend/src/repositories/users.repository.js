@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { parseFavoriteIds } from "../config/favorites.config.js";
+import { FAVORITES_LIMIT_MESSAGE, MAX_FAVORITES, parseFavoriteId, parseFavoriteIds } from "../config/favorites.config.js";
 import { ensureIndexes, getCollection } from "../lib/mongo.js";
 
 function getUsersCollectionName() {
@@ -98,6 +98,87 @@ export function createUserFavoritesStore(getCollection = getUsersCollection) {
             favorites: parsed.ids,
             updatedAt: new Date().toISOString()
           }
+        },
+        { returnDocument: "after", projection: { favorites: 1 } }
+      );
+      if (!result) return null;
+      return readFavoritesField(result);
+    },
+    async add(userId, productId) {
+      const objectId = toUserObjectId(userId);
+      if (!objectId) return null;
+      const parsed = parseFavoriteId(productId);
+      if (parsed.error) {
+        const error = new Error(parsed.error);
+        error.status = 400;
+        error.expose = true;
+        throw error;
+      }
+
+      const collection = await getCollection();
+      const result = await collection.findOneAndUpdate(
+        {
+          _id: objectId,
+          $or: [
+            { favorites: parsed.id },
+            { $expr: { $lt: [{ $size: { $ifNull: ["$favorites", []] } }, MAX_FAVORITES] } }
+          ]
+        },
+        {
+          $addToSet: { favorites: parsed.id },
+          $set: { updatedAt: new Date().toISOString() }
+        },
+        { returnDocument: "after", projection: { favorites: 1 } }
+      );
+      if (result) return readFavoritesField(result);
+
+      const existing = await collection.findOne({ _id: objectId }, { projection: { favorites: 1 } });
+      if (!existing) return null;
+      const error = new Error(FAVORITES_LIMIT_MESSAGE);
+      error.status = 409;
+      error.expose = true;
+      throw error;
+    },
+    async remove(userId, productId) {
+      const objectId = toUserObjectId(userId);
+      if (!objectId) return null;
+      const parsed = parseFavoriteId(productId);
+      if (parsed.error) {
+        const error = new Error(parsed.error);
+        error.status = 400;
+        error.expose = true;
+        throw error;
+      }
+
+      const collection = await getCollection();
+      const result = await collection.findOneAndUpdate(
+        { _id: objectId },
+        {
+          $pull: { favorites: parsed.id },
+          $set: { updatedAt: new Date().toISOString() }
+        },
+        { returnDocument: "after", projection: { favorites: 1 } }
+      );
+      if (!result) return null;
+      return readFavoritesField(result);
+    },
+    async removeMany(userId, productIds) {
+      const objectId = toUserObjectId(userId);
+      if (!objectId) return null;
+      const parsed = parseFavoriteIds(productIds);
+      if (parsed.error) {
+        const error = new Error(parsed.error);
+        error.status = 400;
+        error.expose = true;
+        throw error;
+      }
+
+      const collection = await getCollection();
+      const result = await collection.findOneAndUpdate(
+        { _id: objectId },
+        {
+          $pullAll: { favorites: parsed.ids },
+          $set: { updatedAt: new Date().toISOString() }
         },
         { returnDocument: "after", projection: { favorites: 1 } }
       );

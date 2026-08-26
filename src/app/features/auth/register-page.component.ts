@@ -2,10 +2,11 @@ import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/config/password-policy.config';
+import { returnUrlQueryParams, safeReturnUrl } from '../../core/utils/safe-return-url';
 
 @Component({
   standalone: true,
@@ -27,7 +28,7 @@ import { getPasswordPolicyError, PASSWORD_POLICY_MESSAGE } from '../../core/conf
       <p class="password-hint">{{ passwordPolicyMessage }}</p>
       <button class="btn btn-primary" (click)="register()" [disabled]="loading()">{{ loading() ? 'Creando...' : 'Crear cuenta' }}</button>
       <p class="err" *ngIf="error()">{{ error() }}</p>
-      <p class="auth-help">¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a>.</p>
+      <p class="auth-help">¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="returnLinkParams">Inicia sesión</a>.</p>
     </section>
   `,
   styles: [
@@ -59,8 +60,13 @@ export class RegisterPageComponent {
   constructor(
     private readonly auth: CustomerAuthService,
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
     private readonly notifications: NotificationService
   ) {}
+
+  get returnLinkParams(): { returnUrl: string } | Record<string, never> {
+    return returnUrlQueryParams(this.route.snapshot.queryParamMap.get('returnUrl'));
+  }
 
   togglePassword(): void {
     this.showPassword.set(!this.showPassword());
@@ -81,7 +87,7 @@ export class RegisterPageComponent {
         ? `Cuenta creada. Se vincularon ${result.linkedOrders} pedidos previos con tu email.`
         : 'Cuenta creada correctamente.';
       this.notifications.success('Registro completado', successMessage);
-      await this.router.navigateByUrl('/checkout');
+      await this.router.navigateByUrl(safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')));
     } catch (error) {
       const message = getUserFriendlyError(error, 'No se pudo crear la cuenta.');
       this.notifications.error('Error al registrarte', message);

@@ -96,11 +96,34 @@ function bindRemote(h, store = new Map()) {
       const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
       return [...(store.get(userId) ?? [])];
     },
-    async put(ids) {
-      if (typeof store.throwPut === 'function') throw store.throwPut();
+    async add(id) {
+      if (typeof store.throwMutate === 'function') throw store.throwMutate();
       const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
-      store.set(userId, [...ids]);
-      return [...ids];
+      const current = [...(store.get(userId) ?? [])];
+      if (current.includes(id)) return current;
+      if (current.length >= 200) {
+        const error = new Error('Has alcanzado el límite de 200 favoritos.');
+        error.status = 409;
+        throw error;
+      }
+      const next = [...current, id];
+      store.set(userId, next);
+      return next;
+    },
+    async remove(id) {
+      if (typeof store.throwMutate === 'function') throw store.throwMutate();
+      const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
+      const next = (store.get(userId) ?? []).filter(item => item !== id);
+      store.set(userId, next);
+      return next;
+    },
+    async removeMany(ids) {
+      if (typeof store.throwMutate === 'function') throw store.throwMutate();
+      const userId = h.identity.identity()?.type === 'user' ? h.identity.identity().userId : '';
+      const drop = new Set(ids);
+      const next = (store.get(userId) ?? []).filter(item => !drop.has(item));
+      store.set(userId, next);
+      return next;
     }
   });
   return store;
@@ -345,7 +368,7 @@ test('favoritos: hidratar sesión restaura backend y add/remove persisten el est
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(h.favorites.ids(), ['Y']);
   assert.deepEqual(remote.get('U1'), ['Y']);
-  remote.throwPut = () => new Error('offline');
+  remote.throwMutate = () => new Error('offline');
   assert.equal(h.favorites.toggle('Z'), true);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(h.favorites.ids(), ['Y']);
@@ -379,17 +402,53 @@ test('favoritos guest: el corazón no guarda ni crea mixsabor.guest.favorites', 
   assert.deepEqual(h.favorites.ids(), []);
 });
 
-test('favoritos: pruneMissing ignora catálogo vacío y solo limpia huérfanos conocidos', () => {
+test('favoritos: pruneMissing ignora catálogo vacío y persiste la poda de huérfanos', async () => {
   const h = harness();
-  bindRemote(h);
+  const remote = bindRemote(h);
   h.identity.activate({ type: 'user', userId: 'U1' });
   h.favorites.bindSession('token-U1');
   h.favorites.toggle('keep');
   h.favorites.toggle('gone');
-  h.favorites.pruneMissing([]);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await h.favorites.pruneMissing([]), false);
   assert.deepEqual(h.favorites.ids(), ['keep', 'gone']);
-  h.favorites.pruneMissing(['keep']);
+  assert.deepEqual(remote.get('U1'), ['keep', 'gone']);
+  assert.equal(await h.favorites.pruneMissing(['keep']), true);
   assert.deepEqual(h.favorites.ids(), ['keep']);
+  assert.deepEqual(remote.get('U1'), ['keep']);
+});
+
+test('favoritos: si la poda remota falla no se pierde la colección', async () => {
+  const h = harness();
+  const remote = bindRemote(h);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  h.favorites.toggle('A');
+  h.favorites.toggle('X');
+  await new Promise((resolve) => setImmediate(resolve));
+  remote.throwMutate = () => new Error('offline');
+  assert.equal(await h.favorites.pruneMissing(['A']), false);
+  assert.deepEqual(h.favorites.ids(), ['A', 'X']);
+  assert.deepEqual(remote.get('U1'), ['A', 'X']);
+});
+
+test('favoritos: 199 add 200, el 201 no muta y remove vuelve a 199', async () => {
+  const h = harness();
+  const remote = bindRemote(h);
+  h.identity.activate({ type: 'user', userId: 'U1' });
+  h.favorites.bindSession('token-U1');
+  for (let index = 0; index < 199; index++) h.favorites.toggle(`p${index}`);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.favorites.toggle('p199'), true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.favorites.ids().length, 200);
+  assert.equal(h.favorites.toggle('overflow'), false);
+  assert.equal(h.favorites.ids().length, 200);
+  assert.equal(h.favorites.isFavorite('overflow'), false);
+  assert.equal(h.favorites.toggle('p199'), false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.favorites.ids().length, 199);
+  assert.equal(remote.get('U1').length, 199);
 });
 
 test('favoritos: usuarios distintos no se ven y A recupera los suyos', () => {
@@ -467,10 +526,25 @@ test('CustomerAuthService.login hidrata favoritos del backend y logout no los co
       const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
       return [...(remote.get(userId) ?? [])];
     },
-    async put(ids) {
+    async add(id) {
       const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
-      remote.set(userId, [...ids]);
-      return [...ids];
+      const current = [...(remote.get(userId) ?? [])];
+      const next = current.includes(id) ? current : [...current, id];
+      remote.set(userId, next);
+      return next;
+    },
+    async remove(id) {
+      const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
+      const next = (remote.get(userId) ?? []).filter(item => item !== id);
+      remote.set(userId, next);
+      return next;
+    },
+    async removeMany(ids) {
+      const userId = identity.identity()?.type === 'user' ? identity.identity().userId : '';
+      const drop = new Set(ids);
+      const next = (remote.get(userId) ?? []).filter(item => !drop.has(item));
+      remote.set(userId, next);
+      return next;
     }
   });
   let pending;

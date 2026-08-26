@@ -19,6 +19,9 @@ test('un error de red conserva catálogo disponible y muestra reintento', () => 
   const service = read('src/app/core/services/catalog.service.ts');
   const template = read('src/app/features/catalog/catalog-page.component.html');
   assert.match(service, /readonly loadError = signal\(''\)/);
+  assert.match(service, /readonly hasLiveCatalog = signal\(false\)/);
+  assert.match(service, /this\.hasLiveCatalog\.set\(true\)/);
+  assert.match(service, /this\.hasLiveCatalog\.set\(false\)/);
   assert.match(service, /this\.products\.set\(fallbackProducts\)/);
   assert.match(template, /catalog\.loadError\(\)/);
   assert.match(template, />Reintentar</);

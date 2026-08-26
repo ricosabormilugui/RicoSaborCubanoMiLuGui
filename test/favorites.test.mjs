@@ -5,27 +5,35 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('la ruta /favoritos es lazy, protegida y reutiliza FavoritesService', async () => {
-  const [routes, guard, page, service, auth, identity, login] = await Promise.all([
+  const [routes, guard, page, service, auth, identity, login, register] = await Promise.all([
     read('src/app/app.routes.ts'),
     read('src/app/core/guards/customer.guard.ts'),
     read('src/app/features/account/favorites-page.component.ts'),
     read('src/app/core/services/favorites.service.ts'),
     read('src/app/core/services/customer-auth.service.ts'),
     read('src/app/core/utils/identity-storage.ts'),
-    read('src/app/features/auth/login-page.component.ts')
+    read('src/app/features/auth/login-page.component.ts'),
+    read('src/app/features/auth/register-page.component.ts')
   ]);
 
   assert.match(routes, /path: 'favoritos'/);
   assert.match(routes, /loadComponent: \(\) => import\('\.\/features\/account\/favorites-page\.component'\)/);
   assert.match(routes, /path: 'favoritos'[\s\S]{0,280}canActivate: \[customerGuard\]/);
+  assert.match(routes, /privateSeo\('Mis favoritos'/);
   assert.match(guard, /queryParams: \{ returnUrl: state\.url \}/);
-  assert.match(login, /safeReturnUrl/);
+  assert.match(login, /safe-return-url/);
+  assert.match(register, /safe-return-url/);
   assert.match(page, /FavoritesService/);
   assert.match(page, /favorites\.ids\(\)/);
+  assert.match(page, /hasLiveCatalog\(\)/);
+  assert.match(page, /pruneMissing/);
   assert.doesNotMatch(page, /localStorage/);
   assert.match(service, /\/customer\/favorites/);
+  assert.match(service, /method: 'POST'/);
+  assert.match(service, /method: 'DELETE'/);
   assert.match(service, /syncAuthenticatedFavorites/);
   assert.match(service, /Inicia sesión para guardar productos en favoritos/);
+  assert.match(service, /FAVORITES_LIMIT_MESSAGE/);
   assert.doesNotMatch(service, /adoptGuestFavorites/);
   assert.doesNotMatch(service, /guestIds/);
   assert.match(identity, /mixsabor\.guest\.favorites/);

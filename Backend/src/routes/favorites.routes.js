@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createFavoritesController } from "../controllers/favorites.controller.js";
-import { requireAuth } from "../middleware/auth.middleware.js";
+import { requireCustomer } from "../middleware/auth.middleware.js";
 import { createRateLimit } from "../middleware/rate-limit.middleware.js";
 import { userFavoritesStore } from "../repositories/users.repository.js";
 
@@ -14,7 +14,7 @@ export function createFavoritesRouter(store = userFavoritesStore) {
     message: "Has realizado demasiados intentos. Inténtalo de nuevo más tarde."
   });
 
-  router.use(requireAuth);
+  router.use(requireCustomer);
   router.use((req, res, next) => {
     res.set("Cache-Control", "private, no-store");
     if (typeof req.auth?.sub !== "string" || !req.auth.sub.trim()) {
@@ -26,6 +26,9 @@ export function createFavoritesRouter(store = userFavoritesStore) {
   const handle = (fn) => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
   router.get("/", handle((req, res) => controller.get(req, res)));
   router.put("/", writeLimit, handle((req, res) => controller.put(req, res)));
+  router.delete("/", writeLimit, handle((req, res) => controller.removeMany(req, res)));
+  router.post("/:productId", writeLimit, handle((req, res) => controller.add(req, res)));
+  router.delete("/:productId", writeLimit, handle((req, res) => controller.remove(req, res)));
   return router;
 }
 

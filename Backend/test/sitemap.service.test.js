@@ -42,7 +42,7 @@ test("caso 4: excluye productos inactivos, borradores e incompletos", () => {
 
 test("caso 5: no incluye rutas privadas", () => {
   const xml = sitemap();
-  for (const route of ["admin", "login", "registro", "checkout", "carrito", "mis-pedidos"]) {
+  for (const route of ["admin", "login", "registro", "checkout", "carrito", "mis-pedidos", "favoritos"]) {
     assert.doesNotMatch(xml, new RegExp(`/${route}(?:<|/)`));
   }
 });
