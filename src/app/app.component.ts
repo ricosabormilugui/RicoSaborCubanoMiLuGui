@@ -28,7 +28,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent],
   template: `
-    <div class="app-shell">
+    <div class="app-shell" [class.is-auth]="isAuthSurface()">
       <div class="top-banner">
         <app-icon name="gift" [size]="16" />
         <span>Regalo sorpresa en tu primer pedido</span>
@@ -285,6 +285,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.container.is-flush{max-width:none;padding:0}`,
     `.main-layout{width:100%;min-height:calc(100vh - 150px)}`,
     `@media (min-width:1024px){.page-content.is-auth{display:flex;flex-direction:column;min-height:0;overflow:hidden}.page-content.is-auth .main-layout{flex:1;min-height:0;display:flex}.page-content.is-auth .route-fade{flex:1;min-height:0;display:flex;width:100%}}`,
+    `@media (max-width:599px){.app-shell.is-auth{min-height:auto;--auth-banner:calc(8px + max(16px,.66rem * 1.2));--auth-nav:calc(max(2px,env(safe-area-inset-top,0px)) + clamp(50px,14vw,54px) + 3px);--auth-chrome:calc(var(--auth-banner) + var(--auth-nav))}.page-content.is-auth{display:flex;flex-direction:column;flex:0 0 auto;min-height:calc(100svh - var(--auth-chrome))}.page-content.is-auth .main-layout{flex:1 1 auto;min-height:auto;display:flex;flex-direction:column;width:100%}.page-content.is-auth .route-fade{flex:1 1 auto;display:flex;flex-direction:column;width:100%}}`,
     `.site-footer{border-top:1px solid var(--border-soft);background:color-mix(in srgb,var(--surface-0) 88%,var(--bg-main) 12%);padding:clamp(1.1rem,2.6vw,1.75rem) 0}`,
     `.footer-grid{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr);gap:clamp(.8rem,2vw,1.4rem);align-items:center}`,
     `.site-footer .eyebrow{margin:0 0 .2rem;color:var(--accent-red-text);font-size:.72rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}`,

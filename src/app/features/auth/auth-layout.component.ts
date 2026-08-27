@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, inject, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { BRAND_CONFIG, getBrandLogo } from '../../core/config/brand.config';
 import { ThemeService } from '../../core/services/theme.service';
 import { AuthVisualStageComponent } from './auth-visual-stage.component';
@@ -9,7 +8,7 @@ import { AUTH_VISUAL_SUCCESS_MS, AUTH_VISUAL_SUCCESS_REDUCED_MS, AuthVisualState
 @Component({
   selector: 'app-auth-layout',
   standalone: true,
-  imports: [CommonModule, RouterLink, AuthVisualStageComponent],
+  imports: [CommonModule, AuthVisualStageComponent],
   templateUrl: './auth-layout.component.html',
   styleUrls: ['./auth-layout.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -165,11 +165,30 @@
 .auth-submit {
   display: inline-grid;
   width: 100%;
-  min-height: 50px;
+  height: 45px;
+  min-height: 45px;
   margin-top: 0.2rem;
+  padding: 0 1.1rem;
+  line-height: 1;
+  border: 1px solid color-mix(in srgb, var(--accent-red) 38%, var(--border-soft) 62%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-red) 78%, var(--brand-blue) 22%);
   box-shadow: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: transform 160ms ease, filter 160ms ease, background-color 160ms ease;
+  transition: transform 160ms ease, filter 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+:host-context([data-theme='dark']) .auth-submit {
+  border-color: color-mix(in srgb, var(--accent-red) 32%, var(--border-soft) 68%);
+  background: color-mix(in srgb, var(--accent-red) 66%, var(--bg-elevated) 34%);
+}
+
+:host-context([data-theme='light']) .auth-submit {
+  border-color: color-mix(in srgb, var(--accent-red) 46%, var(--border-soft) 54%);
+  background: color-mix(in srgb, var(--accent-red) 86%, var(--text-main) 14%);
 }
 
 .auth-submit-label {
@@ -198,7 +217,7 @@
 }
 
 .auth-submit:active:not(:disabled) {
-  transform: none;
+  transform: translateY(0) scale(0.99);
   filter: brightness(0.96);
 }
 
@@ -330,6 +349,22 @@
   .auth-switch,
   .auth-back { text-align: left; }
   .auth-back { margin-left: 0; }
+}
+
+@media (max-width: 599px) {
+  :host {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  app-auth-layout {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+  }
 }
 
 @media (hover: none) {
