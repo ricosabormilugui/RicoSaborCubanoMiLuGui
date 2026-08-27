@@ -32,7 +32,10 @@ test('la ruta /favoritos es lazy, protegida y reutiliza FavoritesService', async
   assert.match(service, /method: 'POST'/);
   assert.match(service, /method: 'DELETE'/);
   assert.match(service, /syncAuthenticatedFavorites/);
+  assert.match(service, /isCustomerAccessToken/);
+  assert.match(service, /payload\.role !== 'customer'/);
   assert.match(service, /Inicia sesión para guardar productos en favoritos/);
+  assert.doesNotMatch(service, /catchError\(\(\)\s*=>\s*\[\]\)/);
   assert.match(service, /FAVORITES_LIMIT_MESSAGE/);
   assert.doesNotMatch(service, /adoptGuestFavorites/);
   assert.doesNotMatch(service, /guestIds/);

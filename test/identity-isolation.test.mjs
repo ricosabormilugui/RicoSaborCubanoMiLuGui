@@ -472,6 +472,72 @@ test('favoritos: usuarios distintos no se ven y A recupera los suyos', () => {
   assert.deepEqual(h.favorites.ids(), ['A1', 'A2']);
 });
 
+function unsignedJwt(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.sig`;
+}
+
+test('GET /customer/favorites usa el JWT customer y nunca el admin', async () => {
+  const calls = [];
+  const compiled = loader({
+    '../utils/api-client': {
+      ApiRequestError: class extends Error {
+        constructor(message, status) {
+          super(message);
+          this.status = status;
+        }
+      },
+      async requestJson(url, init) {
+        calls.push({ url: String(url), authorization: init?.headers?.Authorization });
+        return { favorites: ['ok'] };
+      }
+    }
+  });
+  const { FavoritesService } = compiled('src/app/core/services/favorites.service.ts');
+  installStorage();
+  globalThis.localStorage.setItem('ricosabor-admin-token', unsignedJwt({
+    sub: 'admin:owner@example.test',
+    role: 'admin',
+    email: 'owner@example.test',
+    exp: Math.floor(Date.now() / 1000) + 3600
+  }));
+  const identity = new ActiveIdentityService();
+  const favorites = new FavoritesService(identity);
+  identity.activate({ type: 'user', userId: 'C1' });
+
+  const adminJwt = unsignedJwt({
+    sub: 'admin:owner@example.test',
+    role: 'admin',
+    email: 'owner@example.test',
+    exp: Math.floor(Date.now() / 1000) + 3600
+  });
+  favorites.bindSession(adminJwt);
+  assert.equal(await favorites.syncAuthenticatedFavorites(), false);
+  assert.equal(calls.length, 0);
+
+  const previousCustomerJwt = unsignedJwt({
+    sub: 'C-old',
+    role: 'customer',
+    exp: Math.floor(Date.now() / 1000) + 3600
+  });
+  const customerJwt = unsignedJwt({
+    sub: 'C1',
+    role: 'customer',
+    exp: Math.floor(Date.now() / 1000) + 3600
+  });
+  favorites.bindSession(previousCustomerJwt);
+  identity.activate({ type: 'user', userId: 'C1' });
+  favorites.bindSession(customerJwt);
+  assert.equal(await favorites.syncAuthenticatedFavorites(), true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url.endsWith('/customer/favorites'), true);
+  assert.equal(calls[0].authorization, `Bearer ${customerJwt}`);
+  assert.equal(calls[0].authorization.includes(adminJwt), false);
+  assert.equal(calls[0].authorization.includes(previousCustomerJwt), false);
+  assert.deepEqual(favorites.ids(), ['ok']);
+});
+
 test('favoritos backend: A y B quedan aislados al hidratar desde el servidor', async () => {
   const h = harness();
   const remote = bindRemote(h);

@@ -14,6 +14,30 @@ export type FavoritesRemote = {
   removeMany(ids: string[]): Promise<string[]>;
 };
 
+function decodeJwtPayload(token: string): { role?: unknown; exp?: unknown } | null {
+  const parts = String(token ?? '').split('.');
+  if (parts.length !== 3 || !parts[1]) return null;
+  try {
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(globalThis.atob(padded)) as { role?: unknown; exp?: unknown };
+  } catch {
+    return null;
+  }
+}
+
+function isCustomerAccessToken(token: string): boolean {
+  const raw = String(token ?? '').trim();
+  if (!raw) return false;
+  const payload = decodeJwtPayload(raw);
+  if (!payload) return raw.split('.').length !== 3;
+  if (payload.role !== 'customer') return false;
+  if (typeof payload.exp === 'number' && Number.isFinite(payload.exp) && payload.exp < Math.floor(Date.now() / 1000)) {
+    return false;
+  }
+  return true;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FavoritesService implements OnDestroy {
   private readonly storedIds = linkedSignal<string[]>(() => {
@@ -53,7 +77,8 @@ export class FavoritesService implements OnDestroy {
 
   bindSession(token: string, onAuthExpired?: () => void): void {
     this.discardGuestFavorites();
-    this.token = String(token ?? '');
+    const raw = String(token ?? '').trim();
+    this.token = isCustomerAccessToken(raw) ? raw : '';
     this.onAuthExpired = this.token ? onAuthExpired : undefined;
     this.syncGeneration += 1;
     this.persistGeneration += 1;

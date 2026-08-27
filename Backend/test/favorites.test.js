@@ -219,7 +219,9 @@ test("token admin queda explícitamente rechazado en rutas customer", async () =
     const envAdmin = signToken({ sub: "admin:owner@example.test", role: "admin", email: "owner@example.test" });
     const promotedAdmin = signToken({ sub: userId, role: "admin" });
     for (const token of [envAdmin, promotedAdmin]) {
-      assert.equal((await call("GET", token)).status, 403);
+      const denied = await call("GET", token);
+      assert.equal(denied.status, 403);
+      assert.deepEqual(await denied.json(), { error: "Customer access required" });
       assert.equal((await call("POST", token, { path: "/X" })).status, 403);
       assert.equal((await call("DELETE", token, { path: "/keep" })).status, 403);
       assert.equal((await call("PUT", token, { body: { favorites: ["X"] } })).status, 403);
