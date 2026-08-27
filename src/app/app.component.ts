@@ -1,6 +1,6 @@
 import { getUserFriendlyError } from './core/utils/user-friendly-error';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, ElementRef, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, NavigationStart, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { CartService } from './core/services/cart.service';
 import { CustomerAuthService } from './core/services/customer-auth.service';
@@ -17,6 +17,7 @@ import { LEGAL_NAV_LINKS } from './core/config/legal-links.config';
 import { CookieConsentService } from './core/services/cookie-consent.service';
 import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
 import { IconComponent } from './shared/ui/icon.component';
+import { AccountMenuComponent } from './shared/ui/account-menu.component';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
 import { ProductCategoryService } from './core/services/product-category.service';
 import { SeoMetaInput, SeoService } from './core/services/seo.service';
@@ -26,7 +27,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent, AccountMenuComponent],
   template: `
     <div class="app-shell" [class.is-auth]="isAuthSurface()">
       <div class="top-banner">
@@ -58,13 +59,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
               <app-icon name="search" />
             </button>
 
-            <button
-              class="icon-btn mobile-only"
-              type="button"
-              (click)="openAccount()"
-              [attr.aria-label]="customerAuth.isAuthenticated() ? 'Mi cuenta' : 'Iniciar sesión'">
-              <app-icon name="user" />
-            </button>
+            <app-account-menu (opened)="onAccountMenuOpened()" />
 
             <button class="cart-box" type="button" (click)="openCart()" aria-label="Carrito">
               <app-icon name="cart" />
@@ -79,31 +74,11 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
               <button class="icon-btn" type="button" (click)="openContact()" aria-label="Contacto">
                 <app-icon name="phone" />
               </button>
-
-              <div class="user-menu">
-                <button class="icon-btn" type="button" (click)="toggleUserMenu()" aria-label="Cuenta">
-                  <app-icon name="user" />
-                </button>
-
-                <div class="dropdown" *ngIf="userMenuOpen()">
-                  <ng-container *ngIf="!customerAuth.isAuthenticated(); else loggedMenu">
-                    <button type="button" (click)="goLogin()">Iniciar sesión</button>
-                    <button type="button" (click)="goRegister()">Registro</button>
-                  </ng-container>
-
-                  <ng-template #loggedMenu>
-                    <a routerLink="/favoritos" (click)="userMenuOpen.set(false)">Mis favoritos</a>
-                    <a routerLink="/mis-notificaciones" (click)="userMenuOpen.set(false)">Mis notificaciones</a>
-                    <button type="button" (click)="goOrders()">Mis pedidos</button>
-                    <button type="button" (click)="logoutCustomer()">Salir</button>
-                  </ng-template>
-                </div>
-              </div>
-
-              <button class="theme-btn" type="button" (click)="toggleTheme()" [attr.aria-label]="theme() === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'">
-                <app-icon [name]="theme() === 'dark' ? 'sun' : 'moon'" />
-              </button>
             </div>
+
+            <button class="theme-btn desktop-only" type="button" (click)="toggleTheme()" [attr.aria-label]="theme() === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'">
+              <app-icon [name]="theme() === 'dark' ? 'sun' : 'moon'" />
+            </button>
           </div>
         </div>
       </header>
@@ -116,9 +91,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
         <a routerLink="/" (click)="closeMenu()">Inicio</a>
         <a routerLink="/productos" (click)="closeMenu()">Productos</a>
-        <a routerLink="/favoritos" (click)="closeMenu()" *ngIf="customerAuth.isAuthenticated()">Mis favoritos</a>
         <a routerLink="/checkout" (click)="closeMenu()">Checkout</a>
-        <a routerLink="/mis-notificaciones" (click)="closeMenu()">{{ customerAuth.isAuthenticated() ? 'Mis notificaciones' : 'Actividad reciente' }}</a>
+        <a routerLink="/mis-notificaciones" (click)="closeMenu()" *ngIf="!customerAuth.isAuthenticated()">Actividad reciente</a>
         <button type="button" class="menu-action" (click)="openContact()">Contacto</button>
 
         <button
@@ -129,9 +103,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
           <app-icon [name]="theme() === 'dark' ? 'sun' : 'moon'" [size]="18" />
           <span>{{ theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}</span>
         </button>
-
-        <a routerLink="/registro" (click)="closeMenu()" *ngIf="!customerAuth.isAuthenticated()">Registro</a>
-        <button type="button" class="menu-action" (click)="logoutCustomer()" *ngIf="customerAuth.isAuthenticated()">Salir cliente</button>
 
         <div class="menu-divider" *ngIf="isAdmin()"></div>
         <a routerLink="/admin/dashboard" (click)="closeMenu()" *ngIf="isAdmin()">Admin dashboard</a>
@@ -255,12 +226,8 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.cart-box{position:relative;width:34px;height:34px;padding:0;display:inline-grid;place-items:center;border-radius:10px;border:1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);background:transparent;color:var(--text-main);cursor:pointer}`,
     `.badge{position:absolute;top:-5px;right:-5px;background:var(--accent-red);border-radius:50%;font-size:10px;padding:2px 5px;color:var(--on-accent)}`,
     `.desktop-only{display:none}`,
-    `.mobile-only{display:inline-flex}`,
+    `.mobile-only{display:inline-grid;place-items:center}`,
     `.theme-btn{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;background:color-mix(in srgb, var(--surface-2) 80%, transparent);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);color:var(--text-main);border-radius:10px;cursor:pointer}`,
-    `.user-menu{position:relative}`,
-    `.dropdown{position:absolute;right:0;top:38px;display:grid;gap:4px;background:var(--surface-0);border:1px solid color-mix(in srgb, var(--border-soft) 75%, transparent);border-radius:10px;padding:8px;min-width:150px;z-index:60;animation:fadeIn .2s ease}`,
-    `.dropdown button,.dropdown a{font:inherit;text-decoration:none;background:color-mix(in srgb, var(--surface-2) 40%, transparent);border:0;color:var(--text-main);padding:8px;border-radius:8px;text-align:left;cursor:pointer}`,
-    `.dropdown button:hover,.dropdown a:hover{background:color-mix(in srgb, var(--surface-2) 70%, transparent)}`,
     `.side-menu{position:fixed;left:0;top:0;width:min(280px,calc(100vw - 24px));max-width:100%;height:100%;background:var(--surface-0);transition:.3s;z-index:100;padding:20px;display:grid;align-content:start;gap:10px;transform:translateX(-100%);overflow-y:auto;overflow-x:hidden}`,
     `.side-menu.open{transform:translateX(0)}`,
     `.menu-header{display:flex;align-items:center;gap:8px;color:var(--text-main);background:color-mix(in srgb, var(--surface-2) 55%, transparent);padding:10px 12px;border-radius:10px;min-width:0}`,
@@ -311,18 +278,18 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
     `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px;flex:0 0 44px}.nav-grid{gap:4px}.nav-right{gap:2px;flex-wrap:nowrap}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none}}`,
-    `@media (prefers-reduced-motion:reduce){.dropdown{animation:none}.icon-btn,.result{transition:none}}`,
-    `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}}`
+    `@media (prefers-reduced-motion:reduce){.icon-btn,.result{transition:none}}`,
+    `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}.nav-right>.cart-box{order:1}.nav-right>.desktop-only{order:2}.nav-right>app-account-menu{order:3}.nav-right>.theme-btn{order:4}}`
   ]
 })
 export class AppComponent {
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
-  private readonly host = inject(ElementRef<HTMLElement>);
   private readonly themeService = inject(ThemeService);
   private readonly productCategories = inject(ProductCategoryService);
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly document = inject(DOCUMENT);
+  private readonly accountMenu = viewChild(AccountMenuComponent);
   private returnFocusElement: HTMLElement | null = null;
   private menuReturnFocusElement: HTMLElement | null = null;
 
@@ -331,7 +298,6 @@ export class AppComponent {
   readonly brandLogo = computed(() => getBrandLogo(this.theme()));
   readonly brandLogoAvailable = signal(BRAND_CONFIG.logos.available);
   readonly menuOpen = signal(false);
-  readonly userMenuOpen = signal(false);
   readonly searchOpen = signal(false);
   readonly searchQuery = signal('');
   readonly newsletterEmail = signal('');
@@ -376,15 +342,6 @@ export class AppComponent {
     void this.productCategories.loadPublicCategories().catch(() => undefined);
   }
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: Event): void {
-    const target = event.target as Node | null;
-    if (!target) return;
-    if (!this.host.nativeElement.contains(target)) {
-      this.userMenuOpen.set(false);
-    }
-  }
-
   async submitNewsletter(event?: Event): Promise<void> {
     event?.preventDefault();
     const email = this.newsletterEmail().trim().toLowerCase();
@@ -423,7 +380,7 @@ export class AppComponent {
     if (nextOpen) this.menuReturnFocusElement = this.document.activeElement as HTMLElement | null;
     else this.menuReturnFocusElement?.focus();
     this.menuOpen.set(nextOpen);
-    this.userMenuOpen.set(false);
+    this.accountMenu()?.close();
     this.searchOpen.set(false);
     if (nextOpen) {
       globalThis.setTimeout(() => this.document.querySelector<HTMLElement>('#site-menu a, #site-menu button')?.focus());
@@ -465,14 +422,11 @@ export class AppComponent {
       event.preventDefault();
       this.closeMenu();
       this.document.getElementById('menu-trigger')?.focus();
-    } else if (this.userMenuOpen()) {
-      this.userMenuOpen.set(false);
+    } else if (this.accountMenu()?.isOpen()) {
+      event.preventDefault();
+      this.accountMenu()?.close();
+      this.accountMenu()?.focusTrigger();
     }
-  }
-
-  toggleUserMenu(): void {
-    this.userMenuOpen.set(!this.userMenuOpen());
-    this.menuOpen.set(false);
   }
 
   toggleSearch(): void {
@@ -483,7 +437,7 @@ export class AppComponent {
     }
     this.searchOpen.set(nextOpen);
     this.menuOpen.set(false);
-    this.userMenuOpen.set(false);
+    this.accountMenu()?.close();
     if (nextOpen) {
       globalThis.setTimeout(() => this.document.getElementById('app-search-input')?.focus());
     } else {
@@ -533,30 +487,14 @@ export class AppComponent {
 
   openCart(): void {
     this.closeMenu();
+    this.accountMenu()?.close();
     void this.router.navigateByUrl('/carrito');
   }
 
-  openAccount(): void {
-    if (this.customerAuth.isAuthenticated()) this.goOrders();
-    else this.goLogin();
-  }
-
-  goLogin(): void {
-    this.userMenuOpen.set(false);
+  onAccountMenuOpened(): void {
     this.closeMenu();
-    void this.router.navigateByUrl('/login');
-  }
-
-  goRegister(): void {
-    this.userMenuOpen.set(false);
-    this.closeMenu();
-    void this.router.navigateByUrl('/registro');
-  }
-
-  goOrders(): void {
-    this.userMenuOpen.set(false);
-    this.closeMenu();
-    void this.router.navigateByUrl('/mis-pedidos');
+    this.searchOpen.set(false);
+    this.searchQuery.set('');
   }
 
   openContact(): void {
@@ -575,13 +513,6 @@ export class AppComponent {
 
   markBrandLogoUnavailable(): void {
     this.brandLogoAvailable.set(false);
-  }
-
-  logoutCustomer(): void {
-    this.userMenuOpen.set(false);
-    this.closeMenu();
-    this.customerAuth.logout();
-    this.notifications.info('Sesión cerrada', 'Hasta pronto.');
   }
 
   isAdmin(): boolean {

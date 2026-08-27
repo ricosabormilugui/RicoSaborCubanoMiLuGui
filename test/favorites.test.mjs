@@ -65,9 +65,18 @@ test('Mis favoritos reutiliza app-product-card, grid del catálogo y estado vac�
 });
 
 test('el acceso a favoritos queda en el menú autenticado', async () => {
-  const app = await read('src/app/app.component.ts');
+  const [app, menu] = await Promise.all([
+    read('src/app/app.component.ts'),
+    read('src/app/shared/ui/account-menu.component.ts')
+  ]);
 
-  assert.match(app, /<a routerLink="\/favoritos" \(click\)="userMenuOpen\.set\(false\)">Mis favoritos<\/a>/);
-  assert.match(app, /<a routerLink="\/favoritos" \(click\)="closeMenu\(\)" \*ngIf="customerAuth\.isAuthenticated\(\)">Mis favoritos<\/a>/);
+  assert.match(app, /<app-account-menu/);
+  assert.doesNotMatch(app, /openAccount\(/);
+  assert.doesNotMatch(app, /userMenuOpen/);
+  assert.match(menu, /routerLink="\/favoritos"/);
+  assert.match(menu, /Mis favoritos/);
+  assert.match(menu, /auth\.isAuthenticated\(\)/);
+  assert.match(menu, /auth\.logout\(\)/);
+  assert.doesNotMatch(app, /routerLink="\/favoritos"/);
   assert.doesNotMatch(app, /routerLink="\/favoritos"[\s\S]{0,80}class="icon-btn"/);
 });
