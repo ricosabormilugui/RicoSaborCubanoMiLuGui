@@ -1,111 +1,213 @@
+<section class="detail-page" [class.has-sticky]="showStickyPurchase()" [attr.aria-busy]="isLoadingDetail()">
+  <a class="back-link" routerLink="/productos">← Volver a productos</a>
 
-    <section class="detail-page" [attr.aria-busy]="isLoadingDetail()">
-      <a class="back-link" routerLink="/productos">← Volver a productos</a>
+  <div class="detail-skeleton" *ngIf="isLoadingDetail(); else productState" aria-label="Cargando producto">
+    <div class="hero-frame skeleton-block"></div>
+    <div class="info-stack">
+      <span class="skeleton-line skeleton-kicker"></span>
+      <span class="skeleton-line skeleton-title"></span>
+      <span class="skeleton-line skeleton-price"></span>
+      <span class="skeleton-line skeleton-copy"></span>
+      <span class="skeleton-line skeleton-copy is-short"></span>
+    </div>
+  </div>
 
-      <article class="detail-card card detail-skeleton" *ngIf="isLoadingDetail(); else productState" aria-label="Cargando producto">
-        <div class="image-panel skeleton-block"></div>
-        <div class="info-panel">
-          <span class="skeleton-line skeleton-tag"></span>
-          <span class="skeleton-line skeleton-title"></span>
-          <span class="skeleton-line skeleton-price"></span>
-          <span class="skeleton-line skeleton-copy"></span>
-          <span class="skeleton-line skeleton-copy short"></span>
-          <div class="purchase-row">
-            <span class="skeleton-input"></span>
-            <span class="skeleton-cta"></span>
+  <ng-template #productState>
+    <ng-container *ngIf="product(); else notFound">
+      <article class="product-stage">
+        <div class="media-col">
+          <div class="hero-frame">
+            <img
+              class="hero-image"
+              [src]="imageUrl(selectedImage() || currentImages()[0] || fallbackImage, 1200)"
+              [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [480, 720, 960, 1200])"
+              sizes="(min-width: 1024px) 46vw, 100vw"
+              [alt]="productImageAlt(product()!)"
+              width="900"
+              height="700"
+              decoding="async"
+              fetchpriority="high" />
           </div>
+          <div class="thumbs" *ngIf="currentImages().length > 1" role="group" aria-label="Galería de imágenes">
+            <button
+              class="thumb"
+              type="button"
+              *ngFor="let image of currentImages(); trackBy: trackImage"
+              [class.is-active]="(selectedImage() || currentImages()[0]) === image"
+              [attr.aria-pressed]="(selectedImage() || currentImages()[0]) === image"
+              [attr.aria-label]="'Ver imagen de ' + product()!.name"
+              (click)="selectImage(image)">
+              <img
+                [src]="imageUrl(image, 240)"
+                [attr.srcset]="imageSrcset(image, [120, 180, 240])"
+                sizes="64px"
+                [alt]=""
+                width="120"
+                height="90"
+                loading="lazy"
+                decoding="async" />
+            </button>
+          </div>
+        </div>
+
+        <div class="info-col">
+          <header class="product-intro">
+            <p class="kicker">
+              <span *ngIf="product()!.category">{{ categoryLabel(product()!.category) }}</span>
+              <span class="badge" *ngIf="isCustomCake(product()!)">Personalizable</span>
+              <span class="badge is-sold" *ngIf="!isOrderable(product()!)">Agotado</span>
+            </p>
+            <h1>{{ product()!.name }}</h1>
+            <div class="price-block">
+              <span class="price-kicker" *ngIf="priceKicker(product()!)">{{ priceKicker(product()!) }}</span>
+              <p class="price-value" aria-live="polite" [attr.data-price]="customizedTotal(product()!)">
+                {{ customizedTotal(product()!) | currency:'EUR' }}
+                <small *ngIf="product()!.unitLabel"> / {{ product()!.unitLabel }}</small>
+              </p>
+              <p class="price-sub" *ngIf="isCustomCake(product()!) && customizationExtraTotal()">
+                Base {{ product()!.price | currency:'EUR' }}
+                · Personalización +{{ customizationExtraTotal() | currency:'EUR' }}
+              </p>
+            </div>
+            <p class="lede">{{ introText(product()!) }}</p>
+            <p class="note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
+            <p class="note is-alert" *ngIf="!isOrderable(product()!)">Producto agotado temporalmente. Puedes consultar sus detalles y volver más adelante.</p>
+          </header>
+
+          <section
+            class="configurator"
+            *ngIf="isCustomCake(product()!) && customizationGroups(product()!).length"
+            [attr.aria-labelledby]="'config-title'">
+            <header class="config-head">
+              <h2 id="config-title">Personaliza tu encargo</h2>
+              <p>Elige las opciones. El precio se actualiza al instante.</p>
+            </header>
+
+            <fieldset
+              class="option-group"
+              *ngFor="let group of customizationGroups(product()!); trackBy: trackGroup"
+              [id]="'config-' + group.key"
+              [class.is-complete]="isGroupComplete(group)"
+              [class.is-invalid]="isGroupInvalid(group)"
+              [attr.aria-invalid]="isGroupInvalid(group) ? true : null"
+              [attr.data-layout]="groupLayout(group)">
+              <legend>
+                <span class="group-title">
+                  <span class="group-check" *ngIf="isGroupComplete(group)" aria-hidden="true">✓</span>
+                  {{ group.label }}
+                </span>
+                <span class="group-meta">{{ group.required ? 'Obligatorio' : 'Opcional' }} · {{ group.selectionType === 'multiple' ? 'Puedes elegir varias' : 'Una opción' }}</span>
+              </legend>
+
+              <div
+                class="option-grid"
+                [attr.role]="group.selectionType === 'multiple' ? 'group' : 'radiogroup'"
+                [attr.aria-label]="group.label">
+                <button
+                  class="option"
+                  type="button"
+                  *ngFor="let option of visibleOptions(group); trackBy: trackOption"
+                  [class.is-selected]="isOptionSelected(group.key, option)"
+                  [attr.role]="group.selectionType === 'multiple' ? 'checkbox' : 'radio'"
+                  [attr.aria-checked]="isOptionSelected(group.key, option)"
+                  (click)="selectCustomization(group, option)">
+                  <span class="option-mark" aria-hidden="true"></span>
+                  <span class="option-copy">
+                    <span class="option-name">{{ optionCaption(option).title }}</span>
+                    <span class="option-hint" *ngIf="optionCaption(option).hint">{{ optionCaption(option).hint }}</span>
+                  </span>
+                  <span class="option-price" *ngIf="optionPriceModifier(option)">+{{ optionPriceModifier(option) | currency:'EUR' }}</span>
+                </button>
+              </div>
+
+              <button
+                class="more-options"
+                type="button"
+                *ngIf="group.options.length > optionPreviewLimit && !isGroupExpanded(group.key)"
+                (click)="expandGroup(group.key)">
+                Ver {{ group.options.length - optionPreviewLimit }} más
+              </button>
+            </fieldset>
+          </section>
+
+          <div class="summary" *ngIf="isCustomCake(product()!) && configurationSummary(product()!).length">
+            <h2>Tu selección</h2>
+            <p>{{ configurationSummary(product()!).join(' · ') }}</p>
+          </div>
+
+          <div class="buy-row" #purchaseAnchor *ngIf="isOrderable(product()!)">
+            <div class="qty" role="group" [attr.aria-label]="'Cantidad, mínimo ' + minimumQuantity(product()!)">
+              <button type="button" (click)="adjustQuantity(-1)" [disabled]="quantity() <= minimumQuantity(product()!)" aria-label="Reducir cantidad">−</button>
+              <span aria-live="polite">{{ quantity() }}</span>
+              <button type="button" (click)="adjustQuantity(1)" [disabled]="quantity() >= 99" aria-label="Aumentar cantidad">+</button>
+            </div>
+            <app-add-to-cart-button
+              class="buy-cta"
+              variant="large"
+              [action]="detailAddAction(product()!)"
+              label="Añadir al carrito"
+              [ariaLabel]="'Añadir ' + product()!.name + ' al carrito'" />
+          </div>
+          <p class="field-error" *ngIf="customizationError()" role="alert">{{ customizationError() }}</p>
         </div>
       </article>
 
-      <ng-template #productState>
-        <ng-container *ngIf="product(); else notFound">
-          <article class="detail-card card">
-            <div class="gallery-panel">
-              <div class="image-panel">
-                <img [src]="imageUrl(selectedImage() || currentImages()[0] || fallbackImage, 1200)" [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [480, 720, 960, 1200])" sizes="(min-width: 920px) 52vw, 100vw" [alt]="productImageAlt(product()!)" width="900" height="700" decoding="async" fetchpriority="high" />
-              </div>
-              <div class="thumb-row" *ngIf="currentImages().length > 1" aria-label="Galería de imágenes">
-                <button class="thumb-btn" type="button" *ngFor="let image of currentImages(); trackBy: trackImage" [class.active]="(selectedImage() || currentImages()[0]) === image" (click)="selectImage(image)">
-                  <img [src]="imageUrl(image, 240)" [attr.srcset]="imageSrcset(image, [120, 180, 240])" sizes="82px" [alt]="productImageAlt(product()!)" width="120" height="90" loading="lazy" decoding="async" />
-                </button>
-              </div>
-            </div>
-
-            <div class="info-panel">
-              <span class="tag" *ngIf="product()!.category">{{ categoryLabel(product()!.category) }}</span>
-              <h1>{{ product()!.name }}</h1>
-              <span class="price-label" *ngIf="isCustomCake(product()!)">Precio final</span>
-              <strong class="price">{{ customizedTotal(product()!) | currency:'EUR' }}<small *ngIf="product()!.unitLabel"> / {{ product()!.unitLabel }}</small></strong>
-              <span class="base-price" *ngIf="isCustomCake(product()!)">Precio base {{ product()!.price | currency:'EUR' }}<ng-container *ngIf="customizationExtraTotal()"> · Extras +{{ customizationExtraTotal() | currency:'EUR' }}</ng-container></span>
-              <div class="price-breakdown" *ngIf="selectedPricedOptions().length">
-                <span *ngFor="let option of selectedPricedOptions()"><span>{{ option.name }}</span><strong>+{{ optionPriceModifier(option) | currency:'EUR' }}</strong></span>
-              </div>
-              <p class="description">{{ product()!.description || ('Producto casero preparado por ' + brand.name + '.') }}</p>
-              <p class="sale-note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
-              <p class="sale-note" *ngIf="!isOrderable(product()!)">Producto agotado temporalmente. Puedes consultar sus detalles y volver más adelante.</p>
-
-              <section class="cake-config" *ngIf="isCustomCake(product()!) && customizationGroups(product()!).length">
-                <h2>Personaliza tu tarta</h2>
-                <p>Elige las opciones de tu encargo. Los extras actualizan el precio final.</p>
-                <div class="option-group" *ngFor="let group of customizationGroups(product()!)">
-                  <span>{{ group.label }} <small>{{ group.required ? 'Obligatorio' : 'Opcional' }} · {{ group.selectionType === 'multiple' ? 'Varias opciones' : 'Una opción' }}</small></span>
-                  <div class="option-list">
-                    <button type="button" class="option-chip" *ngFor="let option of group.options" [class.active]="isOptionSelected(group.key, option)" [attr.aria-pressed]="isOptionSelected(group.key, option)" (click)="selectCustomization(group, option)">
-                      {{ option.name }} <small *ngIf="optionPriceModifier(option)">(+{{ optionPriceModifier(option) | currency:'EUR' }})</small>
-                    </button>
-                  </div>
-                </div>
-                <small class="field-error" *ngIf="customizationError()">{{ customizationError() }}</small>
-              </section>
-
-              <div class="purchase-row" *ngIf="isOrderable(product()!)">
-                <label class="quantity-field">
-                  Cantidad
-                  <input type="number" [attr.min]="minimumQuantity(product()!)" max="99" inputmode="numeric" [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" />
-                </label>
-                <app-add-to-cart-button class="add-button" variant="large" [action]="detailAddAction(product()!)" label="Añadir al carrito" [ariaLabel]="'Añadir ' + product()!.name + ' al carrito'" />
-              </div>
-            </div>
+      <section class="details" *ngIf="showDetails(product()!)">
+        <h2>Detalles del producto</h2>
+        <div class="details-grid" *ngIf="hasExtendedDescription(product()!) || productIngredients(product()!).length">
+          <article *ngIf="hasExtendedDescription(product()!)">
+            <h3>Descripción</h3>
+            <p>{{ product()!.description }}</p>
           </article>
-
-          <section class="detail-sections">
-            <article class="info-card card">
-              <h2>Descripción</h2>
-              <p>{{ product()!.description || ('Producto artesanal preparado por ' + brand.name + '.') }}</p>
-            </article>
-            <article class="info-card card" *ngIf="productIngredients(product()!).length">
-              <h2>Ingredientes</h2>
-              <ul><li *ngFor="let ingredient of productIngredients(product()!)">{{ ingredient }}</li></ul>
-            </article>
-            <article class="info-card card reviews-card" *ngIf="productReviews(product()!).length">
-              <div class="reviews-head"><h2>Opiniones de clientes</h2><strong>{{ averageRating(product()!) | number:'1.1-1' }} ★</strong></div>
-              <div class="review-list">
-                <div class="review" *ngFor="let review of productReviews(product()!)">
-                  <strong>{{ review.author }}</strong><span class="stars">{{ stars(review.rating) }}</span><p>{{ review.comment }}</p><small *ngIf="review.date">{{ review.date | date:'dd/MM/yyyy' }}</small>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          <section class="related" *ngIf="relatedProducts().length">
-            <div class="related-head"><h2>Más vendidos</h2><span>También te puede gustar</span></div>
-            <div class="mini-grid">
-              <article class="mini-product" *ngFor="let item of relatedProducts(); trackBy: trackProduct">
-                <a class="mini-image" [routerLink]="productRoute(item)" [attr.aria-label]="'Ver detalle de ' + item.name"><img [src]="imageUrl(productImages(item)[0] || fallbackImage, 240)" [attr.srcset]="imageSrcset(productImages(item)[0], [120, 180, 240])" sizes="76px" [alt]="productImageAlt(item)" width="152" height="152" loading="lazy" decoding="async" /></a>
-                <div class="mini-content">
-                  <a class="mini-name" [routerLink]="productRoute(item)">{{ item.name }}</a>
-                  <strong>{{ item.price | currency:'EUR' }}</strong>
-                  <button *ngIf="isCustomCake(item); else addRelatedProduct" class="btn btn-secondary" type="button" (click)="addRelated(item)">Personalizar</button>
-                  <ng-template #addRelatedProduct>
-                    <app-add-to-cart-button variant="compact" [action]="relatedAddAction(item)" label="Añadir" [ariaLabel]="'Añadir ' + item.name + ' al carrito'" />
-                  </ng-template>
-                </div>
-              </article>
+          <article *ngIf="productIngredients(product()!).length">
+            <h3>Ingredientes</h3>
+            <ul>
+              <li *ngFor="let ingredient of productIngredients(product()!)">{{ ingredient }}</li>
+            </ul>
+          </article>
+        </div>
+        <article class="reviews" *ngIf="productReviews(product()!).length">
+          <div class="reviews-head">
+            <h3>Opiniones de clientes</h3>
+            <strong>{{ averageRating(product()!) | number:'1.1-1' }} ★</strong>
+          </div>
+          <div class="review" *ngFor="let review of productReviews(product()!)">
+            <div class="review-meta">
+              <strong>{{ review.author }}</strong>
+              <span class="stars" aria-hidden="true">{{ stars(review.rating) }}</span>
             </div>
-          </section>
-        </ng-container>
-      </ng-template>
+            <p>{{ review.comment }}</p>
+            <small *ngIf="review.date">{{ review.date | date:'dd/MM/yyyy' }}</small>
+          </div>
+        </article>
+      </section>
 
-      <ng-template #notFound><div class="not-found card"><h1>Producto no encontrado</h1><p>{{ detailError() || 'No encontramos el producto solicitado. Puede que ya no esté disponible o que el enlace no sea correcto.' }}</p><a class="btn btn-primary" routerLink="/productos">Volver a productos</a></div></ng-template>
-    </section>
-  
+      <section class="related" *ngIf="relatedProducts().length">
+        <div class="related-head">
+          <h2>Más vendidos</h2>
+          <p>También te puede gustar</p>
+        </div>
+        <div class="related-grid">
+          <app-product-card
+            *ngFor="let item of relatedProducts(); trackBy: trackProduct"
+            [product]="item"
+            [addAction]="relatedAddAction(item)"
+            [sizes]="'(min-width: 768px) 22vw, 46vw'" />
+        </div>
+      </section>
+
+      <div class="sticky-buy" *ngIf="showStickyPurchase()" role="region" aria-label="Comprar producto">
+        <strong>{{ customizedTotal(product()!) | currency:'EUR' }}</strong>
+        <button class="btn btn-primary" type="button" (click)="addToCart(product()!)">Añadir al carrito</button>
+      </div>
+    </ng-container>
+  </ng-template>
+
+  <ng-template #notFound>
+    <div class="not-found">
+      <h1>Producto no encontrado</h1>
+      <p>{{ detailError() || 'No encontramos el producto solicitado. Puede que ya no esté disponible o que el enlace no sea correcto.' }}</p>
+      <a class="btn btn-primary" routerLink="/productos">Volver a productos</a>
+    </div>
+  </ng-template>
+</section>

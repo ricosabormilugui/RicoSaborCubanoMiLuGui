@@ -1,7 +1,6 @@
 import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
@@ -16,6 +15,7 @@ import { SeoService } from '../../core/services/seo.service';
 import { ApiRequestError } from '../../core/utils/api-client';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
+import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 import {
   buildCartCustomizationSelections,
@@ -31,23 +31,28 @@ import {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AddToCartButtonComponent],
+  imports: [CommonModule, RouterLink, AddToCartButtonComponent, ProductCardComponent],
   templateUrl: './product-detail-page.component.html',
   styleUrls: ['./product-detail-page.component.css']
 })
 export class ProductDetailPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
+  private readonly injector = inject(Injector);
   readonly brand = BRAND_CONFIG;
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=900';
+  readonly optionPreviewLimit = 8;
   readonly productParam = signal('');
   readonly quantity = signal(1);
   readonly selectedImage = signal('');
   readonly selectedCustomization = signal<ProductCustomizationSelectionState>({});
   readonly customizationError = signal('');
+  readonly expandedGroupKeys = signal<readonly string[]>([]);
+  readonly purchaseInView = signal(true);
   readonly product = signal<Product | null>(null);
   readonly relatedProducts = signal<Product[]>([]);
   readonly detailLoading = signal(true);
   readonly detailError = signal('');
+  readonly purchaseAnchor = viewChild<ElementRef<HTMLElement>>('purchaseAnchor');
 
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
   readonly isLoadingDetail = computed(() => this.detailLoading());
@@ -60,6 +65,8 @@ export class ProductDetailPageComponent {
       this.selectedImage.set('');
       this.selectedCustomization.set({});
       this.customizationError.set('');
+      this.expandedGroupKeys.set([]);
+      this.purchaseInView.set(true);
       void this.loadProduct(identifier);
     });
     effect(() => this.updateSeo());
@@ -74,11 +81,24 @@ export class ProductDetailPageComponent {
       );
       this.selectedCustomization.set(defaults);
     });
+    effect((onCleanup) => {
+      const anchor = this.purchaseAnchor()?.nativeElement;
+      if (!anchor || typeof IntersectionObserver === 'undefined') {
+        untracked(() => this.purchaseInView.set(true));
+        return;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        this.purchaseInView.set(entries.some((entry) => entry.isIntersecting));
+      }, { threshold: 0.2, rootMargin: '0px 0px -12px 0px' });
+      observer.observe(anchor);
+      onCleanup(() => observer.disconnect());
+    });
   }
 
   selectImage(image: string): void { this.selectedImage.set(image); }
   minimumQuantity(product: Product): number { const value = Math.floor(Number(product.minimumQuantity ?? 1)); return Number.isFinite(value) && value > 0 ? value : 1; }
   setQuantity(value: number | string): void { const parsed = Number(value); const minimum = this.product() ? this.minimumQuantity(this.product()!) : 1; this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.max(minimum, Math.min(99, Math.floor(parsed))) : minimum); }
+  adjustQuantity(delta: number): void { this.setQuantity(this.quantity() + delta); }
   productRoute(product: Product): string[] { return getProductRoute(product); }
   categoryLabel(value: string): string { return this.productCategories.labelFor(value) || getProductCategoryLabel(value); }
   productImageAlt(product: Product): string { const category = this.categoryLabel(product.category); return `${product.name}${category ? ` de la categoría ${category}` : ''} en ${BRAND_CONFIG.name}`; }
@@ -87,6 +107,8 @@ export class ProductDetailPageComponent {
   imageSrcset(source: string, widths: readonly number[]): string | null { return responsiveImageSrcset(source, widths); }
   trackProduct(_index: number, product: Product): string { return product.id; }
   trackImage(_index: number, image: string): string { return image; }
+  trackGroup(_index: number, group: ProductCustomizationGroup): string { return group.key; }
+  trackOption(_index: number, option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }
   productIngredients(product: Product): string[] { return Array.isArray(product.ingredients) ? product.ingredients.filter(Boolean) : []; }
   productReviews(product: Product) { return Array.isArray(product.reviews) ? product.reviews : []; }
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
@@ -109,10 +131,84 @@ export class ProductDetailPageComponent {
   customizationExtraTotal(): number { return calculateCustomizationExtra(flattenCustomizationSelections(this.selectedCustomization())); }
   customizedTotal(product: Product): number { return calculateFinalUnitPrice(product.price, flattenCustomizationSelections(this.selectedCustomization())); }
 
+  groupLayout(group: ProductCustomizationGroup): 'cards' | 'compact' | 'chips' {
+    if (group.key === 'sizes' || group.key === 'decorations') return 'cards';
+    if (group.key === 'fillings' || group.key === 'colors' || group.key === 'themes' || group.options.length >= 7) return 'chips';
+    return 'compact';
+  }
+
+  isGroupComplete(group: ProductCustomizationGroup): boolean {
+    return (this.selectedCustomization()[group.key]?.length ?? 0) > 0;
+  }
+
+  isGroupInvalid(group: ProductCustomizationGroup): boolean {
+    return Boolean(this.customizationError()) && group.required && !this.isGroupComplete(group);
+  }
+
+  isGroupExpanded(key: ProductCustomizationGroupKey): boolean {
+    return this.expandedGroupKeys().includes(key);
+  }
+
+  expandGroup(key: ProductCustomizationGroupKey): void {
+    this.expandedGroupKeys.update((keys) => keys.includes(key) ? keys : [...keys, key]);
+  }
+
+  visibleOptions(group: ProductCustomizationGroup): ProductCustomizationOption[] {
+    if (this.isGroupExpanded(group.key) || group.options.length <= this.optionPreviewLimit) return group.options;
+    const preview = group.options.slice(0, this.optionPreviewLimit);
+    const selected = this.selectedCustomization()[group.key] ?? [];
+    const extras = selected.filter((option) => !preview.some((item) => this.optionId(item) === this.optionId(option)));
+    return extras.length ? [...preview, ...extras] : preview;
+  }
+
+  optionCaption(option: ProductCustomizationOption): { title: string; hint: string } {
+    const name = String(option.name ?? '').trim();
+    const parts = name.split(/\s*[·|]\s*/).map((part) => part.trim()).filter(Boolean);
+    return parts.length > 1 ? { title: parts[0], hint: parts.slice(1).join(' · ') } : { title: name, hint: '' };
+  }
+
+  priceKicker(product: Product): string {
+    if (!this.isCustomCake(product)) return '';
+    return hasAllRequiredCustomizations(this.customizationGroups(product), this.selectedCustomization()) ? '' : 'Desde';
+  }
+
+  configurationSummary(product: Product): string[] {
+    return this.customizationGroups(product).flatMap((group) =>
+      (this.selectedCustomization()[group.key] ?? []).map((option) => this.optionCaption(option).title)
+    );
+  }
+
+  introText(product: Product): string {
+    const text = String(product.description ?? '').trim();
+    if (!text) return `Producto casero preparado por ${this.brand.name}.`;
+    if (text.length <= 170) return text;
+    const first = text.split(/(?<=[.!?])\s+/)[0] ?? text;
+    return first.length > 0 && first.length <= 170 ? first : `${text.slice(0, 156).trimEnd()}…`;
+  }
+
+  hasExtendedDescription(product: Product): boolean {
+    return String(product.description ?? '').trim().length > 170;
+  }
+
+  showDetails(product: Product): boolean {
+    return this.hasExtendedDescription(product) || this.productIngredients(product).length > 0 || this.productReviews(product).length > 0;
+  }
+
+  showStickyPurchase(): boolean {
+    const product = this.product();
+    return Boolean(product && this.isOrderable(product) && !this.purchaseInView());
+  }
+
   addToCart(product: Product, amount = this.quantity()): boolean {
     if (!this.isOrderable(product)) return false;
     const groups = this.customizationGroups(product);
-    if (this.isCustomCake(product) && !hasAllRequiredCustomizations(groups, this.selectedCustomization())) { this.customizationError.set('Completa las opciones obligatorias antes de añadir el producto.'); return false; }
+    if (this.isCustomCake(product) && !hasAllRequiredCustomizations(groups, this.selectedCustomization())) {
+      const incomplete = groups.find((group) => group.required && !this.isGroupComplete(group));
+      if (incomplete) this.expandGroup(incomplete.key);
+      this.customizationError.set(incomplete ? `Selecciona ${incomplete.label} para continuar.` : 'Completa las opciones obligatorias antes de añadir el producto.');
+      afterNextRender(() => this.focusGroup(incomplete?.key), { injector: this.injector });
+      return false;
+    }
     const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
     const customization = buildCartCustomizationSelections(product, this.selectedCustomization());
     this.cart.add(product, customization, quantity);
@@ -138,6 +234,15 @@ export class ProductDetailPageComponent {
   }
 
   private optionId(option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }
+
+  private focusGroup(key?: ProductCustomizationGroupKey): void {
+    if (!key) return;
+    const node = globalThis.document?.getElementById(`config-${key}`);
+    if (!node) return;
+    const reduceMotion = Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+    node.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    node.querySelector<HTMLElement>('button.option')?.focus({ preventScroll: true });
+  }
 
   isOrderable(product: Product): boolean {
     return product.available !== false && (!product.trackStock || Number(product.stock ?? 0) > 0);
