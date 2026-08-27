@@ -16,6 +16,12 @@
   </aside>
 
   <div class="auth-panel">
+    <div class="auth-mark" *ngIf="!showVisual()" aria-hidden="true">
+      <span class="auth-mark-haze"></span>
+      <span class="auth-mark-spin auth-mark-spin--outer"></span>
+      <span class="auth-mark-spin auth-mark-spin--middle"></span>
+      <span class="auth-mark-spin auth-mark-spin--inner"></span>
+    </div>
     <div class="auth-form-wrap">
       <a class="auth-brand" routerLink="/" [attr.aria-label]="brand.name">
         <img [src]="brandLogo()" [alt]="brand.name" width="96" height="96" />

@@ -17,10 +17,87 @@
 .auth-panel {
   display: flex;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
   padding: 0.35rem 0.9rem 1.15rem;
 }
 
+.auth-mark {
+  position: absolute;
+  z-index: 0;
+  top: -14vw;
+  left: -72vw;
+  width: 144vw;
+  height: 144vw;
+  pointer-events: none;
+  --auth-mark-opacity: 0.84;
+  opacity: var(--auth-mark-opacity);
+}
+
+.auth-mark-haze,
+.auth-mark-spin {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.auth-mark-haze {
+  background:
+    radial-gradient(ellipse 58% 52% at 50% 50%,
+      color-mix(in srgb, var(--brand-cream) 10%, transparent),
+      transparent 68%),
+    radial-gradient(ellipse 48% 44% at 58% 56%,
+      color-mix(in srgb, var(--brand-blue) 22%, transparent),
+      transparent 74%),
+    radial-gradient(ellipse 22% 20% at 54% 42%,
+      color-mix(in srgb, var(--brand-red) 5%, transparent),
+      transparent 72%);
+  filter: blur(28px);
+}
+
+.auth-mark-spin {
+  background: url('/assets/auth/vortex-mark.svg') center / contain no-repeat;
+  transform-origin: 50% 49.5%;
+  will-change: transform;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.auth-mark-spin--outer {
+  -webkit-mask-image: radial-gradient(circle at 50% 49.5%, transparent 0 40%, #000 48%, #000 100%);
+  mask-image: radial-gradient(circle at 50% 49.5%, transparent 0 40%, #000 48%, #000 100%);
+  animation: auth-mark-outer 44s linear infinite;
+}
+
+.auth-mark-spin--middle {
+  -webkit-mask-image: radial-gradient(circle at 50% 49.5%, transparent 0 20%, #000 26%, #000 42%, transparent 50%);
+  mask-image: radial-gradient(circle at 50% 49.5%, transparent 0 20%, #000 26%, #000 42%, transparent 50%);
+  animation: auth-mark-middle 33s linear infinite;
+  animation-delay: -11s;
+}
+
+.auth-mark-spin--inner {
+  -webkit-mask-image: radial-gradient(circle at 50% 49.5%, #000 0 22%, transparent 30%);
+  mask-image: radial-gradient(circle at 50% 49.5%, #000 0 22%, transparent 30%);
+  animation: auth-mark-inner 25s linear infinite;
+  animation-delay: -7s;
+}
+
+.auth-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 56%, var(--bg-main) 80%);
+  pointer-events: none;
+}
+
 .auth-form-wrap {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 26.5rem;
   min-width: 0;
@@ -78,6 +155,20 @@
   .auth-brand img { height: 70px; }
 }
 
+@media (min-width: 600px) and (max-width: 1023px) {
+  .auth-mark {
+    top: -4vw;
+    left: -36vw;
+    width: 108vw;
+    height: 108vw;
+    --auth-mark-opacity: 0.9;
+  }
+
+  .auth-mark::after {
+    background: linear-gradient(90deg, transparent 56%, var(--bg-main) 88%);
+  }
+}
+
 @media (min-width: 768px) {
   .auth-panel { padding: 1.1rem 1.5rem 1.6rem; }
   .auth-head h1 { font-size: 1.52rem; }
@@ -107,6 +198,8 @@
     height: 100%;
     background: var(--bg-main);
   }
+
+  .auth-mark { display: none; }
 
   .auth-panel {
     align-items: center;
@@ -143,5 +236,49 @@
 
 @media (prefers-reduced-motion: reduce) {
   .auth-brand,
-  .auth-reveal { animation: none; }
+  .auth-reveal,
+  .auth-mark-spin { animation: none; }
+
+  .auth-mark-spin { will-change: auto; }
+}
+
+@keyframes auth-mark-outer {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.008); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes auth-mark-middle {
+  0% { transform: rotate(0deg) scale(1.005); }
+  50% { transform: rotate(180deg) scale(1.015); }
+  100% { transform: rotate(360deg) scale(1.005); }
+}
+
+@keyframes auth-mark-inner {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.02); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+:host-context([data-theme='light']) .auth-mark {
+  --auth-mark-opacity: 0.48;
+}
+
+:host-context([data-theme='light']) .auth-mark-haze {
+  background:
+    radial-gradient(ellipse 54% 48% at 50% 50%,
+      color-mix(in srgb, var(--brand-blue) 16%, transparent),
+      transparent 70%),
+    radial-gradient(ellipse 40% 36% at 58% 56%,
+      color-mix(in srgb, var(--brand-blue) 18%, transparent),
+      transparent 76%),
+    radial-gradient(ellipse 18% 16% at 54% 42%,
+      color-mix(in srgb, var(--brand-red) 4%, transparent),
+      transparent 72%);
+}
+
+@media (min-width: 600px) and (max-width: 1023px) {
+  :host-context([data-theme='light']) .auth-mark {
+    --auth-mark-opacity: 0.56;
+  }
 }
