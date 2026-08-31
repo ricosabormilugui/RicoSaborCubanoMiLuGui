@@ -1,10 +1,16 @@
 import { BRAND_CONFIG } from "../config/brand.config.js";
+import {
+  buildOrderWhatsAppUrl,
+  buildSalesMailtoUrl,
+  getPublicWebUrl,
+  getSalesEmail
+} from "../config/contact.config.js";
 import { joinPublicAssetUrl } from "../config/site.config.js";
 import { logger } from "../lib/logger.js";
 
 const BUSINESS_TIME_ZONE = "Europe/Madrid";
 const CONTACT_FOR_PAYMENT = "Te contactaremos para facilitarte los datos de pago.";
-const CASH_FALLBACK = "Paga en efectivo al recoger o entregar el pedido.";
+const NO_REPLY_NOTICE = "Este es un correo automático. Por favor, no respondas a este mensaje.";
 
 const EMAIL_THEME = {
   pageBg: "#f8f5eb",
@@ -102,9 +108,22 @@ function paymentStatusOf(order) {
 export function getPaymentStatusLabel(order) {
   const status = paymentStatusOf(order);
   if (status === "paid") return "Pagado";
-  if (getPaymentMethod(order) === "cash") return "Se paga al recoger o entregar";
+  if (getPaymentMethod(order) === "cash") {
+    return deliveryTypeOf(order) === "pickup" ? "Pago al recoger" : "Pago en entrega";
+  }
   if (order?.requiresAdvancePayment) return "Pendiente de pago (anticipo)";
   return "Pendiente de pago";
+}
+
+function formatIban(value) {
+  const compact = String(value ?? "").replace(/\s+/g, "");
+  return compact.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function getCashInstruction(order) {
+  return deliveryTypeOf(order) === "pickup"
+    ? "Pago en efectivo al recoger el pedido."
+    : "Pago en efectivo en la entrega.";
 }
 
 function orderRef(order) {
@@ -131,19 +150,19 @@ export function getPaymentInstructions(order, { env = process.env, log } = {}) {
   if (method === "bank_transfer") {
     const iban = envValue("PAYMENT_BANK_IBAN", env);
     const holder = envValue("PAYMENT_BANK_HOLDER", env);
+    const bankName = envValue("PAYMENT_BANK_NAME", env);
     if (!iban || !holder) {
       logMissing(log, "payment.bank_transfer.configuration_missing", method);
       return CONTACT_FOR_PAYMENT;
     }
-    return `Transferencia a ${iban}, titular ${holder}, indicando ${ref} en el concepto.`;
+    const bankLine = bankName ? ` Banco: ${bankName}.` : "";
+    return `Titular: ${holder}. IBAN: ${formatIban(iban)}.${bankLine} Concepto: ${ref}.`;
   }
 
-  const cashInstructions = envValue("PAYMENT_CASH_INSTRUCTIONS", env);
-  if (!cashInstructions) {
+  if (!envValue("PAYMENT_CASH_INSTRUCTIONS", env)) {
     logMissing(log, "payment.cash.configuration_missing", method);
-    return `${CASH_FALLBACK} Indica ${ref} al equipo.`;
   }
-  return `${cashInstructions} Indica ${ref} al equipo.`;
+  return getCashInstruction(order);
 }
 
 function deliveryTypeOf(order) {
@@ -332,36 +351,125 @@ function buildFulfillmentText(order) {
 function paymentHeadline(order) {
   const status = paymentStatusOf(order);
   if (status === "paid") return "Pago recibido";
-  if (getPaymentMethod(order) === "cash") return "Se paga al recoger o entregar";
+  if (getPaymentMethod(order) === "cash") {
+    return deliveryTypeOf(order) === "pickup" ? "Pago al recoger" : "Pago en entrega";
+  }
   if (order?.requiresAdvancePayment) return "Pendiente de pago anticipado";
   return "Pendiente de pago";
 }
 
+function cashIntro(order) {
+  return deliveryTypeOf(order) === "pickup"
+    ? "Hemos recibido tu pedido. El importe se paga en efectivo al recoger."
+    : "Hemos recibido tu pedido. El importe se paga en efectivo en la entrega.";
+}
+
+function paymentRow(label, value) {
+  return `<p style="margin:0 0 8px;"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+}
+
 function paymentDetailHtml(order, options) {
   const method = getPaymentMethod(order);
-  const instructions = getPaymentInstructions(order, options);
-  const phone = envValue("PAYMENT_BIZUM_PHONE", options?.env);
-  const methodLabel = escapeHtml(getPaymentMethodLabel(method));
-  const statusLabel = escapeHtml(getPaymentStatusLabel(order));
+  const methodLabel = getPaymentMethodLabel(method);
+  const statusLabel = getPaymentStatusLabel(order);
+  const header = `${paymentRow("Método de pago", methodLabel)}${paymentRow("Estado del pago", statusLabel)}`;
 
-  if (method === "bizum" && phone && instructions !== CONTACT_FOR_PAYMENT) {
+  if (method === "bizum") {
+    const phone = envValue("PAYMENT_BIZUM_PHONE", options?.env);
+    if (!phone) {
+      return `${header}<p style="margin:0;">${escapeHtml(getPaymentInstructions(order, options))}</p>`;
+    }
     return `
-      <p style="margin:0 0 8px;"><strong>Método de pago:</strong> ${methodLabel}</p>
-      <p style="margin:0 0 8px;"><strong>Estado del pago:</strong> ${statusLabel}</p>
-      <p style="margin:0 0 8px;">Realiza el Bizum al:</p>
+      ${header}
+      <p style="margin:12px 0 8px;">Realiza el Bizum al:</p>
       <p style="margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:.02em;">${escapeHtml(phone)}</p>
-      <p style="margin:0;"><strong>Concepto:</strong> ${escapeHtml(orderRef(order))}</p>
+      ${paymentRow("Concepto", orderRef(order))}
+    `;
+  }
+
+  if (method === "bank_transfer") {
+    const iban = envValue("PAYMENT_BANK_IBAN", options?.env);
+    const holder = envValue("PAYMENT_BANK_HOLDER", options?.env);
+    const bankName = envValue("PAYMENT_BANK_NAME", options?.env);
+    if (!iban || !holder) {
+      return `${header}<p style="margin:0;">${escapeHtml(getPaymentInstructions(order, options))}</p>`;
+    }
+    return `
+      ${header}
+      <p style="margin:12px 0 8px;font-weight:700;">Datos para la transferencia</p>
+      ${paymentRow("Titular", holder)}
+      ${paymentRow("IBAN", formatIban(iban))}
+      ${bankName ? paymentRow("Banco", bankName) : ""}
+      ${paymentRow("Concepto", orderRef(order))}
     `;
   }
 
   return `
-    <p style="margin:0 0 8px;"><strong>Método de pago:</strong> ${methodLabel}</p>
-    <p style="margin:0 0 8px;"><strong>Estado del pago:</strong> ${statusLabel}</p>
-    <p style="margin:0;">${escapeHtml(instructions)}</p>
+    ${header}
+    <p style="margin:0;">${escapeHtml(getCashInstruction(order))}</p>
   `;
 }
 
-function wrapEmail({ preheader, heading, subtitle, bodyHtml, env }) {
+function buttonCell(href, label, background) {
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;background:${background};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;line-height:1.3;padding:12px 18px;border-radius:999px;">${escapeHtml(label)}</a>`;
+}
+
+export function buildEmailFooterHtml({ orderId } = {}) {
+  const salesEmail = getSalesEmail();
+  const siteUrl = getPublicWebUrl();
+  const mailto = buildSalesMailtoUrl(orderId);
+  const whatsapp = buildOrderWhatsAppUrl(orderId);
+  let siteHost = "";
+  try {
+    siteHost = new URL(siteUrl).hostname;
+  } catch {
+    siteHost = siteUrl.replace(/^https:\/\//, "");
+  }
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:24px 0 0;">
+      <tr>
+        <td style="border-top:1px solid ${EMAIL_THEME.border};padding:20px 0 0;font-family:Arial,Helvetica,sans-serif;">
+          <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:${EMAIL_THEME.navy};">¿Necesitas ayuda?</p>
+          <p style="margin:0 0 12px;font-size:14px;color:${EMAIL_THEME.muted};">Puedes contactar con nosotros:</p>
+          <p style="margin:0 0 6px;font-size:14px;color:${EMAIL_THEME.navy};"><strong>Email</strong><br>${escapeHtml(salesEmail)}</p>
+          <p style="margin:0 0 6px;font-size:14px;color:${EMAIL_THEME.navy};"><strong>Web</strong><br>${escapeHtml(siteHost)}</p>
+          <p style="margin:0 0 14px;font-size:14px;color:${EMAIL_THEME.navy};"><strong>WhatsApp</strong></p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 14px;">
+            <tr>
+              <td style="padding:0 0 10px 0;">${buttonCell(mailto, "Contactar por email", EMAIL_THEME.banner)}</td>
+            </tr>
+            <tr>
+              <td>${buttonCell(whatsapp, "Contactar por WhatsApp", EMAIL_THEME.brandBlue)}</td>
+            </tr>
+          </table>
+          <p style="margin:0 0 16px;font-size:14px;"><a href="${escapeHtml(siteUrl)}" style="color:${EMAIL_THEME.brandBlue};font-weight:700;text-decoration:underline;">Visitar MIXSABOR</a></p>
+          <p style="margin:0 0 12px;font-size:13px;color:${EMAIL_THEME.muted};">${escapeHtml(NO_REPLY_NOTICE)}</p>
+          <p style="margin:0;font-size:12px;color:${EMAIL_THEME.muted};">© ${escapeHtml(BRAND_CONFIG.name)}</p>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+export function buildEmailFooterText({ orderId } = {}) {
+  const salesEmail = getSalesEmail();
+  const siteUrl = getPublicWebUrl();
+  const mailto = buildSalesMailtoUrl(orderId);
+  const whatsapp = buildOrderWhatsAppUrl(orderId);
+  return [
+    "¿Necesitas ayuda?",
+    "Puedes contactar con nosotros:",
+    `Email: ${salesEmail}`,
+    `Web: ${siteUrl}`,
+    `WhatsApp: ${whatsapp}`,
+    mailto ? `Email (enlace): ${mailto}` : "",
+    NO_REPLY_NOTICE,
+    `© ${BRAND_CONFIG.name}`
+  ].filter(Boolean).join("\n");
+}
+
+function wrapEmail({ preheader, heading, subtitle, bodyHtml, env, orderId }) {
   const logo = escapeHtml(logoUrl(env));
   const brand = escapeHtml(BRAND_CONFIG.name);
   const logoBlock = logo
@@ -399,6 +507,7 @@ function wrapEmail({ preheader, heading, subtitle, bodyHtml, env }) {
           <tr>
             <td style="padding:20px;font-family:Arial,Helvetica,sans-serif;color:${EMAIL_THEME.navy};font-size:15px;line-height:1.5;">
               ${bodyHtml}
+              ${buildEmailFooterHtml({ orderId })}
             </td>
           </tr>
         </table>
@@ -453,11 +562,12 @@ export function buildCustomerOrderEmail(order, options = {}) {
   const intro = order.requiresAdvancePayment
     ? "Hemos recibido tu pedido. Requiere pago anticipado y no queda confirmado hasta validar el pago."
     : getPaymentMethod(order) === "cash"
-      ? "Hemos recibido tu pedido. El importe se paga al recoger o entregar."
+      ? cashIntro(order)
       : "Hemos recibido tu pedido. No queda confirmado definitivamente hasta validar el pago.";
 
   const html = wrapEmail({
     env: options.env,
+    orderId: order.orderId,
     preheader: `Pedido ${order.orderId ?? ""} · ${paymentHeadline(order)}`,
     heading: "Pedido recibido",
     subtitle: paymentHeadline(order),
@@ -472,7 +582,6 @@ export function buildCustomerOrderEmail(order, options = {}) {
       ${buildTotalsHtml(order)}
       <div style="height:18px;line-height:18px;font-size:1px;">&nbsp;</div>
       ${buildFulfillmentHtml(order)}
-      <p style="margin:18px 0 0;font-size:13px;color:${EMAIL_THEME.muted};">Si tienes cualquier duda, responde a este correo.</p>
     `
   });
 
@@ -489,7 +598,9 @@ export function buildCustomerOrderEmail(order, options = {}) {
     "",
     buildTotalsText(order),
     "",
-    buildFulfillmentText(order)
+    buildFulfillmentText(order),
+    "",
+    buildEmailFooterText({ orderId: order.orderId })
   ].join("\n");
 
   return { subject: getCustomerOrderSubject(order), html, text };
@@ -504,6 +615,7 @@ export function buildAdminOrderEmail(order, options = {}) {
 
   const html = wrapEmail({
     env: options.env,
+    orderId: order.orderId,
     preheader: `Nuevo pedido ${order.orderId ?? ""}`,
     heading: `Nuevo pedido ${order.orderId ?? ""}`,
     subtitle: paymentHeadline(order),
@@ -533,7 +645,9 @@ export function buildAdminOrderEmail(order, options = {}) {
     "",
     buildTotalsText(order),
     "",
-    buildFulfillmentText(order)
+    buildFulfillmentText(order),
+    "",
+    buildEmailFooterText({ orderId: order.orderId })
   ].join("\n");
 
   return { subject: getAdminOrderSubject(order), html, text };
@@ -546,6 +660,7 @@ export function buildOrderStatusEmail(order, { status, statusNote } = {}, option
   const note = String(statusNote ?? "").trim();
   const html = wrapEmail({
     env: options.env,
+    orderId: order?.orderId,
     preheader: `Tu pedido ${order?.orderId ?? ""} está ${statusLabel.toLowerCase()}`,
     heading: `Tu pedido ${order?.orderId ?? ""}`,
     subtitle: statusLabel,
@@ -563,8 +678,46 @@ export function buildOrderStatusEmail(order, { status, statusNote } = {}, option
     `El estado de tu pedido ${order?.orderId ?? ""} es: ${statusLabel}.`,
     buildFulfillmentText(order),
     note ? `Nota: ${note}` : "",
-    `Gracias por confiar en ${BRAND_CONFIG.name}.`
+    `Gracias por confiar en ${BRAND_CONFIG.name}.`,
+    "",
+    buildEmailFooterText({ orderId: order?.orderId })
   ].filter(Boolean).join("\n");
 
   return { subject: getOrderStatusSubject(order, resolvedStatus), html, text };
+}
+
+export function buildPasswordResetEmail({ fullName, resetUrl, expiresInMinutes } = {}, options = {}) {
+  const recipientName = String(fullName ?? "cliente").trim() || "cliente";
+  const minutes = Number(expiresInMinutes);
+  const html = wrapEmail({
+    env: options.env,
+    preheader: "Restablece tu contraseña",
+    heading: "Restablece tu contraseña",
+    bodyHtml: `
+      <p style="margin:0 0 12px;">Hola <strong>${escapeHtml(recipientName)}</strong>,</p>
+      <p style="margin:0 0 16px;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.</p>
+      <p style="margin:0 0 18px;">
+        <a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:${EMAIL_THEME.banner};color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:999px;">Restablecer contraseña</a>
+      </p>
+      <p style="margin:0 0 12px;">Este enlace caduca en <strong>${escapeHtml(String(minutes))}</strong> minutos y solo puede utilizarse una vez.</p>
+      <p style="margin:0;color:${EMAIL_THEME.muted};font-size:14px;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+    `
+  });
+  const text = [
+    `Hola ${recipientName},`,
+    "",
+    "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.",
+    `Abre este enlace para definir una nueva contraseña: ${resetUrl}`,
+    `El enlace caduca en ${minutes} minutos y solo puede utilizarse una vez.`,
+    "",
+    "Si no solicitaste este cambio, puedes ignorar este mensaje.",
+    "",
+    buildEmailFooterText()
+  ].join("\n");
+
+  return {
+    subject: `Restablece tu contraseña · ${BRAND_CONFIG.name}`,
+    html,
+    text
+  };
 }

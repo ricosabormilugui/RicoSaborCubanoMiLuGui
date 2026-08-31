@@ -8,11 +8,20 @@ import {
   buildAdminOrderEmail,
   buildCustomerOrderEmail,
   buildOrderStatusEmail,
+  buildPasswordResetEmail,
   formatCurrency,
   formatFulfillmentDate,
   getPaymentInstructions,
   logoUrl
 } from "../src/services/order-email.templates.js";
+import {
+  buildOrderWhatsAppUrl,
+  buildSalesMailtoUrl,
+  getPublicWebUrl,
+  getSalesEmail,
+  getSalesReplyTo,
+  getWhatsAppPhone
+} from "../src/config/contact.config.js";
 
 const FORBIDDEN = /PENDIENTE_CONFIGURAR|backendapi|Backend API|\bRender\b|\bNetlify\b|\bundefined\b|\bnull\b/i;
 const PAYMENT_ENV = {
@@ -292,7 +301,8 @@ test("caso W: existe texto plano equivalente", () => {
 
 test("efectivo y pedido pagado se representan según la lógica existente", () => {
   const cash = buildCustomerOrderEmail(sampleOrder({ payment: { method: "cash", status: "pending" } }), { env: PAYMENT_ENV });
-  assert.match(cash.html, /Se paga al recoger o entregar/);
+  assert.match(cash.html, /Pago en entrega/);
+  assert.match(cash.html, /Pago en efectivo en la entrega\./);
   const paid = buildCustomerOrderEmail(sampleOrder({ payment: { method: "bizum", status: "paid" } }), { env: PAYMENT_ENV });
   assert.match(paid.html, /Pagado/);
 });
@@ -327,3 +337,194 @@ test("fixture HTML de inspección manual", () => {
   writeFileSync(join(outDir, "order-email-preview.html"), email.html);
   assert.match(email.html, /MIXSABOR|Tarta Capuchino Cubano/);
 });
+
+function compact(value) {
+  return String(value).replace(/\s+/g, "");
+}
+
+function transferOrder(overrides = {}) {
+  return sampleOrder({ payment: { method: "bank_transfer", status: "pending" }, ...overrides });
+}
+
+function cashOrder({ pickup = false } = {}) {
+  return sampleOrder({
+    payment: { method: "cash", status: "pending" },
+    deliveryType: pickup ? "pickup" : "delivery",
+    delivery: {
+      type: pickup ? "pickup" : "delivery",
+      date: "2026-09-05",
+      slot: pickup ? "12:00-14:00" : "18:00-21:00",
+      address: pickup ? "" : "Calle Mayor 1"
+    },
+    shippingCost: pickup ? 0 : 5,
+    total: pickup ? 12 : 17
+  });
+}
+
+test("pago A: Bizum configurado muestra teléfono y concepto", () => {
+  const email = buildCustomerOrderEmail(sampleOrder(), { env: PAYMENT_ENV });
+  assert.match(email.html, /Método de pago:<\/strong> Bizum/);
+  assert.match(email.html, /Estado del pago:<\/strong> Pendiente de pago/);
+  assert.match(email.html, /Realiza el Bizum al:/);
+  assert.match(email.html, /\+34644339404/);
+  assert.match(email.html, /Concepto:<\/strong> pedido MLG-TEST01/);
+  assert.equal(
+    getPaymentInstructions(sampleOrder(), { env: PAYMENT_ENV }),
+    "Realiza el Bizum al +34644339404 indicando pedido MLG-TEST01."
+  );
+});
+
+test("pago B: Bizum sin config usa fallback seguro", () => {
+  const log = capturingLog();
+  const email = buildCustomerOrderEmail(sampleOrder(), { env: {}, log });
+  assert.equal(log.events[0].event, "payment.bizum.configuration_missing");
+  assert.match(email.html, /Te contactaremos para facilitarte los datos de pago\./);
+  assert.doesNotMatch(email.html, /Realiza el Bizum al:/);
+  assert.doesNotMatch(email.html, /PENDIENTE_/);
+  assertSafe(email.html, "html pago B");
+});
+
+test("pago C: transferencia configurada muestra titular, IBAN y concepto", () => {
+  const email = buildCustomerOrderEmail(transferOrder(), { env: PAYMENT_ENV });
+  assert.match(email.html, /Método de pago:<\/strong> Transferencia bancaria/);
+  assert.match(email.html, /Titular:<\/strong> AMED PUENTES PADRÓN/);
+  assert.match(compact(email.html), /ES7515632626343269629293/);
+  assert.match(email.html, /Concepto:<\/strong> pedido MLG-TEST01/);
+  assert.match(email.html, /Datos para la transferencia/);
+  assert.doesNotMatch(email.html, /Banco:<\/strong>/);
+});
+
+test("pago D: transferencia sin config usa fallback seguro", () => {
+  const log = capturingLog();
+  const email = buildCustomerOrderEmail(transferOrder(), { env: { PAYMENT_BIZUM_PHONE: "+34644339404" }, log });
+  assert.equal(log.events[0].event, "payment.bank_transfer.configuration_missing");
+  assert.match(email.html, /Te contactaremos para facilitarte los datos de pago\./);
+  assert.doesNotMatch(email.html, /Titular:/);
+  assert.doesNotMatch(email.html, /IBAN:/);
+  assert.doesNotMatch(email.html, /PENDIENTE_/);
+  assertSafe(email.html, "html pago D");
+});
+
+test("pago E: efectivo pickup usa el texto de recogida", () => {
+  const email = buildCustomerOrderEmail(cashOrder({ pickup: true }), { env: PAYMENT_ENV });
+  assert.match(email.html, /Método de pago:<\/strong> Efectivo/);
+  assert.match(email.html, /Pago al recoger/);
+  assert.match(email.html, /Pago en efectivo al recoger el pedido\./);
+  assert.doesNotMatch(email.html, /Pago en efectivo en la entrega/);
+});
+
+test("pago F: efectivo delivery usa el texto de entrega", () => {
+  const email = buildCustomerOrderEmail(cashOrder({ pickup: false }), { env: PAYMENT_ENV });
+  assert.match(email.html, /Método de pago:<\/strong> Efectivo/);
+  assert.match(email.html, /Pago en entrega/);
+  assert.match(email.html, /Pago en efectivo en la entrega\./);
+  assert.doesNotMatch(email.html, /Pago en efectivo al recoger el pedido/);
+});
+
+test("pago G: no mezcla datos de otros métodos", () => {
+  const bizum = buildCustomerOrderEmail(sampleOrder(), { env: PAYMENT_ENV });
+  assert.doesNotMatch(emailWithoutFooter(bizum.html), /Titular:/);
+  assert.doesNotMatch(emailWithoutFooter(bizum.html), /IBAN:/);
+  assert.doesNotMatch(emailWithoutFooter(bizum.html), /ES7515632626343269629293/);
+  assert.doesNotMatch(emailWithoutFooter(bizum.html), /Pago en efectivo/);
+
+  const transfer = buildCustomerOrderEmail(transferOrder(), { env: PAYMENT_ENV });
+  assert.doesNotMatch(emailWithoutFooter(transfer.html), /Realiza el Bizum/);
+  assert.doesNotMatch(emailWithoutFooter(transfer.html), /\+34644339404/);
+  assert.doesNotMatch(emailWithoutFooter(transfer.html), /Pago en efectivo/);
+
+  const cash = buildCustomerOrderEmail(cashOrder(), { env: PAYMENT_ENV });
+  assert.doesNotMatch(emailWithoutFooter(cash.html), /Realiza el Bizum/);
+  assert.doesNotMatch(emailWithoutFooter(cash.html), /\+34644339404/);
+  assert.doesNotMatch(emailWithoutFooter(cash.html), /IBAN:/);
+  assert.doesNotMatch(emailWithoutFooter(cash.html), /Titular:/);
+});
+
+test("pago H-K: mailto y WhatsApp usan la config pública y el pedido", () => {
+  const email = buildCustomerOrderEmail(sampleOrder(), { env: PAYMENT_ENV });
+  const mailto = buildSalesMailtoUrl("MLG-TEST01");
+  const whatsapp = buildOrderWhatsAppUrl("MLG-TEST01");
+  assert.equal(getSalesEmail(), "ventas@milugui.com");
+  assert.equal(getSalesReplyTo(), "ventas@milugui.com");
+  assert.match(email.html, /mailto:ventas@milugui\.com\?subject=Consulta%20sobre%20mi%20pedido%20MLG-TEST01/);
+  assert.equal(mailto, "mailto:ventas@milugui.com?subject=Consulta%20sobre%20mi%20pedido%20MLG-TEST01");
+  assert.match(email.html, /Contactar por email/);
+  assert.equal(getWhatsAppPhone(), "34614272838");
+  assert.match(whatsapp, /^https:\/\/wa\.me\/34614272838\?text=/);
+  assert.match(whatsapp, /MLG-TEST01/);
+  assert.match(email.html, /wa\.me\/34614272838\?text=/);
+  assert.match(email.html, /Contactar por WhatsApp/);
+  assert.match(decodeURIComponent(whatsapp), /Hola, tengo una consulta sobre mi pedido MLG-TEST01/);
+});
+
+test("pago L-M: la web del footer es HTTPS pública y no usa localhost", () => {
+  const email = buildCustomerOrderEmail(sampleOrder(), {
+    env: { ...PAYMENT_ENV, FRONTEND_URL: "http://localhost:4200" }
+  });
+  const site = getPublicWebUrl();
+  assert.equal(site, PRODUCTION_SITE_URL);
+  assert.match(site, /^https:\/\//);
+  assert.match(email.html, /href="https:\/\/mixsabor\.milugui\.com"/);
+  assert.match(email.html, /Visitar MIXSABOR/);
+  assert.doesNotMatch(email.html, /localhost|127\.0\.0\.1/);
+  assert.doesNotMatch(email.html, /http:\/\/mixsabor/);
+});
+
+test("pago N-P: footer no-reply visible, sin placeholders ni undefined", () => {
+  const email = buildCustomerOrderEmail(sampleOrder(), { env: PAYMENT_ENV });
+  assert.match(email.html, /Este es un correo automático\. Por favor, no respondas a este mensaje\./);
+  assert.match(email.text, /Este es un correo automático\. Por favor, no respondas a este mensaje\./);
+  assert.doesNotMatch(email.html, /responde a este correo/);
+  assert.doesNotMatch(email.html, /PENDIENTE_/);
+  assert.doesNotMatch(email.html, /\bundefined\b|\bnull\b/);
+  assertSafe(email.html, "html footer");
+  assertSafe(email.text, "text footer");
+});
+
+test("pago Q: emails de estado incluyen footer y no datos de pago", () => {
+  for (const status of ["confirmado", "preparando", "listo", "enviado", "entregado", "cancelado"]) {
+    const email = buildOrderStatusEmail(sampleOrder(), { status }, { env: PAYMENT_ENV });
+    assert.match(email.html, /¿Necesitas ayuda\?/);
+    assert.match(email.html, /Este es un correo automático/);
+    assert.match(email.html, /mailto:ventas@milugui\.com\?subject=Consulta%20sobre%20mi%20pedido%20MLG-TEST01/);
+    assert.doesNotMatch(email.html, /Método de pago:/);
+    assert.doesNotMatch(email.html, /Realiza el Bizum/);
+    assert.doesNotMatch(email.html, /Datos para la transferencia/);
+    assertSafe(email.html, `status ${status}`);
+  }
+});
+
+test("pago R: recuperación de contraseña tiene footer y no datos de pago", () => {
+  const email = buildPasswordResetEmail({
+    fullName: "Ana",
+    resetUrl: "https://mixsabor.milugui.com/reset-password?token=abc",
+    expiresInMinutes: 30
+  });
+  assert.match(email.html, /Restablece tu contraseña/);
+  assert.match(email.html, /¿Necesitas ayuda\?/);
+  assert.match(email.html, /Este es un correo automático/);
+  assert.match(email.html, /mailto:ventas@milugui\.com\?subject=/);
+  assert.doesNotMatch(email.html, /Método de pago/);
+  assert.doesNotMatch(email.html, /Realiza el Bizum/);
+  assert.doesNotMatch(email.html, /IBAN:/);
+  assert.doesNotMatch(email.html, /MLG-TEST01/);
+  assertSafe(email.html, "reset html");
+  assertSafe(email.text, "reset text");
+});
+
+test("pago S: el HTML de contacto se escapa y el mailto no rompe el encoding", () => {
+  const order = sampleOrder({
+    customer: { fullName: '<img src=x>', email: "ana@example.com" },
+    orderId: 'MLG-TEST01'
+  });
+  const email = buildCustomerOrderEmail(order, { env: PAYMENT_ENV });
+  assert.match(email.html, /&lt;img src=x&gt;/);
+  assert.match(email.html, /mailto:ventas@milugui\.com\?subject=Consulta%20sobre%20mi%20pedido%20MLG-TEST01/);
+  assert.doesNotMatch(email.html, /<img src=x>/);
+  assert.doesNotMatch(email.html, /Haz clic aquí/);
+});
+
+function emailWithoutFooter(html) {
+  const idx = html.indexOf("¿Necesitas ayuda?");
+  return idx === -1 ? html : html.slice(0, idx);
+}

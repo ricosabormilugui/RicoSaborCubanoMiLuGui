@@ -1,6 +1,7 @@
+import contactConfig from '../../../../shared/contact.config.json';
 import { BRAND_CONFIG } from './brand.config';
 
-const BUSINESS_PHONE = '34614272838';
+const BUSINESS_PHONE = contactConfig.whatsappPhone;
 const DEFAULT_CONTACT_MESSAGE = `Hola, quiero hacer una consulta a ${BRAND_CONFIG.name} sobre un producto o pedido.`;
 
 export function buildWhatsAppContactUrl(message = DEFAULT_CONTACT_MESSAGE): string {
