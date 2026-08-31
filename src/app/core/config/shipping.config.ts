@@ -122,8 +122,17 @@ export function instantInBusinessTimezone(dateOnly: string, hour: number, minute
   return zonedDateTimeToInstant(parsed, hour, minute);
 }
 
-export function getSlotsForDeliveryType(deliveryType: DeliveryType): readonly string[] {
-  return DELIVERY_RULES.slots[deliveryType];
+export function getSlotsForDeliveryType(deliveryType: DeliveryType | null | undefined): readonly string[] {
+  if (deliveryType !== 'delivery' && deliveryType !== 'pickup') return [];
+  return DELIVERY_RULES.slots[deliveryType] ?? [];
+}
+
+export function parseDeliverySlotStart(deliverySlot: string | null | undefined): { hour: number; minute: number } | null {
+  const raw = String(deliverySlot ?? '').trim();
+  if (!raw) return null;
+  const match = /^(\d{2}):(\d{2})-/.exec(raw);
+  if (!match) return null;
+  return { hour: Number(match[1]), minute: Number(match[2]) };
 }
 
 export function isClosedFulfillmentDate(deliveryDate: string, options?: FulfillmentRuleOptions): boolean {
@@ -134,7 +143,7 @@ export function isClosedFulfillmentDate(deliveryDate: string, options?: Fulfillm
 
 export function validateFulfillmentSelection(
   deliveryDate: string,
-  deliverySlot: string,
+  deliverySlot: string | null | undefined,
   deliveryType: DeliveryType,
   advanceNoticeHours: number,
   now = new Date(),
@@ -145,12 +154,16 @@ export function validateFulfillmentSelection(
   if (isClosedFulfillmentDate(deliveryDate, options)) {
     return { valid: false, error: 'closed-day', message: 'Esta fecha ya no está disponible. Elige otra fecha.' };
   }
-  if (!getSlotsForDeliveryType(deliveryType).includes(deliverySlot)) {
+  const selectedSlot = String(deliverySlot ?? '').trim();
+  if (!selectedSlot) {
+    return { valid: false, error: 'invalid-slot', message: 'Selecciona una franja horaria.' };
+  }
+  if (!getSlotsForDeliveryType(deliveryType).includes(selectedSlot)) {
     return { valid: false, error: 'invalid-slot', message: 'La franja no está disponible para el tipo de entrega seleccionado.' };
   }
-  const slotStart = /^(\d{2}):(\d{2})-/.exec(deliverySlot);
+  const slotStart = parseDeliverySlotStart(selectedSlot);
   if (!slotStart) return { valid: false, error: 'invalid-slot', message: 'La franja horaria no es válida.' };
-  const fulfillmentAt = zonedDateTimeToInstant(parsedDate, Number(slotStart[1]), Number(slotStart[2]));
+  const fulfillmentAt = zonedDateTimeToInstant(parsedDate, slotStart.hour, slotStart.minute);
   const earliestAllowed = now.getTime() + advanceNoticeHours * 60 * 60 * 1000;
   if (fulfillmentAt.getTime() < earliestAllowed) {
     return { valid: false, error: 'insufficient-notice', message: noticeHoursMessage(advanceNoticeHours) };
@@ -196,7 +209,7 @@ export function explainUnavailableDate(
 
 export function reconcileFulfillmentSelection(
   deliveryDate: string,
-  deliverySlot: string,
+  deliverySlot: string | null | undefined,
   deliveryType: DeliveryType,
   advanceNoticeHours: number,
   now = new Date(),
@@ -205,7 +218,8 @@ export function reconcileFulfillmentSelection(
   if (!deliveryDate) return { date: '', slot: '' };
   const validSlots = getValidSlotsForDate(deliveryDate, deliveryType, advanceNoticeHours, now, options);
   if (!validSlots.length) return { date: '', slot: '' };
-  if (validSlots.includes(deliverySlot)) return { date: deliveryDate, slot: deliverySlot };
+  const selectedSlot = String(deliverySlot ?? '').trim();
+  if (selectedSlot && validSlots.includes(selectedSlot)) return { date: deliveryDate, slot: selectedSlot };
   return { date: deliveryDate, slot: validSlots.length === 1 ? validSlots[0] : '' };
 }
 

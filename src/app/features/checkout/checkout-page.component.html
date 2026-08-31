@@ -117,7 +117,7 @@
             <label>
               <span>Fecha <span class="required-mark" aria-hidden="true">*</span></span>
               <input id="deliveryDate" formControlName="deliveryDate" type="date" required
-                [min]="minimumDeliveryDate()" [max]="maximumDeliveryDate()"
+                [attr.min]="minimumDeliveryDate() || null" [attr.max]="maximumDeliveryDate() || null"
                 [class.field-invalid]="isInvalid('deliveryDate')" [attr.aria-invalid]="ariaInvalid('deliveryDate')"
                 [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'"
                 (change)="onDeliveryDateChange()" />
@@ -163,7 +163,7 @@
               </label>
               <label>
                 <span>Código postal <span class="required-mark" aria-hidden="true">*</span></span>
-                <input id="postalCode" formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922"
+                <input id="postalCode" formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="Ej. 28922"
                   required
                   [class.field-invalid]="isInvalid('postalCode')" [attr.aria-invalid]="ariaInvalid('postalCode')"
                   [attr.aria-describedby]="isInvalid('postalCode') ? 'postalCode-error' : null" (input)="sanitizePostalCode()" />
@@ -177,7 +177,7 @@
               <input formControlName="reference" placeholder="Portal, timbre, indicaciones" />
             </label>
           }
-          <p class="shipping-quote" [class.blocked]="!shippingQuote().available">{{ shippingQuote().message }}</p>
+          <p class="shipping-quote" [class.blocked]="shippingQuoteBlocked()">{{ shippingQuoteMessage() }}</p>
           <label class="notes-field">
             Notas del pedido
             <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>

@@ -331,7 +331,7 @@ test('W: checkout es una página de finalizar, no un carrito duplicado', () => {
   assert.match(checkout, />Pago</);
   assert.match(checkout, /Domicilio/);
   assert.match(checkout, /Recogida/);
-  assert.match(checkout, /\[min\]="minimumDeliveryDate\(\)"/);
+  assert.match(checkout, /\[attr\.min\]="minimumDeliveryDate\(\) \|\| null"/);
   assert.match(checkout, /paymentMethod/);
   assert.match(checkout, /Confirmar pedido/);
   assert.match(checkout, /Procesando…/);
@@ -380,6 +380,23 @@ test('availableStockForLine agrega otras líneas del mismo producto base', () =>
   const b = { productId: 'p::y', baseProductId: 'p', quantity: 2, trackStock: true, stock: 5 };
   assert.equal(availableStockForLine(a, [a, b]), 3);
   assert.equal(availableStockForLine(b, [a, b]), 3);
+});
+
+test('hotfix visual: Pago continua el fondo de checkout y el carrito no infla altura', () => {
+  const checkoutCss = read('src/app/features/checkout/checkout-page.component.css');
+  const cartCss = read('src/app/features/cart/cart-page.component.css');
+  const styles = read('src/styles.scss');
+  const app = read('src/app/app.component.ts');
+  assert.match(styles, /:root\[data-theme='light'\][\s\S]*color-scheme:\s*light/);
+  assert.match(checkoutCss, /\.form-section[\s\S]*background:\s*transparent/);
+  assert.match(checkoutCss, /\.payment-fieldset[\s\S]*color-scheme:\s*inherit/);
+  assert.match(checkoutCss, /\.consent-check a \{ color: var\(--accent-green\)/);
+  assert.doesNotMatch(checkoutCss, /background:\s*#111827|background:\s*var\(--bg-elevated\)/);
+  assert.doesNotMatch(app, /100vh - 150px/);
+  assert.match(app, /\.main-layout\{width:100%;min-height:0\}/);
+  assert.match(app, /\.page-content\{[^}]*flex:1/);
+  assert.doesNotMatch(cartCss, /min-height:\s*calc\(100vh/);
+  assert.match(cartCss, /padding-bottom: 2\.4rem/);
 });
 
 test('W-Y: reserva de pago en confirmación, admin y catálogo', () => {

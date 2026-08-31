@@ -260,6 +260,26 @@ export class CheckoutPageComponent {
     );
   }
 
+  hasCompletePostalCode(): boolean {
+    return normalizePostalCode(this.form.controls.postalCode.value).length === 5;
+  }
+
+  shippingQuoteMessage(): string {
+    const quote = this.shippingQuote();
+    if (this.form.controls.deliveryType.value !== 'delivery' || this.hasCompletePostalCode()) {
+      return quote.message;
+    }
+    if (this.isInvalid('postalCode')) return quote.message;
+    return 'Indica el código postal para calcular el envío.';
+  }
+
+  shippingQuoteBlocked(): boolean {
+    const quote = this.shippingQuote();
+    if (this.form.controls.deliveryType.value !== 'delivery') return !quote.available;
+    if (!this.hasCompletePostalCode()) return this.isInvalid('postalCode');
+    return !quote.available;
+  }
+
   paymentReservationHours(): number {
     return Math.max(1, Math.round(this.deliveryRules.paymentReservationMinutes / 60));
   }
@@ -440,7 +460,9 @@ export class CheckoutPageComponent {
     this.setFulfillmentError(slotControl, null);
     if (!dateControl.value) return;
 
-    const slot = slotControl.value || this.availableSlots()[0] || '';
+    const slot = String(slotControl.value ?? '').trim();
+    if (!slot) return;
+
     const result = validateFulfillmentSelection(
       dateControl.value,
       slot,

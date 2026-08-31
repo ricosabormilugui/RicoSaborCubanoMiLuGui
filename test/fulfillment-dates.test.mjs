@@ -20,11 +20,14 @@ function loadShipping() {
 const shipping = await loadShipping();
 const {
   DELIVERY_RULES,
+  calculateShippingQuote,
   getMinimumFulfillmentDate,
+  getSlotsForDeliveryType,
   getValidSlotsForDate,
   instantInBusinessTimezone,
   isClosedFulfillmentDate,
   isFulfillmentDateAvailable,
+  parseDeliverySlotStart,
   reconcileFulfillmentSelection,
   validateFulfillmentSelection
 } = shipping;
@@ -101,8 +104,62 @@ test('el checkout valida el change del datepicker nativo', () => {
   const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8')
     + readFileSync(new URL('src/app/features/checkout/checkout-page.component.html', rootUrl), 'utf8');
   assert.match(checkout, /onDeliveryDateChange\(\)/);
-  assert.match(checkout, /\[min\]="minimumDeliveryDate\(\)"/);
-  assert.match(checkout, /\[max\]="maximumDeliveryDate\(\)"/);
+  assert.match(checkout, /\[attr\.min\]="minimumDeliveryDate\(\) \|\| null"/);
+  assert.match(checkout, /\[attr\.max\]="maximumDeliveryDate\(\) \|\| null"/);
   assert.match(checkout, /getValidSlotsForDate/);
   assert.match(checkout, /reconcileFulfillmentSelection/);
+});
+
+test('A-H: franja vacía y transiciones no acceden a startTime', () => {
+  const now = at('2026-08-28', 10, 0);
+  assert.equal(parseDeliverySlotStart(''), null);
+  assert.equal(parseDeliverySlotStart(null), null);
+  assert.deepEqual(getSlotsForDeliveryType(undefined), []);
+  assert.deepEqual(getSlotsForDeliveryType('delivery'), ['18:00-21:00']);
+
+  assert.doesNotThrow(() => validateFulfillmentSelection('2026-08-29', '', 'delivery', 24, now));
+  assert.doesNotThrow(() => validateFulfillmentSelection('2026-08-29', null, 'pickup', 24, now));
+  assert.doesNotThrow(() => reconcileFulfillmentSelection('', '', 'delivery', 24, now));
+  assert.doesNotThrow(() => reconcileFulfillmentSelection('2026-08-29', '18:00-21:00', 'pickup', 24, now));
+  assert.doesNotThrow(() => reconcileFulfillmentSelection('2026-08-29', '12:00-14:00', 'delivery', 24, now));
+  assert.doesNotThrow(() => reconcileFulfillmentSelection('2026-08-30', '18:00-21:00', 'delivery', 24, now));
+
+  const emptySlot = validateFulfillmentSelection('2026-08-29', '', 'delivery', 24, now);
+  assert.equal(emptySlot.valid, false);
+  if (!emptySlot.valid) assert.equal(emptySlot.error, 'invalid-slot');
+
+  const deliveryStart = reconcileFulfillmentSelection('', '', 'delivery', 24, now);
+  assert.equal(deliveryStart.slot, '');
+
+  const pickup = reconcileFulfillmentSelection('2026-08-29', '18:00-21:00', 'pickup', 24, now);
+  assert.equal(pickup.slot, '');
+
+  const delivery = reconcileFulfillmentSelection('2026-08-29', '12:00-14:00', 'delivery', 24, now);
+  assert.equal(delivery.slot, '18:00-21:00');
+
+  const emptyDate = reconcileFulfillmentSelection('2026-08-30', '18:00-21:00', 'delivery', 24, now);
+  assert.equal(emptyDate.slot, '');
+  assert.deepEqual(getValidSlotsForDate('2026-08-30', 'delivery', 24, now), []);
+
+  const single = reconcileFulfillmentSelection('2026-08-29', '', 'delivery', 24, now);
+  assert.equal(single.slot, '18:00-21:00');
+
+  const several = reconcileFulfillmentSelection('2026-08-29', '14:00-16:00', 'pickup', 24, now);
+  assert.equal(several.slot, '14:00-16:00');
+
+  const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8');
+  assert.doesNotMatch(checkout, /availableSlots\(\)\[0\]/);
+  assert.match(checkout, /const slot = String\(slotControl\.value \?\? ''\)\.trim\(\)/);
+  assert.doesNotMatch(checkout, /\.startTime/);
+});
+
+test('28922 es un CP válido y no deja el mensaje de 5 dígitos', () => {
+  const quote = calculateShippingQuote('delivery', '28922', 40);
+  assert.equal(quote.available, true);
+  assert.doesNotMatch(quote.message, /5 dígitos/);
+  const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.html', rootUrl), 'utf8')
+    + readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8');
+  assert.match(checkout, /placeholder="Ej\. 28922"/);
+  assert.match(checkout, /hasCompletePostalCode\(\)/);
+  assert.match(checkout, /shippingQuoteMessage\(\)/);
 });

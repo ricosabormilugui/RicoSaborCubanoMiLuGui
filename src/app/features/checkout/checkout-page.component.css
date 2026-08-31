@@ -7,6 +7,9 @@
   min-width: 0;
   overflow-x: clip;
   padding: 0 0 2.4rem;
+  background: transparent;
+  color: var(--text-main);
+  color-scheme: inherit;
 }
 
 .checkout-intro { display: grid; gap: .4rem; max-width: 38rem; }
@@ -61,6 +64,8 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+  color: inherit;
+  color-scheme: inherit;
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 48%, transparent);
 }
 .form-section:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -136,7 +141,18 @@ label {
 .field-secondary { font-weight: 550; }
 .field-secondary input { height: 46px; }
 
-.choice-fieldset, .payment-fieldset, .slots { min-width: 0; border: 0; margin: 0; padding: 0; }
+.choice-fieldset, .payment-fieldset, .slots {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  background-color: transparent;
+  color: inherit;
+  color-scheme: inherit;
+  appearance: none;
+  min-inline-size: 0;
+}
 .slots legend {
   padding: 0;
   margin-bottom: .32rem;
@@ -208,8 +224,8 @@ input.field-invalid, select.field-invalid, textarea.field-invalid {
 }
 .field-invalid-group .slot-buttons { outline: 1px solid var(--error-text); border-radius: 8px; padding: .3rem; }
 
-.consent-check { display: flex; align-items: flex-start; gap: .55rem; font-weight: 500; color: var(--text-soft); }
-.consent-check input { flex: 0 0 18px; margin-top: .2rem; width: 18px; height: 18px; }
+.consent-check { display: flex; align-items: flex-start; gap: .55rem; font-weight: 500; color: var(--text-soft); background: transparent; }
+.consent-check input { flex: 0 0 18px; margin-top: .2rem; width: 18px; height: 18px; accent-color: var(--accent-red); color-scheme: inherit; }
 .consent-check input[aria-invalid="true"] { outline: 2px solid var(--error-text); outline-offset: 2px; }
 .consent-check a { color: var(--accent-green); font-weight: 650; }
 
@@ -225,7 +241,7 @@ input.field-invalid, select.field-invalid, textarea.field-invalid {
   cursor: pointer;
 }
 .payment-option:last-child { border-bottom: 0; }
-.payment-option input { flex: 0 0 18px; width: 18px; height: 18px; margin-top: .22rem; accent-color: var(--accent-red); }
+.payment-option input { flex: 0 0 18px; width: 18px; height: 18px; margin-top: .22rem; accent-color: var(--accent-red); color-scheme: inherit; background: transparent; }
 .payment-option span { display: grid; gap: .18rem; min-width: 0; }
 .payment-option strong { color: var(--text-main); font-size: .98rem; font-weight: 600; }
 .payment-option small { font-weight: 450; line-height: 1.45; }
@@ -245,10 +261,14 @@ input.field-invalid, select.field-invalid, textarea.field-invalid {
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface-0) 38%, transparent);
   box-shadow: none;
+  color-scheme: inherit;
 }
 :host-context(:root[data-theme='dark']) .summary {
   background: color-mix(in srgb, var(--text-main) 4%, transparent);
   border-color: color-mix(in srgb, var(--border-soft) 38%, transparent);
+}
+:host-context(:root[data-theme='light']) .summary {
+  background: color-mix(in srgb, var(--surface-0) 55%, transparent);
 }
 .summary-head {
   display: flex;

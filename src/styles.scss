@@ -57,6 +57,7 @@
   --error-text: #ffd4da;
 
   font-family: 'Segoe UI', Inter, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
 }
 
 :root[data-theme='light'] {
@@ -99,6 +100,7 @@
   --ok-text: #065f46;
   --error-bg: #fef2f2;
   --error-text: #991b1b;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
