@@ -7,6 +7,7 @@
     "dev": "node --watch --watch-path=src --watch-preserve-output src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
+    "preview:order-email": "node scripts/preview-order-email.js",
     "diagnose:product-slugs": "node scripts/diagnose-product-slugs.js",
     "migrate:product-slugs": "node scripts/migrate-product-slugs.js"
   },

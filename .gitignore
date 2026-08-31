@@ -28,6 +28,8 @@ node_modules
 
 # logs
 npm-debug.log
+Backend/tmp/
+Backend/test/fixtures/
 # whatsapp-web.js session
 .wwebjs_auth/
 .wwebjs_cache/

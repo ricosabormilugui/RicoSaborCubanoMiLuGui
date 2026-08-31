@@ -99,9 +99,12 @@ test('caso 9: la navegación SPA limpia metadata anterior', () => {
 
 test('caso 10: los emails activos no contienen branding antiguo', () => {
   const email = read('Backend/src/services/email.service.js');
+  const templates = read('Backend/src/services/order-email.templates.js');
   const replies = read('Backend/src/controllers/admin-contacts.controller.js');
   assert.match(email, /BRAND_CONFIG\.name/);
-  assert.doesNotMatch(`${email}\n${replies}`, /Rico Sabor|MiLuGui/i);
+  assert.match(templates, /BRAND_CONFIG\.name/);
+  assert.doesNotMatch(`${email}\n${templates}\n${replies}`, /Rico Sabor|MiLuGui/i);
+  assert.doesNotMatch(`${email}\n${templates}`, /PENDIENTE_CONFIGURAR/);
 });
 
 test('Open Graph, Twitter Cards, sitemap dinámico y robots están presentes', () => {

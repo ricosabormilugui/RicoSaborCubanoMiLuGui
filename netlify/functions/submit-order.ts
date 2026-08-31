@@ -117,20 +117,42 @@ function getPaymentMethodLabel(method: ReturnType<typeof getPaymentMethod>): str
   return labels[method];
 }
 
+function configuredPaymentValue(name: string): string {
+  const value = getEnv(name);
+  if (!value || (/^PENDIENTE_/i.test(value) && /CONFIGURAR/i.test(value))) return '';
+  return value;
+}
+
 function getPaymentInstructions(orderId: string, payload: OrderPayload): string {
   const method = getPaymentMethod(payload);
+  const contactForPayment = 'Te contactaremos para facilitarte los datos de pago.';
+  const ref = `pedido ${orderId}`;
 
   if (method === 'bizum') {
-    return `Enviar Bizum al ${getEnv('PAYMENT_BIZUM_PHONE') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BIZUM_PHONE'} indicando pedido ${orderId}.`;
+    const phone = configuredPaymentValue('PAYMENT_BIZUM_PHONE');
+    if (!phone) {
+      console.error(JSON.stringify({ level: 'error', event: 'payment.bizum.configuration_missing', method }));
+      return contactForPayment;
+    }
+    return `Realiza el Bizum al ${phone} indicando ${ref}.`;
   }
 
   if (method === 'bank_transfer') {
-    const iban = getEnv('PAYMENT_BANK_IBAN') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BANK_IBAN';
-    const holder = getEnv('PAYMENT_BANK_HOLDER') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_BANK_HOLDER';
-    return `Transferencia a ${iban}, titular ${holder}, indicando pedido ${orderId} en el concepto.`;
+    const iban = configuredPaymentValue('PAYMENT_BANK_IBAN');
+    const holder = configuredPaymentValue('PAYMENT_BANK_HOLDER');
+    if (!iban || !holder) {
+      console.error(JSON.stringify({ level: 'error', event: 'payment.bank_transfer.configuration_missing', method }));
+      return contactForPayment;
+    }
+    return `Transferencia a ${iban}, titular ${holder}, indicando ${ref} en el concepto.`;
   }
 
-  return `${getEnv('PAYMENT_CASH_INSTRUCTIONS') ?? 'PENDIENTE_CONFIGURAR_PAYMENT_CASH_INSTRUCTIONS: pagar en efectivo al recibir o recoger el pedido.'} Indica pedido ${orderId} al equipo.`;
+  const cashInstructions = configuredPaymentValue('PAYMENT_CASH_INSTRUCTIONS');
+  if (!cashInstructions) {
+    console.error(JSON.stringify({ level: 'error', event: 'payment.cash.configuration_missing', method }));
+    return `Paga en efectivo al recoger o entregar el pedido. Indica ${ref} al equipo.`;
+  }
+  return `${cashInstructions} Indica ${ref} al equipo.`;
 }
 
 function resolveTaxSummary(payload: OrderPayload): { subtotal: number; shippingCost: number; taxAmount: number; total: number; taxLabel: string } {
