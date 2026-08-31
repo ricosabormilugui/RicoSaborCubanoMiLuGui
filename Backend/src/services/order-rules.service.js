@@ -33,11 +33,6 @@ function parseDateOnly(value) {
   return { year, month, day };
 }
 
-function formatDateInTimeZone(value) {
-  const parts = getZonedParts(value);
-  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-}
-
 function zonedDateTimeToInstant(date, hour, minute) {
   const intendedUtc = Date.UTC(date.year, date.month - 1, date.day, hour, minute, 0);
   let instant = new Date(intendedUtc);
@@ -49,11 +44,63 @@ function zonedDateTimeToInstant(date, hour, minute) {
   return instant;
 }
 
+function calendarWeekday(date) {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+}
+
+function closedWeekdaysFrom(options = {}) {
+  return options.closedWeekdays ?? DELIVERY_RULES.closedWeekdays;
+}
+
+export function noticeHoursMessage(hours) {
+  return `Necesitamos al menos ${hours} horas para preparar tu pedido.`;
+}
+
+export function instantInBusinessTimezone(dateOnly, hour, minute) {
+  const parsed = parseDateOnly(dateOnly);
+  if (!parsed) return null;
+  return zonedDateTimeToInstant(parsed, hour, minute);
+}
+
 export function getSlotsForDeliveryType(deliveryType) {
   return DELIVERY_RULES.slots[deliveryType] ?? [];
 }
 
-export function validateOrderFulfillment(delivery, { advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours, now = new Date() } = {}) {
+export function isClosedFulfillmentDate(deliveryDate, options = {}) {
+  const parsedDate = parseDateOnly(deliveryDate);
+  if (!parsedDate) return false;
+  return closedWeekdaysFrom(options).includes(calendarWeekday(parsedDate));
+}
+
+export function getValidSlotsForDate(deliveryDate, deliveryType, { advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours, now = new Date(), closedWeekdays } = {}) {
+  return getSlotsForDeliveryType(deliveryType).filter((slot) =>
+    !validateOrderFulfillment({ type: deliveryType, date: deliveryDate, slot }, { advanceNoticeHours, now, closedWeekdays })
+  );
+}
+
+export function isFulfillmentDateAvailable(deliveryDate, deliveryType, options = {}) {
+  return getValidSlotsForDate(deliveryDate, deliveryType, options).length > 0;
+}
+
+export function getMinimumFulfillmentDate(deliveryType, { advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours, now = new Date(), closedWeekdays } = {}) {
+  const madridToday = getZonedParts(now);
+  for (let offset = 0; offset <= 60; offset += 1) {
+    const candidate = new Date(Date.UTC(madridToday.year, madridToday.month - 1, madridToday.day + offset));
+    const date = `${candidate.getUTCFullYear()}-${String(candidate.getUTCMonth() + 1).padStart(2, "0")}-${String(candidate.getUTCDate()).padStart(2, "0")}`;
+    if (isFulfillmentDateAvailable(date, deliveryType, { advanceNoticeHours, now, closedWeekdays })) return date;
+  }
+  return "";
+}
+
+export function reconcileFulfillmentSelection(deliveryDate, deliverySlot, deliveryType, options = {}) {
+  if (!deliveryDate) return { date: "", slot: "" };
+  const validSlots = getValidSlotsForDate(deliveryDate, deliveryType, options);
+  if (!validSlots.length) return { date: "", slot: "" };
+  if (validSlots.includes(deliverySlot)) return { date: deliveryDate, slot: deliverySlot };
+  return { date: deliveryDate, slot: validSlots.length === 1 ? validSlots[0] : "" };
+}
+
+export function validateOrderFulfillment(delivery, { advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours, now = new Date(), closedWeekdays } = {}) {
   if (delivery?.type !== "delivery" && delivery?.type !== "pickup") {
     return "El tipo de entrega debe ser delivery o pickup.";
   }
@@ -62,8 +109,8 @@ export function validateOrderFulfillment(delivery, { advanceNoticeHours = DELIVE
   }
   const parsedDate = parseDateOnly(delivery.date);
   if (!parsedDate) return "La fecha seleccionada no es válida.";
-  if (DELIVERY_RULES.closedWeekdays.includes(new Date(Date.UTC(parsedDate.year, parsedDate.month - 1, parsedDate.day)).getUTCDay())) {
-    return "No hay servicio en la fecha seleccionada.";
+  if (isClosedFulfillmentDate(delivery.date, { closedWeekdays })) {
+    return "Esta fecha ya no está disponible. Elige otra fecha.";
   }
   if (!getSlotsForDeliveryType(delivery.type).includes(delivery.slot)) {
     return delivery.type === "delivery"
@@ -72,12 +119,9 @@ export function validateOrderFulfillment(delivery, { advanceNoticeHours = DELIVE
   }
   const slotStart = /^(\d{2}):(\d{2})-/.exec(delivery.slot);
   if (!slotStart) return "La franja horaria no es válida.";
-  if (!DELIVERY_RULES.sameDayDelivery && delivery.date <= formatDateInTimeZone(now)) {
-    return "No se admiten pedidos para el mismo día.";
-  }
   const fulfillmentAt = zonedDateTimeToInstant(parsedDate, Number(slotStart[1]), Number(slotStart[2]));
   if (fulfillmentAt.getTime() < now.getTime() + advanceNoticeHours * 60 * 60 * 1000) {
-    return `El pedido requiere al menos ${advanceNoticeHours} horas completas de antelación.`;
+    return noticeHoursMessage(advanceNoticeHours);
   }
   return null;
 }

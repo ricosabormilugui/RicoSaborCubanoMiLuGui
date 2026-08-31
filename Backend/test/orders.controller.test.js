@@ -68,7 +68,7 @@ test("POST /orders responde 400 para un pedido del mismo día", async () => {
   await createOrder(orderRequest(basePayload(delivery)), response);
   assert.equal(response.statusCode, 400);
   const weekday = new Date(`${delivery.date}T00:00:00.000Z`).getUTCDay();
-  const expectedMessage = DELIVERY_RULES.closedWeekdays.includes(weekday) ? /No hay servicio/ : /mismo día/;
+  const expectedMessage = DELIVERY_RULES.closedWeekdays.includes(weekday) ? /Esta fecha ya no está disponible/ : /Necesitamos al menos 24 horas/;
   assert.match(response.body.error, expectedMessage);
 });
 
@@ -78,4 +78,12 @@ test("POST /orders responde 400 para una franja de domicilio no permitida", asyn
   await createOrder(orderRequest(basePayload(delivery)), response);
   assert.equal(response.statusCode, 400);
   assert.match(response.body.error, /18:00-21:00/);
+});
+
+test("POST /orders rechaza una fecha pasada manipulada", async () => {
+  const delivery = { type: "delivery", date: "2020-01-06", slot: "18:00-21:00", postalCode: "28922" };
+  const response = mockResponse();
+  await createOrder(orderRequest(basePayload(delivery)), response);
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body.error, /Necesitamos al menos 24 horas|Esta fecha ya no está disponible/);
 });

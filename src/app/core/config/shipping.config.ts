@@ -52,7 +52,11 @@ type DateParts = { year: number; month: number; day: number; hour: number; minut
 
 export type FulfillmentValidation =
   | { valid: true; fulfillmentAt: Date }
-  | { valid: false; error: 'invalid-date' | 'closed-day' | 'invalid-slot' | 'same-day' | 'insufficient-notice'; message: string };
+  | { valid: false; error: 'invalid-date' | 'closed-day' | 'invalid-slot' | 'insufficient-notice'; message: string };
+
+export type FulfillmentRuleOptions = {
+  closedWeekdays?: readonly number[];
+};
 
 function getZonedParts(value: Date, timeZone: string): DateParts {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -98,13 +102,32 @@ function zonedDateTimeToInstant(date: { year: number; month: number; day: number
   return instant;
 }
 
-function formatDateOnly(date: Date): string {
-  const parts = getZonedParts(date, DELIVERY_RULES.timeZone);
-  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+function calendarWeekday(date: { year: number; month: number; day: number }): number {
+  return new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+}
+
+function closedWeekdaysFrom(options?: FulfillmentRuleOptions): readonly number[] {
+  return options?.closedWeekdays ?? DELIVERY_RULES.closedWeekdays;
+}
+
+export function noticeHoursMessage(hours: number): string {
+  return `Necesitamos al menos ${hours} horas para preparar tu pedido.`;
+}
+
+export function instantInBusinessTimezone(dateOnly: string, hour: number, minute: number): Date | null {
+  const parsed = parseDateOnly(dateOnly);
+  if (!parsed) return null;
+  return zonedDateTimeToInstant(parsed, hour, minute);
 }
 
 export function getSlotsForDeliveryType(deliveryType: DeliveryType): readonly string[] {
   return DELIVERY_RULES.slots[deliveryType];
+}
+
+export function isClosedFulfillmentDate(deliveryDate: string, options?: FulfillmentRuleOptions): boolean {
+  const parsedDate = parseDateOnly(deliveryDate);
+  if (!parsedDate) return false;
+  return closedWeekdaysFrom(options).includes(calendarWeekday(parsedDate));
 }
 
 export function validateFulfillmentSelection(
@@ -112,12 +135,13 @@ export function validateFulfillmentSelection(
   deliverySlot: string,
   deliveryType: DeliveryType,
   advanceNoticeHours: number,
-  now = new Date()
+  now = new Date(),
+  options?: FulfillmentRuleOptions
 ): FulfillmentValidation {
   const parsedDate = parseDateOnly(deliveryDate);
   if (!parsedDate) return { valid: false, error: 'invalid-date', message: 'Selecciona una fecha válida.' };
-  if (DELIVERY_RULES.closedWeekdays.includes(new Date(Date.UTC(parsedDate.year, parsedDate.month - 1, parsedDate.day)).getUTCDay())) {
-    return { valid: false, error: 'closed-day', message: 'No hay servicio en la fecha seleccionada.' };
+  if (isClosedFulfillmentDate(deliveryDate, options)) {
+    return { valid: false, error: 'closed-day', message: 'Esta fecha ya no está disponible. Elige otra fecha.' };
   }
   if (!getSlotsForDeliveryType(deliveryType).includes(deliverySlot)) {
     return { valid: false, error: 'invalid-slot', message: 'La franja no está disponible para el tipo de entrega seleccionado.' };
@@ -125,25 +149,83 @@ export function validateFulfillmentSelection(
   const slotStart = /^(\d{2}):(\d{2})-/.exec(deliverySlot);
   if (!slotStart) return { valid: false, error: 'invalid-slot', message: 'La franja horaria no es válida.' };
   const fulfillmentAt = zonedDateTimeToInstant(parsedDate, Number(slotStart[1]), Number(slotStart[2]));
-  const todayInMadrid = formatDateOnly(now);
-  if (!DELIVERY_RULES.sameDayDelivery && deliveryDate <= todayInMadrid) {
-    return { valid: false, error: 'same-day', message: 'Los pedidos para el mismo día no están disponibles.' };
-  }
-  const minimumAt = now.getTime() + advanceNoticeHours * 60 * 60 * 1000;
-  if (fulfillmentAt.getTime() < minimumAt) {
-    return { valid: false, error: 'insufficient-notice', message: `El pedido requiere al menos ${advanceNoticeHours} horas completas de antelación.` };
+  const earliestAllowed = now.getTime() + advanceNoticeHours * 60 * 60 * 1000;
+  if (fulfillmentAt.getTime() < earliestAllowed) {
+    return { valid: false, error: 'insufficient-notice', message: noticeHoursMessage(advanceNoticeHours) };
   }
   return { valid: true, fulfillmentAt };
 }
 
-export function getMinimumFulfillmentDate(deliveryType: DeliveryType, advanceNoticeHours: number, now = new Date()): string {
+export function getValidSlotsForDate(
+  deliveryDate: string,
+  deliveryType: DeliveryType,
+  advanceNoticeHours: number,
+  now = new Date(),
+  options?: FulfillmentRuleOptions
+): string[] {
+  return getSlotsForDeliveryType(deliveryType).filter((slot) =>
+    validateFulfillmentSelection(deliveryDate, slot, deliveryType, advanceNoticeHours, now, options).valid
+  );
+}
+
+export function isFulfillmentDateAvailable(
+  deliveryDate: string,
+  deliveryType: DeliveryType,
+  advanceNoticeHours: number,
+  now = new Date(),
+  options?: FulfillmentRuleOptions
+): boolean {
+  return getValidSlotsForDate(deliveryDate, deliveryType, advanceNoticeHours, now, options).length > 0;
+}
+
+export function explainUnavailableDate(
+  deliveryDate: string,
+  deliveryType: DeliveryType,
+  advanceNoticeHours: number,
+  now = new Date(),
+  options?: FulfillmentRuleOptions
+): string {
+  if (isClosedFulfillmentDate(deliveryDate, options)) return 'Esta fecha ya no está disponible. Elige otra fecha.';
+  if (getSlotsForDeliveryType(deliveryType).length && !isFulfillmentDateAvailable(deliveryDate, deliveryType, advanceNoticeHours, now, options)) {
+    return noticeHoursMessage(advanceNoticeHours);
+  }
+  return 'No quedan horarios disponibles para este día.';
+}
+
+export function reconcileFulfillmentSelection(
+  deliveryDate: string,
+  deliverySlot: string,
+  deliveryType: DeliveryType,
+  advanceNoticeHours: number,
+  now = new Date(),
+  options?: FulfillmentRuleOptions
+): { date: string; slot: string } {
+  if (!deliveryDate) return { date: '', slot: '' };
+  const validSlots = getValidSlotsForDate(deliveryDate, deliveryType, advanceNoticeHours, now, options);
+  if (!validSlots.length) return { date: '', slot: '' };
+  if (validSlots.includes(deliverySlot)) return { date: deliveryDate, slot: deliverySlot };
+  return { date: deliveryDate, slot: validSlots.length === 1 ? validSlots[0] : '' };
+}
+
+export function getMinimumFulfillmentDate(
+  deliveryType: DeliveryType,
+  advanceNoticeHours: number,
+  now = new Date(),
+  options?: FulfillmentRuleOptions
+): string {
   const madridToday = getZonedParts(now, DELIVERY_RULES.timeZone);
-  for (let offset = 1; offset <= 60; offset += 1) {
+  for (let offset = 0; offset <= 60; offset += 1) {
     const candidate = new Date(Date.UTC(madridToday.year, madridToday.month - 1, madridToday.day + offset));
     const date = `${candidate.getUTCFullYear()}-${String(candidate.getUTCMonth() + 1).padStart(2, '0')}-${String(candidate.getUTCDate()).padStart(2, '0')}`;
-    if (getSlotsForDeliveryType(deliveryType).some((slot) => validateFulfillmentSelection(date, slot, deliveryType, advanceNoticeHours, now).valid)) return date;
+    if (isFulfillmentDateAvailable(date, deliveryType, advanceNoticeHours, now, options)) return date;
   }
   return '';
+}
+
+export function getMaximumFulfillmentDate(now = new Date()): string {
+  const madridToday = getZonedParts(now, DELIVERY_RULES.timeZone);
+  const candidate = new Date(Date.UTC(madridToday.year, madridToday.month - 1, madridToday.day + 60));
+  return `${candidate.getUTCFullYear()}-${String(candidate.getUTCMonth() + 1).padStart(2, '0')}-${String(candidate.getUTCDate()).padStart(2, '0')}`;
 }
 
 export const SHIPPING_ZONES: ShippingZone[] = [

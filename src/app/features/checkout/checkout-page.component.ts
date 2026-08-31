@@ -16,9 +16,14 @@ import {
   DELIVERY_RULES,
   ShippingQuote,
   calculateShippingQuote,
+  explainUnavailableDate,
+  getMaximumFulfillmentDate,
   getMinimumFulfillmentDate,
   getSlotsForDeliveryType,
+  getValidSlotsForDate,
+  isFulfillmentDateAvailable,
   normalizePostalCode,
+  reconcileFulfillmentSelection,
   validateFulfillmentSelection
 } from '../../core/config/shipping.config';
 import { resolveApiBaseUrl } from '../../core/config/api.config';
@@ -128,10 +133,12 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                 </label>
                 <label>
                   <span>Fecha <span class="required-mark" aria-hidden="true">*</span></span>
-                  <input id="deliveryDate" formControlName="deliveryDate" type="date" required [min]="minimumDeliveryDate()"
+                  <input id="deliveryDate" formControlName="deliveryDate" type="date" required
+                    [min]="minimumDeliveryDate()" [max]="maximumDeliveryDate()"
                     [class.field-invalid]="isInvalid('deliveryDate')" [attr.aria-invalid]="ariaInvalid('deliveryDate')"
-                    [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'" />
-                  <small id="deliveryDate-help" class="meta">Mínimo {{ requiredAdvanceNoticeHours() }} horas completas de antelación, según la franja elegida.</small>
+                    [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'"
+                    (change)="onDeliveryDateChange()" />
+                  <small id="deliveryDate-help" class="meta">Necesitamos al menos {{ requiredAdvanceNoticeHours() }} horas para preparar tu pedido, según la franja elegida.</small>
                   <small id="deliveryDate-error" class="field-error" *ngIf="isInvalid('deliveryDate')">{{ deliveryDateError() }}</small>
                 </label>
               </div>
@@ -178,7 +185,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
               <div class="shipping-quote" [class.blocked]="!shippingQuote().available">
                 <strong>Zona y coste de envío</strong>
                 <p>{{ shippingQuote().message }}</p>
-                <p class="meta">Antelación mínima: {{ requiredAdvanceNoticeHours() }} horas completas.</p>
+                <p class="meta">Necesitamos al menos {{ requiredAdvanceNoticeHours() }} horas para preparar tu pedido.</p>
               </div>
 
               <div class="grid">
@@ -537,7 +544,11 @@ export class CheckoutPageComponent {
   }
 
   availableSlots(): readonly string[] {
-    return getSlotsForDeliveryType(this.form.controls.deliveryType.value);
+    const date = this.form.controls.deliveryDate.value;
+    const type = this.form.controls.deliveryType.value;
+    const hours = this.requiredAdvanceNoticeHours();
+    if (!date) return getSlotsForDeliveryType(type);
+    return getValidSlotsForDate(date, type, hours);
   }
 
   minimumDeliveryDate(): string {
@@ -545,6 +556,10 @@ export class CheckoutPageComponent {
       this.form.controls.deliveryType.value,
       this.requiredAdvanceNoticeHours()
     );
+  }
+
+  maximumDeliveryDate(): string {
+    return getMaximumFulfillmentDate();
   }
 
   isSlotAvailable(slot: string): boolean {
@@ -556,6 +571,29 @@ export class CheckoutPageComponent {
       this.form.controls.deliveryType.value,
       this.requiredAdvanceNoticeHours()
     ).valid;
+  }
+
+  onDeliveryDateChange(): void {
+    const dateControl = this.form.controls.deliveryDate;
+    const slotControl = this.form.controls.deliverySlot;
+    const date = dateControl.value;
+    const type = this.form.controls.deliveryType.value;
+    const hours = this.requiredAdvanceNoticeHours();
+    if (!date) {
+      slotControl.setValue('');
+      this.validateDeliverySelection();
+      return;
+    }
+    if (!isFulfillmentDateAvailable(date, type, hours)) {
+      const message = explainUnavailableDate(date, type, hours);
+      dateControl.setValue('', { emitEvent: false });
+      slotControl.setValue('', { emitEvent: false });
+      this.setFulfillmentError(dateControl, message);
+      dateControl.markAsTouched();
+      this.notifications.warning('Fecha no disponible', message);
+      return;
+    }
+    this.reconcileDeliverySlot();
   }
 
   selectSlot(slot: string): void {
@@ -665,19 +703,16 @@ export class CheckoutPageComponent {
   }
 
   private reconcileDeliverySlot(): void {
+    const dateControl = this.form.controls.deliveryDate;
     const slotControl = this.form.controls.deliverySlot;
-    const slots = this.availableSlots();
-    const currentSlot = slotControl.value;
-    const currentIsValid = slots.includes(currentSlot) && this.isSlotAvailable(currentSlot);
-
-    if (currentIsValid) {
-      this.validateDeliverySelection();
-      return;
-    }
-
-    const onlySlot = slots.length === 1 ? slots[0] : undefined;
-    const nextSlot = onlySlot && this.isSlotAvailable(onlySlot) ? onlySlot : '';
-    if (nextSlot !== currentSlot) slotControl.setValue(nextSlot, { emitEvent: false });
+    const next = reconcileFulfillmentSelection(
+      dateControl.value,
+      slotControl.value,
+      this.form.controls.deliveryType.value,
+      this.requiredAdvanceNoticeHours()
+    );
+    if (next.date !== dateControl.value) dateControl.setValue(next.date, { emitEvent: false });
+    if (next.slot !== slotControl.value) slotControl.setValue(next.slot, { emitEvent: false });
     this.validateDeliverySelection();
   }
 
@@ -698,7 +733,7 @@ export class CheckoutPageComponent {
     if (result.valid) return;
 
     if (result.error === 'invalid-slot') {
-      this.setFulfillmentError(slotControl, result.message);
+      this.setFulfillmentError(slotControl, result.message || 'No quedan horarios disponibles para este día.');
     } else {
       this.setFulfillmentError(dateControl, result.message);
     }

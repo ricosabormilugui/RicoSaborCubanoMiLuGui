@@ -397,16 +397,13 @@ function validateFulfillment(payload: OrderPayload, now = new Date()): string | 
   if (dateCheck.getUTCFullYear() !== year || dateCheck.getUTCMonth() !== month - 1 || dateCheck.getUTCDate() !== day) {
     return 'La fecha seleccionada no es válida.';
   }
-  if (orderRules.closedWeekdays.includes(dateCheck.getUTCDay())) return 'No hay servicio en la fecha seleccionada.';
+  if (orderRules.closedWeekdays.includes(dateCheck.getUTCDay())) return 'Esta fecha ya no está disponible. Elige otra fecha.';
   const allowedSlots = orderRules.slots[type as RuntimeDeliveryType];
   if (!allowedSlots.includes(slot)) {
     return type === 'delivery'
       ? `Para entrega a domicilio la única franja válida es ${orderRules.slots.delivery[0]}.`
       : 'La franja seleccionada no está disponible para recogida en tienda.';
   }
-  const nowParts = getMadridParts(now);
-  const today = `${nowParts.year}-${String(nowParts.month).padStart(2, '0')}-${String(nowParts.day).padStart(2, '0')}`;
-  if (!orderRules.sameDayDelivery && date <= today) return 'No se admiten pedidos para el mismo día.';
   const slotStart = /^(\d{2}):(\d{2})-/.exec(slot);
   if (!slotStart) return 'La franja horaria no es válida.';
   const intendedUtc = Date.UTC(year, month - 1, day, Number(slotStart[1]), Number(slotStart[2]), 0);
@@ -422,6 +419,6 @@ function validateFulfillment(payload: OrderPayload, now = new Date()): string | 
     ? orderRules.personalizedAdvanceNoticeHours
     : orderRules.advanceNoticeHours;
   return fulfillmentAt.getTime() < now.getTime() + hours * 60 * 60 * 1000
-    ? `El pedido requiere al menos ${hours} horas completas de antelación.`
+    ? `Necesitamos al menos ${hours} horas para preparar tu pedido.`
     : null;
 }
