@@ -20,6 +20,7 @@ import {
 import { listCustomersForAdmin } from "../controllers/admin-customers.controller.js";
 import { getDashboardForAdmin } from "../controllers/admin-dashboard.controller.js";
 import { getHomeContentForAdmin, updateHomeContentForAdmin } from "../controllers/home.controller.js";
+import { getPaymentSettingsForAdmin, updatePaymentSettingsForAdmin } from "../controllers/payment-settings.controller.js";
 import {
   createCategoryForAdmin,
   deleteCategoryForAdmin,
@@ -34,6 +35,8 @@ router.use(requireAdmin);
 router.get("/dashboard", getDashboardForAdmin);
 router.get("/home", getHomeContentForAdmin);
 router.put("/home", updateHomeContentForAdmin);
+router.get("/payment-settings", getPaymentSettingsForAdmin);
+router.put("/payment-settings", updatePaymentSettingsForAdmin);
 router.get("/orders", listOrdersForAdmin);
 router.patch("/orders/:orderId/status", updateOrderStatusForAdmin);
 router.patch("/orders/:orderId/payment", updateOrderPaymentForAdmin);

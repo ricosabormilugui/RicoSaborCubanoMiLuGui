@@ -11,7 +11,9 @@ import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
 import { ActiveIdentityService } from '../../core/services/active-identity.service';
-import { MANUAL_PAYMENT_DETAILS } from '../../core/config/payment.config';
+import { PAYMENT_METHOD_META } from '../../core/config/payment.config';
+import { PaymentSettingsService } from '../../core/services/payment-settings.service';
+import { PublicPaymentSettings } from '../../core/models/payment-settings.model';
 import {
   DELIVERY_RULES,
   ShippingQuote,
@@ -222,7 +224,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                 </div>
               </div>
 
-              <div class="payment-options" role="radiogroup" aria-label="Método de pago">
+              <div class="payment-options" role="radiogroup" aria-label="Método de pago" *ngIf="!paymentSettingsLoading() && !paymentSettingsError() && availablePaymentMethods().length">
                 <label class="payment-card" *ngFor="let method of availablePaymentMethods()" [class.active]="form.controls.paymentMethod.value === method.value">
                   <input type="radio" formControlName="paymentMethod" [value]="method.value" />
                   <span>
@@ -230,6 +232,14 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
                     <small>{{ method.description }}</small>
                   </span>
                 </label>
+              </div>
+              <p class="meta" *ngIf="paymentSettingsLoading()">Cargando métodos de pago…</p>
+              <div class="app-alert app-alert-warn" *ngIf="paymentSettingsError()">
+                {{ paymentSettingsError() }}
+                <button class="btn btn-secondary" type="button" (click)="loadPaymentSettings()">Reintentar</button>
+              </div>
+              <div class="app-alert app-alert-warn" *ngIf="!paymentSettingsLoading() && !paymentSettingsError() && !availablePaymentMethods().length">
+                Ahora mismo no hay métodos de pago disponibles. Contacta con nosotros para completar tu pedido.
               </div>
 
               <div class="payment-instructions">
@@ -241,7 +251,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
 
             <div class="form-actions">
               <div class="pending-note">Estado inicial: <strong>pendiente de pago</strong></div>
-              <button class="btn btn-primary submit-btn" type="submit" [disabled]="loading() || !cart.items().length" [attr.aria-busy]="loading()">
+              <button class="btn btn-primary submit-btn" type="submit" [disabled]="loading() || !cart.items().length || paymentSettingsLoading() || !availablePaymentMethods().length" [attr.aria-busy]="loading()">
                 <span class="spinner" *ngIf="loading()" aria-hidden="true"></span>
                 {{ loading() ? 'Creando pedido...' : 'Confirmar pedido pendiente de pago' }}
               </button>
@@ -396,11 +406,11 @@ export class CheckoutPageComponent {
   readonly couponPreviewMessage = signal('');
   readonly couponPreviewValid = signal(false);
   readonly emailAlreadyRegistered = signal(false);
-  readonly paymentMethods: Array<{ value: PaymentMethod; label: string; description: string }> = [
-    { value: 'bizum', label: 'Bizum', description: `Enviar al ${MANUAL_PAYMENT_DETAILS.bizumPhone}` },
-    { value: 'bank_transfer', label: 'Transferencia', description: 'Pago por IBAN / cuenta bancaria' },
-    { value: 'cash', label: 'Efectivo', description: 'Al recibir o recoger el pedido' }
-  ];
+  readonly paymentSettingsLoading = signal(true);
+  readonly paymentSettingsError = signal('');
+  readonly publicPayment = signal<PublicPaymentSettings | null>(null);
+  readonly completedPaymentMethod = signal<PaymentMethod | null>(null);
+  readonly paymentMethods = PAYMENT_METHOD_META;
   readonly deliveryRules = DELIVERY_RULES;
 
   readonly form = this.fb.nonNullable.group({
@@ -427,7 +437,8 @@ export class CheckoutPageComponent {
     public readonly customerAuth: CustomerAuthService,
     private readonly notifications: NotificationService,
     private readonly deliveryState: DeliveryStateService,
-    private readonly identity: ActiveIdentityService
+    private readonly identity: ActiveIdentityService,
+    private readonly paymentSettings: PaymentSettingsService
   ) {
     effect(() => {
       this.identity.session();
@@ -449,9 +460,10 @@ export class CheckoutPageComponent {
       .subscribe(() => this.validateDeliverySelection());
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === 'cash') {
-        this.form.controls.paymentMethod.setValue('bizum');
+        this.reconcilePaymentMethod();
       }
     });
+    void this.loadPaymentSettings();
   }
 
   private resetPersonalForm(): void {
@@ -487,11 +499,45 @@ export class CheckoutPageComponent {
 
 
   availablePaymentMethods(): Array<{ value: PaymentMethod; label: string; description: string }> {
+    const settings = this.publicPayment();
+    if (!settings) return [];
+
+    const enabled = this.paymentMethods.filter((method) => {
+      if (method.value === 'bizum') return settings.bizum.enabled;
+      if (method.value === 'bank_transfer') return settings.bankTransfer.enabled;
+      return settings.cash.enabled;
+    });
+
     if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders) {
-      return this.paymentMethods.filter((method) => method.value !== 'cash');
+      return enabled.filter((method) => method.value !== 'cash');
     }
 
-    return this.paymentMethods;
+    return enabled;
+  }
+
+  async loadPaymentSettings(): Promise<void> {
+    this.paymentSettingsLoading.set(true);
+    this.paymentSettingsError.set('');
+    try {
+      this.publicPayment.set(await this.paymentSettings.getPublicSettings());
+      this.reconcilePaymentMethod();
+    } catch (error) {
+      this.publicPayment.set(null);
+      this.paymentSettingsError.set(getUserFriendlyError(error, 'No se pudieron cargar los métodos de pago.'));
+    } finally {
+      this.paymentSettingsLoading.set(false);
+    }
+  }
+
+  private reconcilePaymentMethod(): void {
+    const available = this.availablePaymentMethods();
+    const current = this.form.controls.paymentMethod.value;
+    if (!available.some((method) => method.value === current)) {
+      const next = available[0]?.value;
+      if (next) {
+        this.form.controls.paymentMethod.setValue(next, { emitEvent: false });
+      }
+    }
   }
 
   selectedPaymentLabel(): string {
@@ -499,7 +545,8 @@ export class CheckoutPageComponent {
   }
 
   selectedPaymentInstructions(orderId?: string): string {
-    return getPaymentInstructions(this.form.controls.paymentMethod.value, orderId);
+    const method = this.completedPaymentMethod() ?? this.form.controls.paymentMethod.value;
+    return getPaymentInstructions(method, orderId);
   }
 
   shippingQuote(): ShippingQuote {
@@ -773,6 +820,20 @@ export class CheckoutPageComponent {
     this.sanitizePostalCode();
     this.applyCouponPreview();
 
+    if (this.paymentSettingsLoading() || this.paymentSettingsError() || !this.availablePaymentMethods().length) {
+      this.notifications.warning(
+        'Pago no disponible',
+        'Ahora mismo no hay métodos de pago disponibles. Contacta con nosotros para completar tu pedido.'
+      );
+      return;
+    }
+
+    if (!this.availablePaymentMethods().some((method) => method.value === this.form.controls.paymentMethod.value)) {
+      this.notifications.warning('Pago no disponible', 'El método de pago seleccionado ya no está disponible.');
+      this.reconcilePaymentMethod();
+      return;
+    }
+
     if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === "cash") {
       this.notifications.warning('Pago no permitido', 'Este pedido requiere pago anticipado por tratarse de productos personalizados o bajo encargo.');
       return;
@@ -803,6 +864,8 @@ export class CheckoutPageComponent {
       payload.requiresAdvancePayment = this.requiresAdvancePayment();
       const result = await this.orderService.submitOrder(payload);
       if (!this.identity.isCurrent(checkoutSession)) return;
+
+      this.completedPaymentMethod.set(payload.paymentMethod);
 
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);

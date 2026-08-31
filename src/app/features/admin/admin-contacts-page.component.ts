@@ -41,6 +41,7 @@ import { AdminContactService } from '../../core/services/admin-contact.service';
             <button class="btn" routerLink="/admin/clientes">Clientes</button>
             <button class="btn" routerLink="/admin/productos">Productos</button>
             <button class="btn" routerLink="/admin/portada">Portada</button>
+            <button class="btn" routerLink="/admin/pagos">Pagos</button>
             <button class="btn" (click)="logout()">Salir</button>
           </div>
         </div>

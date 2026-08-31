@@ -1,0 +1,112 @@
+<section class="card login-card" *ngIf="!auth.isAuthenticated(); else panel">
+  <h1>Acceso administrador</h1>
+  <div class="login-grid">
+    <input [(ngModel)]="email" placeholder="Email admin" />
+    <input [(ngModel)]="password" type="password" placeholder="Contraseña" />
+  </div>
+  <button class="btn btn-primary" (click)="login()" [disabled]="loading()">{{ loading() ? 'Iniciando sesión...' : 'Iniciar sesión' }}</button>
+  <p class="err" *ngIf="error()">{{ error() }}</p>
+</section>
+
+<ng-template #panel>
+  <section class="card">
+    <div class="toolbar">
+      <div>
+        <p class="eyebrow">Cobros</p>
+        <h1>Configuración de pagos</h1>
+        <p class="muted">Estos datos son la fuente de verdad para checkout, pedidos y emails. No hace falta cambiar variables de entorno ni desplegar.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" (click)="loadSettings()" [disabled]="loading()">{{ loading() ? 'Cargando…' : 'Actualizar' }}</button>
+        <button class="btn" routerLink="/admin/dashboard">Dashboard</button>
+        <button class="btn" routerLink="/admin/pedidos">Pedidos</button>
+        <button class="btn" routerLink="/admin/productos">Productos</button>
+        <button class="btn" routerLink="/admin/portada">Portada</button>
+        <button class="btn" type="button" (click)="logout()">Salir</button>
+      </div>
+    </div>
+
+    <p class="err" *ngIf="error()">{{ error() }}</p>
+
+    <form (ngSubmit)="saveSettings()" novalidate>
+      <section class="slot-group" aria-labelledby="bizum-title">
+        <div class="section-head">
+          <h2 id="bizum-title">Bizum</h2>
+          <span class="status-pill" [attr.data-state]="bizumStatus()">{{ bizumStatus() }}</span>
+        </div>
+        <article class="slot">
+          <label class="switch-card">
+            <input type="checkbox" [(ngModel)]="form.bizum.enabled" name="bizumEnabled" />
+            <span class="switch-control" aria-hidden="true"></span>
+            <span><strong>Activo</strong><small>Los clientes podrán elegir Bizum en el checkout.</small></span>
+          </label>
+          <label class="field">
+            <span>Teléfono</span>
+            <small>Número comercial que recibirá el Bizum. Obligatorio si está activo.</small>
+            <input [(ngModel)]="form.bizum.phone" name="bizumPhone" [disabled]="!form.bizum.enabled" placeholder="+34..." />
+            <small class="field-error" *ngIf="fieldErrors()['bizum.phone']">{{ fieldErrors()['bizum.phone'] }}</small>
+          </label>
+          <label class="field">
+            <span>Instrucciones (opcional)</span>
+            <textarea [(ngModel)]="form.bizum.instructions" name="bizumInstructions" [disabled]="!form.bizum.enabled" rows="3"></textarea>
+          </label>
+        </article>
+      </section>
+
+      <section class="slot-group" aria-labelledby="transfer-title">
+        <div class="section-head">
+          <h2 id="transfer-title">Transferencia bancaria</h2>
+          <span class="status-pill" [attr.data-state]="transferStatus()">{{ transferStatus() }}</span>
+        </div>
+        <article class="slot">
+          <label class="switch-card">
+            <input type="checkbox" [(ngModel)]="form.bankTransfer.enabled" name="transferEnabled" />
+            <span class="switch-control" aria-hidden="true"></span>
+            <span><strong>Activa</strong><small>Los clientes podrán pagar por transferencia.</small></span>
+          </label>
+          <label class="field">
+            <span>Titular</span>
+            <input [(ngModel)]="form.bankTransfer.holder" name="transferHolder" [disabled]="!form.bankTransfer.enabled" />
+            <small class="field-error" *ngIf="fieldErrors()['bankTransfer.holder']">{{ fieldErrors()['bankTransfer.holder'] }}</small>
+          </label>
+          <label class="field">
+            <span>IBAN</span>
+            <small>Se normaliza en mayúsculas y se agrupa al guardar.</small>
+            <input [(ngModel)]="form.bankTransfer.iban" name="transferIban" [disabled]="!form.bankTransfer.enabled" (blur)="formatIbanField()" placeholder="ES00 0000 0000 0000 0000 0000" />
+            <small class="field-error" *ngIf="fieldErrors()['bankTransfer.iban']">{{ fieldErrors()['bankTransfer.iban'] }}</small>
+          </label>
+          <label class="field">
+            <span>Instrucciones (opcional)</span>
+            <textarea [(ngModel)]="form.bankTransfer.instructions" name="transferInstructions" [disabled]="!form.bankTransfer.enabled" rows="3"></textarea>
+          </label>
+        </article>
+      </section>
+
+      <section class="slot-group" aria-labelledby="cash-title">
+        <div class="section-head">
+          <h2 id="cash-title">Efectivo</h2>
+          <span class="status-pill" [attr.data-state]="cashStatus()">{{ cashStatus() }}</span>
+        </div>
+        <article class="slot">
+          <label class="switch-card">
+            <input type="checkbox" [(ngModel)]="form.cash.enabled" name="cashEnabled" />
+            <span class="switch-control" aria-hidden="true"></span>
+            <span><strong>Activo</strong><small>Las reglas de pedido personalizado siguen impidiendo efectivo cuando hay anticipo.</small></span>
+          </label>
+          <label class="field">
+            <span>Instrucción para recogida</span>
+            <textarea [(ngModel)]="form.cash.instructionsPickup" name="cashPickup" [disabled]="!form.cash.enabled" rows="2"></textarea>
+          </label>
+          <label class="field">
+            <span>Instrucción para entrega</span>
+            <textarea [(ngModel)]="form.cash.instructionsDelivery" name="cashDelivery" [disabled]="!form.cash.enabled" rows="2"></textarea>
+          </label>
+        </article>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="loading()">{{ loading() ? 'Guardando…' : 'Guardar cambios' }}</button>
+      </div>
+    </form>
+  </section>
+</ng-template>

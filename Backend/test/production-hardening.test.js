@@ -103,22 +103,16 @@ test("el pedido permanece persistido aunque falle el email", async () => {
   assert.deepEqual(result.warnings, ["email-not-sent"]);
 });
 
-test("producción rechaza instrucciones de pago incompletas", () => {
+test("producción arranca sin PAYMENT_* porque la fuente canónica es la base de datos", () => {
   const environment = {
     NODE_ENV: "production",
     MONGODB_URI: "mongodb://database.test/mixsabor",
     AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
     FRONTEND_URL: "https://mixsabor.test",
-    CORS_ORIGIN: "https://mixsabor.test",
-    PAYMENT_BIZUM_PHONE: "+34000000000",
-    PAYMENT_BANK_IBAN: "ES0000000000000000000000",
-    PAYMENT_BANK_HOLDER: "QA MIXSABOR"
+    CORS_ORIGIN: "https://mixsabor.test"
   };
 
-  assert.throws(
-    () => validateRuntimeEnv(environment),
-    /Payment configuration is incomplete: PAYMENT_CASH_INSTRUCTIONS/
-  );
+  assert.equal(validateRuntimeEnv(environment).environment, "production");
 });
 
 test("desarrollo puede arrancar sin datos de pago de staging", () => {
@@ -132,7 +126,7 @@ test("desarrollo puede arrancar sin datos de pago de staging", () => {
   assert.equal(validateRuntimeEnv(environment).environment, "development");
 });
 
-test("producción acepta la configuración manual de pago completa", () => {
+test("producción acepta PAYMENT_* como bootstrap opcional", () => {
   const environment = {
     NODE_ENV: "production",
     MONGODB_URI: "mongodb://database.test/mixsabor",

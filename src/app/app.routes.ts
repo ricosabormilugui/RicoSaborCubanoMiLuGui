@@ -94,6 +94,12 @@ export const appRoutes: Routes = [
     data: { seo: privateSeo('Portada · Administración', `Gestión privada de la portada de ${BRAND_CONFIG.name}.`, '/admin/portada') }
   },
   {
+    path: 'admin/pagos',
+    loadComponent: () => import('./features/admin/admin-payment-settings-page.component').then((m) => m.AdminPaymentSettingsPageComponent),
+    canActivate: [adminGuard],
+    data: { seo: privateSeo('Pagos · Administración', `Configuración privada de pagos de ${BRAND_CONFIG.name}.`, '/admin/pagos') }
+  },
+  {
     path: 'login',
     loadComponent: () => import('./features/auth/login-page.component').then((m) => m.LoginPageComponent),
     data: { seo: privateSeo('Iniciar sesión', `Acceso privado a tu cuenta de ${BRAND_CONFIG.name}.`, '/login') }

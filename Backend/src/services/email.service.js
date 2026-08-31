@@ -1,6 +1,7 @@
 import { BRAND_CONFIG } from "../config/brand.config.js";
 import { getSalesReplyTo } from "../config/contact.config.js";
 import { fetchWithTimeout } from "../lib/fetch-with-timeout.js";
+import { getCanonicalPaymentSettings } from "./payment-settings.service.js";
 import {
   buildAdminOrderEmail,
   buildCustomerOrderEmail,
@@ -59,8 +60,9 @@ export async function sendOrderEmail(order) {
   const from = getRequiredEnv("NOTIFY_EMAIL_FROM");
   const to = getRequiredEnv("NOTIFY_EMAIL_TO");
   const customerEmail = order.customer?.email?.trim();
-  const admin = buildAdminOrderEmail(order);
-  const customer = buildCustomerOrderEmail(order);
+  const paymentSettings = await getCanonicalPaymentSettings();
+  const admin = buildAdminOrderEmail(order, { paymentSettings });
+  const customer = buildCustomerOrderEmail(order, { paymentSettings });
 
   await sendEmail(apiKey, {
     from,

@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { prepareNotifications } from "../repositories/notifications.repository.js";
 import { sendOrderEmail } from "../services/email.service.js";
+import { getCanonicalPaymentSettings, getEnabledPaymentMethods } from "../services/payment-settings.service.js";
 import {
   appendOrderNotifications,
   deleteOrderById,
@@ -214,17 +215,8 @@ function normalizePhone(phone) {
   return clean;
 }
 
-function normalizePayment(payload) {
-  const method = String(payload?.payment?.method ?? payload?.paymentMethod ?? "bizum").trim();
-  const allowedMethods = new Set(["bizum", "bank_transfer", "cash"]);
-  const normalizedMethod = allowedMethods.has(method) ? method : "bizum";
-
-  return {
-    method: normalizedMethod,
-    status: "pending",
-    instructions: ""
-  };
-}
+const PAYMENT_UNAVAILABLE_MESSAGE = "Ahora mismo no hay métodos de pago disponibles. Contacta con nosotros para completar tu pedido.";
+const PAYMENT_METHOD_UNAVAILABLE_MESSAGE = "El método de pago seleccionado no está disponible.";
 
 function requiresAdvancePaymentForItems(items = []) {
   return items.some((item) =>
@@ -299,6 +291,23 @@ class OrderCreationBusinessError extends Error {
   }
 }
 
+export async function resolveOrderPayment(payload, { loadSettings = getCanonicalPaymentSettings } = {}) {
+  const method = String(payload?.payment?.method ?? payload?.paymentMethod ?? "").trim();
+  const settings = await loadSettings();
+  const enabled = getEnabledPaymentMethods(settings);
+  if (!enabled.length) {
+    throw new OrderCreationBusinessError(PAYMENT_UNAVAILABLE_MESSAGE);
+  }
+  if (!method || !enabled.includes(method)) {
+    throw new OrderCreationBusinessError(PAYMENT_METHOD_UNAVAILABLE_MESSAGE);
+  }
+  return {
+    method,
+    status: "pending",
+    instructions: ""
+  };
+}
+
 function getStoredNotifications(order) {
   const history = Array.isArray(order?.notifications) ? order.notifications : [];
   const email = [...history].reverse().find((entry) => entry?.type === "email");
@@ -339,7 +348,7 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
   const orderIdentity = buildOrderIdentity(payload, auth);
   const customerEmailNormalized = normalizeCustomerEmail(payload, auth);
   const normalizedDelivery = normalizeDelivery(payload);
-  const normalizedPayment = normalizePayment(payload);
+  const normalizedPayment = await resolveOrderPayment(payload);
   const marketingConsent = normalizeMarketingConsent(payload);
   const preliminaryDeliveryError = validateOrderFulfillment(normalizedDelivery, {
     advanceNoticeHours: DELIVERY_RULES.advanceNoticeHours

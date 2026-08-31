@@ -7,6 +7,11 @@ import {
 } from "../config/contact.config.js";
 import { joinPublicAssetUrl } from "../config/site.config.js";
 import { logger } from "../lib/logger.js";
+import {
+  buildPaymentSettingsFromEnv,
+  formatIbanDisplay,
+  normalizePaymentSettings
+} from "./payment-settings.service.js";
 
 const BUSINESS_TIME_ZONE = "Europe/Madrid";
 const CONTACT_FOR_PAYMENT = "Te contactaremos para facilitarte los datos de pago.";
@@ -35,16 +40,6 @@ export function escapeHtml(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function isEnvPlaceholder(value) {
-  return /^PENDIENTE_/i.test(value) && /CONFIGURAR/i.test(value);
-}
-
-function envValue(name, env = process.env) {
-  const value = String(env?.[name] ?? "").trim();
-  if (!value || isEnvPlaceholder(value)) return "";
-  return value;
 }
 
 function moneyNumber(value) {
@@ -116,14 +111,20 @@ export function getPaymentStatusLabel(order) {
 }
 
 function formatIban(value) {
-  const compact = String(value ?? "").replace(/\s+/g, "");
-  return compact.replace(/(.{4})/g, "$1 ").trim();
+  return formatIbanDisplay(value);
 }
 
-function getCashInstruction(order) {
-  return deliveryTypeOf(order) === "pickup"
-    ? "Pago en efectivo al recoger el pedido."
-    : "Pago en efectivo en la entrega.";
+function paymentSettingsOf(options = {}) {
+  if (options.paymentSettings) return normalizePaymentSettings(options.paymentSettings);
+  return buildPaymentSettingsFromEnv(options.env ?? process.env);
+}
+
+function getCashInstruction(order, settings) {
+  const pickup = deliveryTypeOf(order) === "pickup";
+  if (pickup) {
+    return settings?.cash?.instructionsPickup || "Pago en efectivo al recoger el pedido.";
+  }
+  return settings?.cash?.instructionsDelivery || "Pago en efectivo en la entrega.";
 }
 
 function orderRef(order) {
@@ -134,12 +135,14 @@ function logMissing(log, event, method) {
   (log ?? logger).error(event, { method });
 }
 
-export function getPaymentInstructions(order, { env = process.env, log } = {}) {
+export function getPaymentInstructions(order, options = {}) {
   const method = getPaymentMethod(order);
   const ref = orderRef(order);
+  const settings = paymentSettingsOf(options);
+  const log = options.log;
 
   if (method === "bizum") {
-    const phone = envValue("PAYMENT_BIZUM_PHONE", env);
+    const phone = settings.bizum.phone;
     if (!phone) {
       logMissing(log, "payment.bizum.configuration_missing", method);
       return CONTACT_FOR_PAYMENT;
@@ -148,21 +151,19 @@ export function getPaymentInstructions(order, { env = process.env, log } = {}) {
   }
 
   if (method === "bank_transfer") {
-    const iban = envValue("PAYMENT_BANK_IBAN", env);
-    const holder = envValue("PAYMENT_BANK_HOLDER", env);
-    const bankName = envValue("PAYMENT_BANK_NAME", env);
+    const iban = settings.bankTransfer.iban;
+    const holder = settings.bankTransfer.holder;
     if (!iban || !holder) {
       logMissing(log, "payment.bank_transfer.configuration_missing", method);
       return CONTACT_FOR_PAYMENT;
     }
-    const bankLine = bankName ? ` Banco: ${bankName}.` : "";
-    return `Titular: ${holder}. IBAN: ${formatIban(iban)}.${bankLine} Concepto: ${ref}.`;
+    return `Titular: ${holder}. IBAN: ${formatIban(iban)}. Concepto: ${ref}.`;
   }
 
-  if (!envValue("PAYMENT_CASH_INSTRUCTIONS", env)) {
+  if (!settings.cash.instructionsPickup && !settings.cash.instructionsDelivery) {
     logMissing(log, "payment.cash.configuration_missing", method);
   }
-  return getCashInstruction(order);
+  return getCashInstruction(order, settings);
 }
 
 function deliveryTypeOf(order) {
@@ -373,9 +374,10 @@ function paymentDetailHtml(order, options) {
   const methodLabel = getPaymentMethodLabel(method);
   const statusLabel = getPaymentStatusLabel(order);
   const header = `${paymentRow("Método de pago", methodLabel)}${paymentRow("Estado del pago", statusLabel)}`;
+  const settings = paymentSettingsOf(options);
 
   if (method === "bizum") {
-    const phone = envValue("PAYMENT_BIZUM_PHONE", options?.env);
+    const phone = settings.bizum.phone;
     if (!phone) {
       return `${header}<p style="margin:0;">${escapeHtml(getPaymentInstructions(order, options))}</p>`;
     }
@@ -388,9 +390,8 @@ function paymentDetailHtml(order, options) {
   }
 
   if (method === "bank_transfer") {
-    const iban = envValue("PAYMENT_BANK_IBAN", options?.env);
-    const holder = envValue("PAYMENT_BANK_HOLDER", options?.env);
-    const bankName = envValue("PAYMENT_BANK_NAME", options?.env);
+    const iban = settings.bankTransfer.iban;
+    const holder = settings.bankTransfer.holder;
     if (!iban || !holder) {
       return `${header}<p style="margin:0;">${escapeHtml(getPaymentInstructions(order, options))}</p>`;
     }
@@ -399,14 +400,13 @@ function paymentDetailHtml(order, options) {
       <p style="margin:12px 0 8px;font-weight:700;">Datos para la transferencia</p>
       ${paymentRow("Titular", holder)}
       ${paymentRow("IBAN", formatIban(iban))}
-      ${bankName ? paymentRow("Banco", bankName) : ""}
       ${paymentRow("Concepto", orderRef(order))}
     `;
   }
 
   return `
     ${header}
-    <p style="margin:0;">${escapeHtml(getCashInstruction(order))}</p>
+    <p style="margin:0;">${escapeHtml(getCashInstruction(order, settings))}</p>
   `;
 }
 

@@ -301,10 +301,13 @@ test('checkout mantiene carrito/intención al fallar y resuelve un solo toast', 
   const component = Object.create(CheckoutPageComponent.prototype);
   for (const key of ['loading', 'orderId', 'destination', 'isLocalDraft', 'notificationWarning']) component[key] = angular.signal(key === 'loading' ? false : '');
   component.notifications = notifications;
-  component.form = { markAllAsTouched() {}, value: { deliveryDate: '2026-09-01', deliverySlot: '10:00' }, controls: { deliveryType: { value: 'pickup' } }, invalid: false, getRawValue: () => ({}) };
+  component.form = { markAllAsTouched() {}, value: { deliveryDate: '2026-09-01', deliverySlot: '10:00' }, controls: { deliveryType: { value: 'pickup' }, paymentMethod: { value: 'bizum' } }, invalid: false, getRawValue: () => ({}) };
   component.cart = { items: () => [{}], clear() { assert.fail('No debe vaciar carrito'); } };
-  for (const method of ['updateAddressValidation', 'reconcileDeliverySlot', 'validateDeliverySelection', 'sanitizePhoneDigits', 'sanitizePostalCode', 'applyCouponPreview']) component[method] = () => {};
+  for (const method of ['updateAddressValidation', 'reconcileDeliverySlot', 'validateDeliverySelection', 'sanitizePhoneDigits', 'sanitizePostalCode', 'applyCouponPreview', 'reconcilePaymentMethod']) component[method] = () => {};
   component.requiresAdvancePayment = () => false;
+  component.paymentSettingsLoading = () => false;
+  component.paymentSettingsError = () => '';
+  component.availablePaymentMethods = () => [{ value: 'bizum' }];
   component.shippingQuote = () => ({ available: true });
   component.orderService = { createPayload: () => ({}), async submitOrder() { throw new Error('Stock insuficiente.'); }, completeOrderIntent() { assert.fail('No debe limpiar intención'); } };
   component.identity = { session: () => '1:guest', isCurrent: () => true };

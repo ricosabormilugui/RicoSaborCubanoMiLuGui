@@ -85,17 +85,6 @@ export function validateRuntimeEnv(env = process.env) {
     throw new Error("STAGING_EMAIL_TO cannot be configured when APP_ENV=production");
   }
 
-  const payment = [
-    "PAYMENT_BIZUM_PHONE",
-    "PAYMENT_BANK_IBAN",
-    "PAYMENT_BANK_HOLDER",
-    "PAYMENT_CASH_INSTRUCTIONS"
-  ];
-  const missingPaymentValues = payment.filter((name) => !getOptionalEnv(name, undefined, env));
-  if (environment === "production" && missingPaymentValues.length > 0) {
-    throw new Error(`Payment configuration is incomplete: ${missingPaymentValues.join(", ")}`);
-  }
-
   const bodyLimit = getOptionalEnv("JSON_BODY_LIMIT", "1mb", env);
   if (!/^\d+(?:kb|mb)$/i.test(bodyLimit)) throw new Error("JSON_BODY_LIMIT must use kb or mb");
 

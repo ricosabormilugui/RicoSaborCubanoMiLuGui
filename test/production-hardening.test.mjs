@@ -90,8 +90,9 @@ test('staging usa backend aislado, pagos no reales y un artefacto no indexable',
   assert.ok(replacements.includes('src/app/core/config/payment.config.ts:src/app/core/config/payment.config.staging.ts'));
 
   const payments = read('src/app/core/config/payment.config.staging.ts');
-  assert.match(payments, /NO REALIZAR PAGOS/);
+  assert.match(payments, /NO REALIZAR PAGOS|no realizar pagos/i);
   assert.doesNotMatch(payments, /\bES\d{22}\b|\+34\d{9}/);
+  assert.doesNotMatch(read('src/app/core/config/payment.config.ts'), /\bES\d{22}\b|\+34\d{9}/);
 
   const render = read('render.yaml');
   assert.match(render, /name: mixsabor-backend-staging/);

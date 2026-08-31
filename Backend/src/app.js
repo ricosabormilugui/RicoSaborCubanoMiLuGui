@@ -9,6 +9,7 @@ import contactRouter from "./routes/contact.routes.js";
 import newsletterRouter from "./routes/newsletter.routes.js";
 import sitemapRouter from "./routes/sitemap.routes.js";
 import favoritesRouter from "./routes/favorites.routes.js";
+import paymentSettingsRouter from "./routes/payment-settings.routes.js";
 import { createHealthRouter } from "./routes/health.routes.js";
 import { requestContext, requestLogger } from "./middleware/request-context.middleware.js";
 import { cors, securityHeaders } from "./middleware/security.middleware.js";
@@ -34,6 +35,7 @@ export function createApp({ databaseCheck, environment = process.env.NODE_ENV ??
   app.use("/api", ordersRouter);
   app.use("/api", productsRouter);
   app.use("/api", homeRouter);
+  app.use("/api", paymentSettingsRouter);
   app.use("/api", contactRouter);
   app.use("/api", newsletterRouter);
   app.use("/api", sitemapRouter);

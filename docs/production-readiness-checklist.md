@@ -38,7 +38,7 @@ Variables obligatorias del backend en producción:
 - [ ] `AUTH_TOKEN_SECRET` aleatorio de al menos 32 caracteres.
 - [ ] `FRONTEND_URL=https://mixsabor.milugui.com` en el backend de producción.
 - [ ] `CORS_ORIGIN` limitado al dominio HTTPS definitivo, nunca `*`.
-- [ ] `PAYMENT_BIZUM_PHONE`, `PAYMENT_BANK_IBAN`, `PAYMENT_BANK_HOLDER` y `PAYMENT_CASH_INSTRUCTIONS` configurados explícitamente.
+- [ ] Configurar pagos en Admin → Configuración de pagos (o bootstrap inicial con `PAYMENT_*` en env).
 - [ ] Si se habilita email: `RESEND_API_KEY`, `NOTIFY_EMAIL_FROM` y `NOTIFY_EMAIL_TO` configurados juntos.
 
 ## Mongo
@@ -72,7 +72,7 @@ Variables obligatorias del backend en producción:
 - [ ] Completar todas las variables `sync: false` de `render.yaml`.
 - [ ] Confirmar `FRONTEND_URL` y `CORS_ORIGIN` con `https://mixsabor.milugui.com`.
 - [ ] Confirmar `MONGODB_URI` de producción y nombres de colecciones.
-- [ ] Confirmar las cuatro variables `PAYMENT_*` y compararlas con el checkout.
+- [ ] Configurar pagos en Admin → Configuración de pagos. `PAYMENT_*` solo sirve de bootstrap si Mongo aún no tiene `payment_settings`.
 - [ ] Revisar los defaults de timeouts: selección Mongo 5 s, conexión Mongo 10 s, HTTP externo 8 s, Resend 8 s, request HTTP 30 s y headers 15 s.
 - [ ] Verificar `/api/health`, `/api/ready`, CORS permitido/bloqueado y logs tras desplegar.
 - [ ] Configurar monitor externo sobre `/api/ready` y alerta por 5xx/latencia.
@@ -89,7 +89,7 @@ Variables obligatorias del backend en producción:
 - [ ] Crear un branch deploy o sitio Netlify de staging cuyo `BACKEND_API_URL` apunte exclusivamente al backend anterior.
 - [ ] Configurar `FRONTEND_URL` y `CORS_ORIGIN` con la URL exacta de staging.
 - [ ] Configurar Resend y `STAGING_EMAIL_TO` con un buzón interno QA controlado.
-- [ ] Configurar las cuatro variables `PAYMENT_*` con valores de prueba explícitamente aprobados para staging. Si falta una, el backend debe rechazar el arranque.
+- [ ] Configurar pagos de staging en Admin (o bootstrap opcional con `PAYMENT_*` de prueba). El arranque ya no falla si faltan `PAYMENT_*`.
 - [ ] Ejecutar primero un pedido normal sintético y después uno personalizado, verificando persistencia, email, administración y cocina.
 - [ ] Estado actual: **STAGING BLOCKED** por ausencia de recursos/credenciales externos, no por legales.
 

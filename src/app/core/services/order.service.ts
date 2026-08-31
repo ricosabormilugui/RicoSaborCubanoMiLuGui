@@ -2,37 +2,19 @@ import { Injectable, effect, untracked } from '@angular/core';
 import { CheckoutFormData, OrderPayload, PaymentMethod } from '../models/order.model';
 import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { resolveApiBaseUrl } from '../config/api.config';
+import { getCheckoutPaymentInstructions, getPaymentMethodLabel } from '../config/payment.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
 import { DeliveryStateService } from './delivery-state.service';
 import { ActiveIdentityService } from './active-identity.service';
-import { MANUAL_PAYMENT_DETAILS } from '../config/payment.config';
 import { calculateShippingQuote } from '../config/shipping.config';
 import { requestJson } from '../utils/api-client';
 import { OrderIdempotencyIntent } from '../utils/order-idempotency';
 
-export function getPaymentMethodLabel(method: PaymentMethod): string {
-  const labels: Record<PaymentMethod, string> = {
-    bizum: 'Bizum',
-    bank_transfer: 'Transferencia bancaria',
-    cash: 'Efectivo / Cash'
-  };
-
-  return labels[method];
-}
+export { getPaymentMethodLabel };
 
 export function getPaymentInstructions(method: PaymentMethod, orderId?: string): string {
-  const concept = orderId ? `pedido ${orderId}` : 'tu nombre y número de pedido';
-
-  if (method === 'bizum') {
-    return `Envía el total por Bizum al ${MANUAL_PAYMENT_DETAILS.bizumPhone} indicando ${concept}.`;
-  }
-
-  if (method === 'bank_transfer') {
-    return `Realiza la transferencia a ${MANUAL_PAYMENT_DETAILS.bankIban} a nombre de ${MANUAL_PAYMENT_DETAILS.bankAccountHolder}. Indica ${concept} en el concepto.`;
-  }
-
-  return `${MANUAL_PAYMENT_DETAILS.cashInstructions} Indica ${concept} al equipo.`;
+  return getCheckoutPaymentInstructions(method, orderId);
 }
 
 export interface SubmitOrderResponse {
