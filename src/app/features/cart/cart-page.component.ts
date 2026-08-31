@@ -7,10 +7,11 @@ import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { CouponDraftService } from '../../core/services/coupon.service';
 import { CartLineComponent } from '../../shared/ui/cart-line.component';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   standalone: true,
-  imports: [CurrencyPipe, RouterLink, CartLineComponent],
+  imports: [CurrencyPipe, RouterLink, CartLineComponent, IconComponent],
   templateUrl: './cart-page.component.html',
   styleUrls: ['./cart-page.component.css']
 })

@@ -126,7 +126,7 @@
                 <small id="deliveryDate-error" class="field-error">{{ deliveryDateError() }}</small>
               }
             </label>
-            <fieldset class="slots" [class.field-invalid-group]="isInvalid('deliverySlot')">
+            <fieldset class="slots" [class.field-invalid-group]="isInvalid('deliverySlot')" [class.is-single]="availableSlots().length === 1">
               <legend>Horario <span class="required-mark" aria-hidden="true">*</span></legend>
               <div class="slot-buttons" role="radiogroup" aria-label="Franja horaria"
                 [attr.aria-invalid]="ariaInvalid('deliverySlot')"
@@ -172,13 +172,13 @@
                 }
               </label>
             </div>
-            <label>
+            <label class="field-secondary">
               Referencia
               <input formControlName="reference" placeholder="Portal, timbre, indicaciones" />
             </label>
           }
           <p class="shipping-quote" [class.blocked]="!shippingQuote().available">{{ shippingQuote().message }}</p>
-          <label>
+          <label class="notes-field">
             Notas del pedido
             <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>
           </label>
@@ -281,9 +281,10 @@
             Procesando…
           } @else {
             Confirmar pedido
+            <app-icon name="arrow" [size]="16" />
           }
         </button>
-        <a class="edit-link summary-back" routerLink="/carrito">Editar pedido</a>
+        <a class="edit-link summary-back" routerLink="/carrito">← Editar pedido</a>
       </aside>
     </form>
   }

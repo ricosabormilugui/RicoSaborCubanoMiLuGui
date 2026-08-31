@@ -9,7 +9,7 @@
   @if (!cart.items().length) {
     <div class="empty">
       <p>Tu carrito está vacío</p>
-      <a routerLink="/productos" class="btn btn-primary checkout-btn">Ver productos</a>
+      <a routerLink="/productos" class="btn btn-primary">Ver productos</a>
     </div>
   } @else {
     <div class="cart-layout">
@@ -19,6 +19,7 @@
         }
       </div>
       <aside class="totals">
+        <h2 class="totals-title">Resumen</h2>
         <div class="coupon-box">
           <label>
             Código de descuento
@@ -37,25 +38,28 @@
             <small class="field-error">{{ couponMessage() }}</small>
           }
         </div>
-        <div class="total-row">
-          <span>Subtotal</span>
-          <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
-        </div>
-        @if (couponDiscount() > 0) {
-          <div class="total-row discount">
-            <span>Descuento</span>
-            <strong>−{{ couponDiscount() | currency:'EUR' }}</strong>
+        <div class="totals-lines">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
           </div>
-        }
-        <div class="total-row grand">
-          <span>Total</span>
-          <strong>{{ orderPreview() | currency:'EUR' }}</strong>
+          @if (couponDiscount() > 0) {
+            <div class="total-row discount">
+              <span>Descuento</span>
+              <strong>−{{ couponDiscount() | currency:'EUR' }}</strong>
+            </div>
+          }
+          <div class="total-row grand">
+            <span>Total</span>
+            <strong>{{ orderPreview() | currency:'EUR' }}</strong>
+          </div>
         </div>
         @if (cart.hasStockConflicts()) {
           <p class="stock-note">Revisa la disponibilidad de algunos productos antes de continuar.</p>
         }
         <a routerLink="/checkout" class="btn btn-primary checkout-btn" [class.is-disabled]="cart.hasStockConflicts()" [attr.aria-disabled]="cart.hasStockConflicts()">
           Continuar
+          <app-icon name="arrow" [size]="16" />
         </a>
       </aside>
     </div>

@@ -21,9 +21,7 @@ export type CartLineMode = 'cart' | 'summary';
       <div class="body">
         <div class="title-row">
           <strong class="name">{{ item().name }}</strong>
-          @if (!isSummary()) {
-            <strong class="price">{{ lineTotal() | currency:'EUR' }}</strong>
-          }
+          <strong class="price">{{ lineTotal() | currency:'EUR' }}</strong>
         </div>
         @if (!isSummary() && (item().unitLabel || (item().minimumQuantity ?? 1) > 1)) {
           <p class="meta">
@@ -34,16 +32,24 @@ export type CartLineMode = 'cart' | 'summary';
         }
         @if (item().customization?.length) {
           @if (isSummary()) {
-            <p class="custom-compact">{{ compactSummary() }}</p>
-          } @else {
-            <dl class="custom">
-              @for (option of item().customization; track option.label + option.value) {
-                <div class="custom-row">
-                  <dt>{{ option.label }}</dt>
-                  <dd>{{ option.value }}@if (option.priceModifier) { · +{{ option.priceModifier | currency:'EUR' }} }</dd>
-                </div>
+            <div class="custom-compact">
+              @for (line of summaryCustomizationLines(); track line) {
+                <p>{{ line }}</p>
               }
-            </dl>
+            </div>
+          } @else {
+            <div class="custom">
+              @for (option of item().customization; track option.label + option.value; let first = $first) {
+                @if (first) {
+                  <p class="custom-lead">
+                    <span class="k">{{ option.label }}</span>
+                    <span class="v">{{ option.value }}@if (option.priceModifier) { · +{{ option.priceModifier | currency:'EUR' }} }</span>
+                  </p>
+                } @else {
+                  <p class="custom-inline">{{ option.label }} · {{ option.value }}@if (option.priceModifier) { · +{{ option.priceModifier | currency:'EUR' }} }</p>
+                }
+              }
+            </div>
           }
         }
         @if (isSummary()) {
@@ -91,56 +97,67 @@ export type CartLineMode = 'cart' | 'summary';
     .line {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
-      gap: .75rem;
+      gap: .85rem 1rem;
       align-items: start;
-      padding: 1.05rem 0;
+      padding: 1.15rem 0;
       border: 0;
-      border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 52%, transparent);
       background: transparent;
       box-shadow: none;
     }
     .line:last-child { border-bottom: 0; padding-bottom: 0; }
     .thumb {
-      width: 64px;
-      height: 64px;
+      width: 62px;
+      height: 62px;
       border-radius: 8px;
       object-fit: cover;
-      background: color-mix(in srgb, var(--surface-1) 70%, transparent);
+      background: color-mix(in srgb, var(--surface-1) 55%, transparent);
     }
-    .body { display: grid; gap: .28rem; min-width: 0; }
-    .title-row { display: flex; justify-content: space-between; gap: .85rem; align-items: flex-start; }
-    .name { color: var(--text-main); font-size: .98rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+    .body { display: grid; gap: .22rem; min-width: 0; }
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+    }
+    .name { color: var(--text-main); font-size: 1rem; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
     .price { color: var(--text-main); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: .98rem; font-weight: 700; }
-    .meta, .qty-readout, .custom-compact { margin: 0; color: var(--text-soft); font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
-    .custom { margin: .15rem 0 .05rem; display: grid; gap: .38rem; }
-    .custom-row { display: grid; gap: .08rem; min-width: 0; }
-    .custom dt {
-      margin: 0;
+    .meta, .qty-readout { margin: 0; color: var(--text-soft); font-size: .8rem; line-height: 1.4; overflow-wrap: anywhere; }
+    .custom { margin: .2rem 0 .08rem; display: grid; gap: .28rem; }
+    .custom-lead, .custom-inline { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+    .custom-lead { display: grid; gap: .08rem; }
+    .custom-lead .k {
       color: var(--text-soft);
       font-size: .68rem;
-      font-weight: 650;
-      letter-spacing: .04em;
+      font-weight: 550;
+      letter-spacing: .03em;
     }
-    .custom dd {
-      margin: 0;
+    .custom-lead .v, .custom-inline {
       color: var(--text-main);
       font-size: .84rem;
       font-weight: 500;
-      line-height: 1.35;
+      line-height: 1.4;
+    }
+    .custom-inline { color: var(--text-soft); }
+    .custom-compact { display: grid; gap: .12rem; margin: .08rem 0 0; }
+    .custom-compact p {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: .78rem;
+      line-height: 1.4;
       overflow-wrap: anywhere;
     }
     .actions {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      gap: .65rem;
-      margin-top: .2rem;
+      gap: .12rem;
+      margin-top: .28rem;
     }
     .qty {
       display: inline-flex;
       align-items: center;
       height: 32px;
-      border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+      border: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
       border-radius: 8px;
       background: transparent;
     }
@@ -164,10 +181,10 @@ export type CartLineMode = 'cart' | 'summary';
     }
     .qty-btn:disabled { opacity: .38; cursor: not-allowed; }
     .qty-value {
-      min-width: 1.5rem;
-      padding: 0 .1rem;
+      min-width: 1.45rem;
+      padding: 0 .05rem;
       text-align: center;
-      font-size: .88rem;
+      font-size: .86rem;
       font-weight: 650;
       font-variant-numeric: tabular-nums;
     }
@@ -188,15 +205,15 @@ export type CartLineMode = 'cart' | 'summary';
     }
     .remove:hover {
       color: var(--error-text);
-      background: color-mix(in srgb, var(--error-bg) 55%, transparent);
+      background: color-mix(in srgb, var(--error-bg) 48%, transparent);
     }
     .remove:focus-visible {
       color: var(--error-text);
       outline: 2px solid color-mix(in srgb, var(--accent-green) 80%, var(--text-main) 20%);
       outline-offset: 2px;
     }
-    .remove:active { background: color-mix(in srgb, var(--error-bg) 80%, transparent); }
-    .stock { margin: .1rem 0 0; color: var(--text-soft); font-size: .78rem; font-weight: 500; line-height: 1.4; }
+    .remove:active { background: color-mix(in srgb, var(--error-bg) 72%, transparent); }
+    .stock { margin: .12rem 0 0; color: var(--text-soft); font-size: .78rem; font-weight: 500; line-height: 1.4; }
     .stock.is-out, .stock.is-conflict { color: var(--error-text); font-weight: 650; }
     .adjust {
       display: inline;
@@ -209,22 +226,18 @@ export type CartLineMode = 'cart' | 'summary';
       cursor: pointer;
     }
     .adjust:hover, .adjust:focus-visible { text-decoration: underline; }
-    .is-summary { padding: .7rem 0; gap: .6rem; }
+    .is-summary { padding: .75rem 0; gap: .65rem .75rem; }
     .is-summary .thumb { width: 48px; height: 48px; }
     .is-summary .name { font-size: .9rem; font-weight: 650; }
+    .is-summary .price { font-size: .88rem; }
     @media (min-width: 720px) {
-      .thumb { width: 80px; height: 80px; }
-      .is-summary .thumb { width: 48px; height: 48px; }
-      .custom-row {
-        grid-template-columns: 6.5rem minmax(0, 1fr);
-        gap: .75rem;
-        align-items: baseline;
-      }
+      .thumb { width: 84px; height: 84px; }
+      .is-summary .thumb { width: 52px; height: 52px; }
     }
     @media (max-width: 420px) {
-      .line { gap: .6rem; padding: .9rem 0; }
-      .thumb { width: 60px; height: 60px; }
-      .title-row { flex-wrap: wrap; gap: .15rem .7rem; }
+      .line { gap: .65rem; padding: .95rem 0; }
+      .thumb { width: 64px; height: 64px; }
+      .title-row { gap: .55rem; }
       .price { font-size: .92rem; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -255,6 +268,24 @@ export class CartLineComponent {
 
   compactSummary(): string {
     return compactCustomizationSummary(this.item());
+  }
+
+  summaryCustomizationLines(): string[] {
+    const values = (this.item().customization ?? [])
+      .map((option) => String(option.value ?? '').trim())
+      .filter(Boolean);
+    if (!values.length) return [];
+    const [lead, ...rest] = values;
+    const lines = [lead];
+    for (let i = 0; i < rest.length; i += 2) {
+      const chunk = rest.slice(i, i + 2).join(' · ');
+      if (lines.length >= 3) {
+        lines[2] += ' · ' + chunk;
+      } else {
+        lines.push(chunk);
+      }
+    }
+    return lines;
   }
 
   blocked(): boolean {

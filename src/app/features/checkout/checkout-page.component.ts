@@ -35,10 +35,11 @@ import {
 import { resolveApiBaseUrl } from '../../core/config/api.config';
 import { cartBaseProductId, formatStockConflictMessage } from '../../core/utils/cart-stock';
 import { CartLineComponent } from '../../shared/ui/cart-line.component';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, CartLineComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, CartLineComponent, IconComponent],
   templateUrl: './checkout-page.component.html',
   styleUrls: ['./checkout-page.component.css']
 })
