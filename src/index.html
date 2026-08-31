@@ -7,8 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Tartas personalizadas, platos cubanos y españoles, dulces y encargos para celebraciones, con entrega local o recogida." />
     <meta name="robots" content="index,follow" />
-    <meta name="theme-color" content="#111111" />
+    <meta name="theme-color" content="#f8f5eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MIXSABOR" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/png" sizes="232x232" href="/assets/branding/favicon_mixsabor_dark.png" />
+    <link rel="apple-touch-icon" href="/assets/branding/logo_mixsabor_dark_256.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
         let theme = 'light';
@@ -16,10 +22,19 @@
           const stored = localStorage.getItem('theme-mode');
           if (stored === 'light' || stored === 'dark') theme = stored;
         } catch {}
-        document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.colorScheme = theme;
+        const root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.style.colorScheme = theme;
+        const bg = theme === 'dark' ? '#111827' : '#f8f5eb';
+        root.style.backgroundColor = bg;
+        const meta = document.querySelector && document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', bg);
       })();
     </script>
+    <style>
+      html, body { background-color: #f8f5eb; }
+      html[data-theme='dark'], html[data-theme='dark'] body { background-color: #111827; }
+    </style>
     <link rel="canonical" href="https://mixsabor.milugui.com/" />
     <meta property="og:locale" content="es_ES" />
     <meta property="og:site_name" content="MIXSABOR" />

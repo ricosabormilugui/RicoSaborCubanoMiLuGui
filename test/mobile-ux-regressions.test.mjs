@@ -14,6 +14,19 @@ test('the global header keeps the logo before the burger and exposes no global d
   assert.match(source, /brand-logo-header\{height:clamp\(50px,14vw,54px\)\}/);
 });
 
+test('navbar actions share a frameless icon target and keep a 44px mobile hit area', async () => {
+  const source = await read('src/app/app.component.ts');
+
+  assert.match(source, /class="icon-btn cart-box"/);
+  assert.match(source, /class="icon-btn theme-btn"/);
+  assert.doesNotMatch(source, /theme-btn desktop-only/);
+  assert.doesNotMatch(source, /\.cart-box\{[^}]*border:1px solid/);
+  assert.doesNotMatch(source, /\.theme-btn\{[^}]*border:1px solid/);
+  assert.match(source, /\.icon-btn,\.cart-box,\.theme-btn\{width:44px;height:44px;flex:0 0 44px\}/);
+  assert.match(source, /aria-label="Carrito"/);
+  assert.match(source, /Activar modo claro/);
+});
+
 test('home renders the public admin categories at a bounded size and two product cards per row on mobile', async () => {
   const [component, template, styles, card] = await Promise.all([
     read('src/app/features/home/home-page.component.ts'),

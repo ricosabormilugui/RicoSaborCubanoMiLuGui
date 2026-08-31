@@ -182,7 +182,7 @@ export class OrderService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload)
-      }, 'No se pudo enviar el pedido por Netlify Function.', 15_000);
+      }, 'No se pudo enviar el pedido.', 15_000);
 
       const notificationErrors = (Array.isArray(data.notifications) ? data.notifications : [])
         .filter((item) => !item.sent && item.detail)
@@ -195,7 +195,7 @@ export class OrderService {
       return {
         orderId: data.orderId,
         channel: 'netlify',
-        destination: 'Netlify Function (submit-order)',
+        destination: '',
         warning
       };
     } catch (error) {
@@ -246,7 +246,7 @@ export class OrderService {
       return {
         orderId: data.orderId,
         channel: 'backend',
-        destination: `Backend API (${data.accountMode ?? 'guest'})`,
+        destination: '',
         warning: warningParts.length ? warningParts.join(' | ') : undefined
       };
     } catch (error) {
@@ -269,10 +269,11 @@ export class OrderService {
   }
 
   private saveOrderLocally(_payload: OrderPayload): SubmitOrderResponse {
+    // Local submit is in-memory only (sin persistir el pedido completo).
     return {
       orderId: `LOCAL-${Date.now()}`,
       channel: 'local',
-      destination: 'memoria local (sin persistir el pedido completo)'
+      destination: ''
     };
   }
 }

@@ -92,7 +92,7 @@ test('el tema se determina antes de cargar la aplicación y no usa el esquema de
   const index = read('src/index.html');
   const theme = read('src/app/core/services/theme.service.ts');
   assert.match(index, /localStorage\.getItem\('theme-mode'\)/);
-  assert.match(index, /document\.documentElement\.setAttribute\('data-theme', theme\)/);
+  assert.match(index, /setAttribute\('data-theme', theme\)/);
   assert.match(index, /data-theme="light"/);
   assert.doesNotMatch(index, /prefers-color-scheme/);
   assert.doesNotMatch(theme, /prefers-color-scheme/);

@@ -206,7 +206,7 @@ test('preserva stock/validación y oculta errores técnicos, HTML y objetos', ()
   assert.equal(getUserFriendlyError('Agotado'), 'Agotado');
   assert.equal(getUserFriendlyError({ status: 409, message: 'Stock insuficiente: quedan 2 unidades.' }), 'Stock insuficiente: quedan 2 unidades.');
   assert.equal(getUserFriendlyError({ status: 400, error: { message: 'El email ya existe.' } }), 'El email ya existe.');
-  for (const message of ['MongoServerError: E11000', 'ECONNRESET', 'Unexpected token <', '500 Internal Server Error', '<html>Error</html>']) assert.equal(getUserFriendlyError(new Error(message)), getUserFriendlyError(null));
+  for (const message of ['MongoServerError: E11000', 'ECONNRESET', 'Unexpected token <', '500 Internal Server Error', '<html>Error</html>', 'Error backendapi', 'Backend API (guest)', 'No se pudo enviar el pedido por Netlify Function.']) assert.equal(getUserFriendlyError(new Error(message)), getUserFriendlyError(null));
 });
 
 test('cancelar eliminación de producto no llama al backend; confirmar notifica éxito', async () => {

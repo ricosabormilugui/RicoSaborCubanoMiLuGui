@@ -185,3 +185,11 @@ test('el arranque inline no consulta prefers-color-scheme y la clave permanece g
   assert.doesNotMatch(auth, /theme-mode/);
   assert.doesNotMatch(auth, /localStorage\.clear\(/);
 });
+
+test('el destino de pedido no expone nombres internos de backend', () => {
+  const orders = readFileSync(resolve(root, 'src/app/core/services/order.service.ts'), 'utf8');
+  assert.doesNotMatch(orders, /destination: `Backend API/);
+  assert.doesNotMatch(orders, /Netlify Function \(submit-order\)/);
+  assert.doesNotMatch(orders, /destination: 'memoria local/);
+  assert.match(orders, /sin persistir el pedido completo/);
+});

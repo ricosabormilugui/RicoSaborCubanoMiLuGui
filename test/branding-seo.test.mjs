@@ -22,9 +22,28 @@ test('caso 3: el tema oscuro selecciona el logo para fondo oscuro', () => {
   assert.notEqual(brand.logos.dark, brand.logos.light);
 });
 
-test('caso 3.1: la pestaña del navegador utiliza el logo dark como favicon', () => {
+test('la pestaña del navegador utiliza el logo dark como favicon', () => {
   const index = read('src/index.html');
   assert.match(index, /<link rel="icon" type="image\/png" sizes="232x232" href="\/assets\/branding\/favicon_mixsabor_dark\.png" \/>/);
+});
+
+test('el arranque PWA reutiliza el navy de --bg-main y logos existentes', () => {
+  const index = read('src/index.html');
+  const manifest = JSON.parse(read('public/manifest.webmanifest'));
+  const styles = read('src/styles.scss');
+
+  assert.match(index, /<link rel="manifest" href="\/manifest\.webmanifest" \/>/);
+  assert.match(index, /<link rel="apple-touch-icon" href="\/assets\/branding\/logo_mixsabor_dark_256\.png" \/>/);
+  assert.match(index, /<meta name="theme-color" content="#f8f5eb" \/>/);
+  assert.match(styles, /--bg-main: #111827;/);
+  assert.match(styles, /--bg-main: #f8f5eb;/);
+  assert.equal(manifest.name, 'MIXSABOR');
+  assert.equal(manifest.start_url, '/');
+  assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.background_color, '#111827');
+  assert.equal(manifest.theme_color, '#111827');
+  assert.ok(manifest.icons.some((icon) => icon.src === '/assets/branding/logo_mixsabor_dark_256.png'));
+  assert.ok(manifest.icons.some((icon) => icon.src === '/assets/branding/logo_mixsabor_dark.png'));
 });
 
 test('caso 4: Home genera el title de MIXSABOR con el slogan', () => {

@@ -16,6 +16,7 @@ import { IconComponent } from './icon.component';
       type="button"
       (click)="toggle()"
       [attr.aria-label]="auth.isAuthenticated() ? 'Abrir menú de cuenta' : 'Acceder a tu cuenta'"
+      [attr.title]="auth.isAuthenticated() ? 'Abrir menú de cuenta' : 'Acceder a tu cuenta'"
       [attr.aria-expanded]="open()"
       aria-haspopup="menu"
       aria-controls="account-menu">
@@ -42,23 +43,26 @@ import { IconComponent } from './icon.component';
       display: inline-grid;
       place-items: center;
       align-self: center;
-      flex: 0 0 34px;
-      width: 34px;
-      height: 34px;
+      flex: 0 0 var(--nav-action-size, 34px);
+      width: var(--nav-action-size, 34px);
+      height: var(--nav-action-size, 34px);
+      overflow: visible;
     }
 
     .icon-btn {
       width: 100%;
       height: 100%;
       padding: 0;
+      margin: 0;
       display: inline-grid;
       place-items: center;
       position: relative;
-      border: none;
+      border: 0;
       border-radius: 10px;
       background: transparent;
       color: var(--text-main);
       cursor: pointer;
+      line-height: 0;
       transition: .2s;
     }
 
@@ -111,7 +115,7 @@ import { IconComponent } from './icon.component';
     }
 
     @media (hover: none) {
-      .icon-btn:hover { transform: none; }
+      .icon-btn:hover { transform: none; background: transparent; }
     }
 
     @media (prefers-reduced-motion: reduce) {

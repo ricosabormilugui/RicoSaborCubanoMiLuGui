@@ -12,7 +12,7 @@ import { NotificationSourceSelectorComponent } from './notification-source-selec
   selector: 'app-notification-bell', standalone: true,
   imports: [RouterLink, UserNotificationListComponent, IconComponent, NotificationSourceSelectorComponent],
   template: `
-    <button #trigger type="button" class="bell" (click)="show(trigger)" [attr.aria-label]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" aria-haspopup="dialog" aria-controls="notification-panel" [attr.aria-expanded]="opened()">
+    <button #trigger type="button" class="bell" (click)="show(trigger)" [attr.aria-label]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" [attr.title]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" aria-haspopup="dialog" aria-controls="notification-panel" [attr.aria-expanded]="opened()">
       <app-icon name="bell" [size]="22" />
       @if (badge(service.unreadCount())) { <span class="count" aria-hidden="true">{{ badge(service.unreadCount()) }}</span> }
     </button>

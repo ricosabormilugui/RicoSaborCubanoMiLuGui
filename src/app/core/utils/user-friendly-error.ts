@@ -1,5 +1,5 @@
 const DEFAULT_ERROR = 'No hemos podido completar la operación. Inténtalo de nuevo.';
-const TECHNICAL_ERROR = /HttpErrorResponse|Http failure response|Mongo\w*Error|ECONN\w*|ENOTFOUND|ETIMEDOUT|E11000|Internal Server Error|Unexpected token|JSON\.parse|SyntaxError|TypeError|Failed to fetch|fetch failed|NetworkError|SQLSTATE|CastError|ValidationError|\bstack\b|\bSMTP\b|https?:\/\/|\[object Object\]|<\/?(?:html|body|script)|\bat\s+\S+\s*\([^)]*:\d+|^unknown$/i;
+const TECHNICAL_ERROR = /HttpErrorResponse|Http failure response|Mongo\w*Error|ECONN\w*|ENOTFOUND|ETIMEDOUT|E11000|Internal Server Error|Unexpected token|JSON\.parse|SyntaxError|TypeError|Failed to fetch|fetch failed|NetworkError|SQLSTATE|CastError|ValidationError|\bstack\b|\bSMTP\b|https?:\/\/|\[object Object\]|<\/?(?:html|body|script)|\bat\s+\S+\s*\([^)]*:\d+|^unknown$|backendapi|Backend API|BACKEND_API|Netlify Function|submit-order|api-proxy/i;
 
 /** Preserve readable business messages, never expose transport/database details. */
 export function getUserFriendlyError(error: unknown, fallback = DEFAULT_ERROR): string {

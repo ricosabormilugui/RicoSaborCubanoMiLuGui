@@ -6,6 +6,12 @@ export type ThemeMode = 'dark' | 'light';
 export const THEME_STORAGE_KEY = 'theme-mode';
 export const DEFAULT_THEME: ThemeMode = 'light';
 
+/** Fallback hex for --bg-main in each theme. Keep in sync with src/styles.scss. */
+export const THEME_SURFACE: Record<ThemeMode, string> = {
+  light: '#f8f5eb',
+  dark: '#111827'
+};
+
 export function parseThemeMode(value: string | null | undefined): ThemeMode | null {
   return value === 'light' || value === 'dark' ? value : null;
 }
@@ -59,6 +65,8 @@ export class ThemeService {
     body?.classList.toggle('theme-dark', theme === 'dark');
     if (body) body.style.colorScheme = theme;
 
+    this.syncThemeColor(theme, root);
+
     if (!this.hasExplicitPreference) return;
 
     try {
@@ -66,6 +74,13 @@ export class ThemeService {
     } catch {
       // Ignore storage failures; the in-memory theme still updates immediately.
     }
+  }
+
+  private syncThemeColor(theme: ThemeMode, root: HTMLElement): void {
+    const fromToken = this.windowRef?.getComputedStyle?.(root)?.getPropertyValue('--bg-main')?.trim();
+    const color = fromToken || THEME_SURFACE[theme];
+    const meta = this.document.querySelector?.('meta[name="theme-color"]');
+    meta?.setAttribute('content', color);
   }
 
   private listenForExternalChanges(): void {
