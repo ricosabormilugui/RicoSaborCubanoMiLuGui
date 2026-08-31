@@ -38,6 +38,10 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
       <header class="navbar">
         <div class="container nav-grid">
           <div class="nav-left">
+            <button id="menu-trigger" class="icon-btn" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-controls="site-menu" [attr.aria-label]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'" [attr.title]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'">
+              <app-icon name="menu" />
+            </button>
+
             <a class="nav-brand" routerLink="/" [attr.aria-label]="brand.name">
               <img
                 *ngIf="brandLogoAvailable(); else headerBrandFallback"
@@ -47,10 +51,6 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
                 (error)="markBrandLogoUnavailable()" />
               <ng-template #headerBrandFallback><span class="brand-wordmark">{{ brand.name }}</span></ng-template>
             </a>
-
-            <button id="menu-trigger" class="icon-btn" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" aria-controls="site-menu" [attr.aria-label]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'" [attr.title]="menuOpen() ? 'Cerrar menú' : 'Abrir menú'">
-              <app-icon name="menu" />
-            </button>
           </div>
 
           <div class="nav-right">
@@ -216,10 +216,11 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.app-shell{width:100%;min-height:100vh;display:flex;flex-direction:column}`,
     `.navbar{display:flex;align-items:center;justify-content:space-between;padding:2px 0;width:100%;max-width:100%;min-width:0;overflow:visible;--nav-action-size:34px;backdrop-filter:blur(10px);background:color-mix(in srgb, var(--surface-0) 88%, var(--bg-main) 12%);position:sticky;top:0;z-index:50;border-bottom:1px solid color-mix(in srgb, var(--border-soft) 80%, transparent)}`,
     `.nav-grid{display:flex;align-items:center;justify-content:space-between;gap:clamp(4px,1.4vw,10px);min-width:0;max-width:100%}`,
-    `.nav-left,.nav-right{display:flex;align-items:center;gap:4px;min-width:0;overflow:visible}`,
-    `.nav-left{gap:2px;flex:1 1 auto}`,
+    `.nav-left,.nav-right{display:flex;align-items:center;min-width:0;overflow:visible}`,
+    `.nav-left{gap:clamp(4px,1.2vw,8px);flex:1 1 auto;justify-content:flex-start}`,
+    `.nav-left>#menu-trigger{flex:0 0 var(--nav-action-size);flex-shrink:0}`,
     `.nav-right{justify-content:flex-end;flex:0 0 auto}`,
-    `.nav-brand{display:flex;flex:1 1 auto;align-items:center;justify-content:flex-start;min-width:0;text-decoration:none;color:var(--text-main)}`,
+    `.nav-brand{display:flex;flex:0 1 auto;align-items:center;justify-content:flex-start;min-width:0;text-decoration:none;color:var(--text-main)}`,
     `.brand-logo{display:block;max-width:100%;object-fit:contain}.brand-logo-header{width:auto;height:68px}.brand-wordmark{display:block;max-width:96px;font-size:clamp(.78rem,3vw,1.1rem);font-weight:900;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
     `.icon-btn{background:transparent;border:0;color:var(--text-main);cursor:pointer;transition:.2s;border-radius:10px;width:var(--nav-action-size);height:var(--nav-action-size);flex:0 0 var(--nav-action-size);padding:0;margin:0;display:inline-grid;place-items:center;position:relative;line-height:0;overflow:visible;align-self:center}`,
     `.icon-btn:hover{transform:scale(1.12);background:var(--hover-surface)}`,
@@ -276,7 +277,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
     `.ok{color:var(--ok-text);margin:.1rem 0 0}`,
     `.err{color:var(--error-text);margin:.1rem 0 0}`,
     `.site-footer:not(.has-newsletter){padding:.7rem 0}.site-footer:not(.has-newsletter) .footer-bottom{margin-top:0}`,
-    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top));--nav-action-size:44px}.navbar .container{padding-inline:clamp(4px,1.5vw,var(--content-gutter))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px;flex:0 0 44px}.nav-grid{gap:0}.nav-left,.nav-right{gap:0;flex-wrap:nowrap}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
+    `@media (max-width:760px){.footer-grid{grid-template-columns:1fr}.top-banner{font-size:.66rem;padding:4px 8px}.navbar{padding:2px 0;padding-top:max(2px,env(safe-area-inset-top));--nav-action-size:44px}.navbar .container{padding-inline:clamp(4px,1.5vw,var(--content-gutter))}.brand-logo-header{height:clamp(50px,14vw,54px)}.brand-wordmark{max-width:72px;font-size:.8rem}.icon-btn,.cart-box,.theme-btn{width:44px;height:44px;flex:0 0 44px}.nav-grid{gap:0}.nav-left{gap:clamp(4px,1.2vw,8px);flex-wrap:nowrap}.nav-right{gap:0;flex-wrap:nowrap}.page-content{padding:.65rem 0;font-size:.94rem}.search-modal{padding:10px;padding-top:max(10px,env(safe-area-inset-top));place-items:start stretch}.search-card{width:100%}.side-menu{padding-top:max(16px,env(safe-area-inset-top));width:min(300px,calc(100vw - 16px))}.newsletter-email-row{grid-template-columns:1fr}.newsletter-email-row .btn{width:100%}.site-footer{padding:.85rem 0}.site-footer h2{font-size:1.18rem}.footer-copy{font-size:.8rem}.footer-bottom{align-items:flex-start;flex-direction:column;gap:.55rem;margin-top:.6rem}.footer-identity{align-self:center;width:100%;justify-items:center;text-align:center}.brand-logo-footer{height:88px}.legal-footer{gap:.25rem .55rem;padding:0}.legal-footer a,.legal-footer button{font-size:.69rem}.whatsapp-link{width:auto;min-height:36px;padding:.36rem .65rem;font-size:.74rem}}`,
     `@media (hover:none){.icon-btn:hover{transform:none;background:transparent}}`,
     `@media (prefers-reduced-motion:reduce){.icon-btn,.result{transition:none}}`,
     `@media (min-width:768px){.desktop-only{display:flex;gap:6px}.mobile-only{display:none}.brand-wordmark{font-size:1.3rem}.nav-right>.cart-box{order:1}.nav-right>.desktop-only{order:2}.nav-right>app-account-menu{order:3}.nav-right>.theme-btn{order:4}}`

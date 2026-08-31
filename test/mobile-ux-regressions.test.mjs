@@ -4,14 +4,15 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('the global header keeps the logo before the burger and exposes no global date selector', async () => {
+test('the global header keeps the burger before the logo and exposes no global date selector', async () => {
   const source = await read('src/app/app.component.ts');
   const logoPosition = source.indexOf('class="nav-brand"');
   const menuPosition = source.indexOf('id="menu-trigger"');
 
-  assert.ok(logoPosition >= 0 && logoPosition < menuPosition);
+  assert.ok(menuPosition >= 0 && menuPosition < logoPosition);
   assert.doesNotMatch(source, /openCalendar|Elegir fecha de entrega|badge-date/);
   assert.match(source, /brand-logo-header\{height:clamp\(50px,14vw,54px\)\}/);
+  assert.doesNotMatch(source, /\.nav-left\s*>\s*\.nav-brand[\s\S]{0,80}order:/);
 });
 
 test('navbar actions share a frameless icon target and keep a 44px mobile hit area', async () => {
