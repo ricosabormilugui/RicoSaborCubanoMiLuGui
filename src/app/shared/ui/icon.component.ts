@@ -13,6 +13,7 @@ export type AppIconName =
   | 'search'
   | 'store'
   | 'sun'
+  | 'trash'
   | 'truck'
   | 'user'
   | 'utensils'
@@ -78,6 +79,13 @@ export type AppIconName =
         }
         @case ('phone') {
           <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
+        }
+        @case ('trash') {
+          <path d="M3 6h18" />
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          <path d="M10 11v6" />
+          <path d="M14 11v6" />
         }
         @case ('search') {
           <path d="m21 21-4.34-4.34" />

@@ -7,7 +7,13 @@ export class ApiRequestError extends Error {
     message: string,
     readonly status: number,
     readonly requestId?: string,
-    readonly kind: ApiErrorKind = 'http'
+    readonly kind: ApiErrorKind = 'http',
+    readonly body: {
+      code?: string;
+      productId?: string;
+      available?: number;
+      productName?: string;
+    } = {}
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -54,7 +60,13 @@ export async function requestJson<T>(input: RequestInfo | URL, init: RequestInit
   if (!response.ok) {
     const detail = String(data['message'] ?? data['error'] ?? '');
     const requestId = response.headers.get('x-request-id') ?? (String(data['requestId'] ?? '') || undefined);
-    throw new ApiRequestError(messageForStatus(response.status, detail, fallback), response.status, requestId);
+    const available = Number(data['available']);
+    throw new ApiRequestError(messageForStatus(response.status, detail, fallback), response.status, requestId, 'http', {
+      code: typeof data['code'] === 'string' ? data['code'] : undefined,
+      productId: typeof data['productId'] === 'string' ? data['productId'] : undefined,
+      available: Number.isFinite(available) ? available : undefined,
+      productName: typeof data['productName'] === 'string' ? data['productName'] : undefined
+    });
   }
   return data as T;
 }

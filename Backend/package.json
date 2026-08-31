@@ -9,6 +9,7 @@
     "test": "node --test",
     "preview:order-email": "node scripts/preview-order-email.js",
     "diagnose:product-slugs": "node scripts/diagnose-product-slugs.js",
+    "diagnose:pending-payment-reservations": "node scripts/diagnose-pending-payment-reservations.js",
     "migrate:product-slugs": "node scripts/migrate-product-slugs.js"
   },
   "dependencies": {

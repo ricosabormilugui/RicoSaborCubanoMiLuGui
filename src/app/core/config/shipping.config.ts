@@ -10,6 +10,7 @@ export type DeliveryRules = {
   closedWeekdays: number[];
   slots: Record<DeliveryType, readonly string[]>;
   cashAllowedForAdvancePaymentOrders: boolean;
+  paymentReservationMinutes: number;
   notes: string;
 };
 
@@ -45,6 +46,7 @@ export const DELIVERY_RULES: DeliveryRules = {
   closedWeekdays: orderRules.closedWeekdays,
   slots: orderRules.slots,
   cashAllowedForAdvancePaymentOrders: false,
+  paymentReservationMinutes: Number(orderRules.paymentReservationMinutes) || 120,
   notes: 'Los pedidos personalizados o bajo encargo pueden requerir pago anticipado y confirmación previa de disponibilidad.'
 };
 
@@ -268,4 +270,35 @@ export function calculateShippingQuote(deliveryType: DeliveryType, postalCode: s
   const freeShippingApplied = Boolean(zone.freeShippingFrom && subtotal >= zone.freeShippingFrom);
   const cost = freeShippingApplied ? 0 : zone.cost;
   return { deliveryType, postalCode: normalizedPostalCode, zoneId: zone.id, zoneName: zone.name, cost, minimumOrder: zone.minimumOrder, freeShippingFrom: zone.freeShippingFrom, freeShippingApplied, available: true, message: freeShippingApplied ? `Envío gratis aplicado en ${zone.name}.` : `Envío a ${zone.name}: ${zone.cost.toFixed(2)} €${zone.freeShippingFrom ? ` · gratis desde ${zone.freeShippingFrom.toFixed(2)} €` : ''}.` };
+}
+
+export function formatPaymentDeadline(value: string | Date | null | undefined, timeZone = DELIVERY_RULES.timeZone): string {
+  if (value == null) return '';
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) return '';
+  const date = instant.toLocaleDateString('es-ES', {
+    timeZone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+  const time = instant.toLocaleTimeString('es-ES', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  });
+  return `${date} · ${time}`;
+}
+
+export function formatPaymentDeadlineTime(value: string | Date | null | undefined, timeZone = DELIVERY_RULES.timeZone): string {
+  if (value == null) return '';
+  const instant = new Date(value);
+  if (Number.isNaN(instant.getTime())) return '';
+  return instant.toLocaleTimeString('es-ES', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  });
 }

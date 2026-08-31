@@ -12,6 +12,8 @@ export interface CartItem {
   productId: string;
   name: string;
   description?: string;
+  /** Miniatura resuelta al añadir desde catálogo. No implica una petición extra. */
+  imageUrl?: string;
   /** Precio final por unidad: basePrice + modificadores seleccionados. */
   unitPrice: number;
   /** Precio base del producto antes de personalización. */
@@ -23,6 +25,11 @@ export interface CartItem {
   configurationId?: string;
   customization?: CartCustomizationSelection[];
   requiresAdvancePayment?: boolean;
+  /** Copia de Product.trackStock. Si es false o ausente, no hay inventario limitado. */
+  trackStock?: boolean;
+  /** Unidades disponibles del producto base cuando trackStock es true. */
+  stock?: number;
+  lowStockAlert?: number;
 }
 
 export type DeliveryType = 'delivery' | 'pickup';

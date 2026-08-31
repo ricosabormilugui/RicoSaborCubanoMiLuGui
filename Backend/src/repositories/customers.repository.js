@@ -114,6 +114,48 @@ export async function markFirstOrderCouponUsed(customerId, { orderId, code = "PR
   );
 }
 
+export async function releaseFirstOrderCouponIfOwnedByOrder(customerId, orderId, { session } = {}) {
+  if (!customerId || !ObjectId.isValid(String(customerId)) || !orderId) return null;
+
+  const collection = await getCustomersCollection();
+  const now = new Date().toISOString();
+
+  return collection.findOneAndUpdate(
+    {
+      _id: new ObjectId(String(customerId)),
+      $or: [
+        { "firstOrderDiscount.orderId": orderId },
+        { "firstOrderCoupon.orderId": orderId }
+      ]
+    },
+    {
+      $set: {
+        firstOrderDiscount: FIRST_ORDER_DISCOUNT,
+        firstOrderCoupon: FIRST_ORDER_COUPON,
+        updatedAt: now
+      }
+    },
+    { returnDocument: "after", session }
+  );
+}
+
+export async function revertCustomerOrderCounters(customerId, orderId, { session, total = 0 } = {}) {
+  if (!customerId || !ObjectId.isValid(String(customerId)) || !orderId) return null;
+  const collection = await getCustomersCollection();
+  return collection.findOneAndUpdate(
+    { _id: new ObjectId(String(customerId)), orderIds: orderId },
+    {
+      $pull: { orderIds: orderId },
+      $inc: {
+        orderCount: -1,
+        totalSpent: -Math.abs(Number(total) || 0)
+      },
+      $set: { updatedAt: new Date().toISOString() }
+    },
+    { returnDocument: "after", session }
+  );
+}
+
 export async function upsertCustomerFromOrder(order, { marketingConsent = false, session } = {}) {
   const collection = await getCustomersCollection();
   const now = new Date().toISOString();

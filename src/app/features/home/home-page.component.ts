@@ -5,7 +5,7 @@ import { CartService } from '../../core/services/cart.service';
 import { buildWhatsAppContactUrl } from '../../core/config/whatsapp.config';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
+import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
 import { HomeContentService } from '../../core/services/home-content.service';
@@ -16,6 +16,7 @@ import { IconComponent } from '../../shared/ui/icon.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
+import { addSimpleProductWithFreshStock } from '../../core/utils/live-add-to-cart';
 
 @Component({
   standalone: true,
@@ -70,7 +71,7 @@ export class HomePageComponent {
   );
 
   constructor() {
-    void this.catalog.loadProducts();
+    void this.catalog.refreshAvailability();
     void this.homeContent.load();
     void this.productCategories.loadPublicCategories().catch(() => undefined);
     effect(() => this.updateSeo());
@@ -96,16 +97,13 @@ export class HomePageComponent {
     return category.slug;
   }
 
-  addToCart(product: Product): void {
-    if (!isProductOrderable(product)) return;
-    if (this.isCustomizable(product)) {
-      void this.router.navigate(this.productRoute(product));
-      return;
-    }
-    const quantity = this.minimumQuantity(product);
-    this.cart.add(product, [], quantity);
-    const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+  addToCart(product: Product): Promise<boolean> {
+    return addSimpleProductWithFreshStock(product, {
+      catalog: this.catalog,
+      cart: this.cart,
+      notifications: this.notifications,
+      router: this.router
+    });
   }
 
   addAction(product: Product): AddToCartAction {
@@ -119,11 +117,6 @@ export class HomePageComponent {
   scrollCollections(track: HTMLElement): void {
     const amount = Math.max(240, Math.round(track.clientWidth * 0.7));
     track.scrollBy({ left: amount, behavior: 'smooth' });
-  }
-
-  private minimumQuantity(product: Product): number {
-    const quantity = Math.floor(Number(product.minimumQuantity ?? 1));
-    return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
   }
 
   private updateSeo(): void {

@@ -8,6 +8,7 @@ import { RouterLink } from '@angular/router';
 import { AdminOrder, AdminOrderStatus } from '../../core/models/admin-order.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
 import { AdminOrderService } from '../../core/services/admin-order.service';
+import { formatPaymentDeadline } from '../../core/config/shipping.config';
 
 @Component({
   standalone: true,
@@ -71,6 +72,8 @@ import { AdminOrderService } from '../../core/services/admin-order.service';
             <strong>📅:</strong> {{ order.deliveryDate ? (order.deliveryDate | date:'dd/MM') : 'N/A' }} ·
             <strong>🕒:</strong> {{ order.deliverySlot || 'N/A' }} ·
             <strong>Pago:</strong> {{ paymentLabel(order) }} · {{ paymentStatusLabel(order) }} · <strong>{{ order.requiresAdvancePayment ? 'Pago anticipado requerido' : 'Efectivo permitido' }}</strong>
+            <ng-container *ngIf="showsPaymentReservation(order)"> · <strong>Pago pendiente</strong> · Reserva hasta: {{ paymentReservationLabel(order) }}</ng-container>
+            <ng-container *ngIf="isPaymentExpired(order)"> · Cancelado automáticamente · Motivo: pago no recibido dentro del plazo</ng-container>
           </p>
           <ul>
             <li *ngFor="let item of order.items">
@@ -280,6 +283,20 @@ export class AdminPageComponent {
     if (status === 'failed') return 'fallido';
     if (status === 'cancelled') return 'cancelado';
     return 'pendiente de pago';
+  }
+
+  showsPaymentReservation(order: AdminOrder): boolean {
+    const status = order.payment?.status ?? order.paymentStatus;
+    const method = order.payment?.method ?? order.paymentMethod;
+    return Boolean(order.paymentExpiresAt) && status === 'pending' && method !== 'cash';
+  }
+
+  paymentReservationLabel(order: AdminOrder): string {
+    return formatPaymentDeadline(order.paymentExpiresAt ?? '');
+  }
+
+  isPaymentExpired(order: AdminOrder): boolean {
+    return order.cancellationReason === 'payment_expired' || (order.status === 'cancelado' && Boolean(order.paymentExpiredAt));
   }
 
 }

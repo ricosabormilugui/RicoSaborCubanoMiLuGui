@@ -3,14 +3,17 @@ import { createApp } from "./app.js";
 import { validateRuntimeEnv } from "./lib/env.js";
 import { closeMongoConnection } from "./lib/mongo.js";
 import { logger } from "./lib/logger.js";
+import { startPaymentExpirationJob } from "./services/order-expiration.job.js";
 
 let server;
 let shuttingDown = false;
+let stopPaymentExpirationJob;
 
 async function shutdown(reason, exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.warn("service.shutdown.started", { reason });
+  stopPaymentExpirationJob?.();
   const forceTimer = setTimeout(() => {
     logger.error("service.shutdown.forced", { reason });
     process.exit(1);
@@ -35,6 +38,7 @@ try {
       bodyLimit: runtime.bodyLimit,
       corsConfigured: runtime.corsOrigin !== "development-only"
     });
+    stopPaymentExpirationJob = startPaymentExpirationJob();
   });
   server.requestTimeout = runtime.httpRequestTimeoutMs;
   server.headersTimeout = runtime.httpHeadersTimeoutMs;

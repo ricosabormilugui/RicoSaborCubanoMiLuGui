@@ -2,11 +2,21 @@ import { Injectable, OnDestroy, computed, linkedSignal } from '@angular/core';
 import { ActiveIdentityService, GUEST_IDENTITY, StorageIdentity, getStorageKey } from './active-identity.service';
 import { CartCustomizationSelection, CartItem } from '../models/order.model';
 import { isProductCustomizable, Product } from '../models/product.model';
+import {
+  availableStockForLine,
+  cartHasStockConflicts,
+  inventorySnapshotFromProduct,
+  isLineBlockingCheckout,
+  maxQuantityForLine,
+  stockHintForLine,
+  tracksInventory,
+  UNLIMITED_CART_QUANTITY
+} from '../utils/cart-stock';
 import { buildCustomizationOptionId, calculateFinalUnitPrice, getCustomizationGroupKeyByLabel, getPriceModifier, roundMoney } from '../utils/customization-pricing';
 
 const CART_SCHEMA_VERSION = 3;
 const SUPPORTED_CART_SCHEMA_VERSIONS = new Set([2, CART_SCHEMA_VERSION]);
-const MAX_RESTORED_QUANTITY = 99;
+const MAX_RESTORED_QUANTITY = UNLIMITED_CART_QUANTITY;
 
 interface StoredCartState {
   version: number;
@@ -30,46 +40,45 @@ export class CartService implements OnDestroy {
   readonly items = computed(() => this.state());
   readonly subtotal = computed(() => roundMoney(this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)));
   readonly totalItems = computed(() => this.items().reduce((sum, item) => sum + item.quantity, 0));
+  readonly hasStockConflicts = computed(() => cartHasStockConflicts(this.items()));
 
   add(product: Product, customization: CartCustomizationSelection[] = [], amount = 1): void {
     const configurationId = buildConfigurationId(customization);
     const productId = configurationId ? `${product.id}::${configurationId}` : product.id;
+    const inventory = inventorySnapshotFromProduct(product);
     const existing = this.state().find((item) => item.productId === productId);
     const addedQuantity = normalizePositiveInteger(amount, 1);
     const minimumQuantity = normalizePositiveInteger(product.minimumQuantity, 1);
     const basePrice = roundMoney(Number(product.price ?? 0));
     const unitPrice = calculateFinalUnitPrice(basePrice, customization);
     if (existing) {
-      this.setItems(this.state().map((item) => (item.productId === productId ? {
-        ...item,
-        quantity: Math.max(minimumQuantity, existing.quantity + addedQuantity),
-        basePrice,
-        unitPrice,
-        customization: customization.length ? customization : undefined,
-        requiresAdvancePayment: isProductCustomizable(product),
-        minimumQuantity,
-        unitLabel: String(product.unitLabel ?? '').trim() || undefined
-      } : item)));
+      const next = { ...existing, ...inventory, basePrice, unitPrice, customization: customization.length ? customization : undefined, requiresAdvancePayment: isProductCustomizable(product), minimumQuantity, unitLabel: String(product.unitLabel ?? '').trim() || undefined };
+      const capped = this.clampQuantity(existing.quantity + addedQuantity, next, this.state());
+      this.setItems(this.state().map((item) => (item.productId === productId ? { ...next, quantity: Math.max(minimumQuantity, capped) } : item)));
       return;
     }
 
-    this.setItems([
-      ...this.state(),
-      {
-        productId,
-        baseProductId: product.id,
-        configurationId: configurationId || undefined,
-        name: product.name,
-        description: product.description,
-        unitPrice,
-        basePrice,
-        quantity: Math.max(minimumQuantity, addedQuantity),
-        minimumQuantity,
-        unitLabel: String(product.unitLabel ?? '').trim() || undefined,
-        requiresAdvancePayment: isProductCustomizable(product),
-        customization: customization.length ? customization : undefined
-      }
-    ]);
+    const draft: CartItem = {
+      productId,
+      baseProductId: product.id,
+      configurationId: configurationId || undefined,
+      name: product.name,
+      description: product.description,
+      imageUrl: inventory.imageUrl,
+      unitPrice,
+      basePrice,
+      quantity: Math.max(minimumQuantity, addedQuantity),
+      minimumQuantity,
+      unitLabel: String(product.unitLabel ?? '').trim() || undefined,
+      requiresAdvancePayment: isProductCustomizable(product),
+      customization: customization.length ? customization : undefined,
+      trackStock: inventory.trackStock,
+      stock: inventory.stock,
+      lowStockAlert: inventory.lowStockAlert
+    };
+    draft.quantity = Math.max(minimumQuantity, this.clampQuantity(draft.quantity, draft, [...this.state(), draft]));
+
+    this.setItems([...this.state(), draft]);
   }
 
   updateQuantity(productId: string, quantity: number): void {
@@ -79,11 +88,99 @@ export class CartService implements OnDestroy {
       return;
     }
 
+    const items = this.state();
     this.setItems(
-      this.state().map((item) => (item.productId === productId
-        ? { ...item, quantity: Math.max(normalizePositiveInteger(item.minimumQuantity, 1), normalizedQuantity) }
-        : item))
+      items.map((item) => {
+        if (item.productId !== productId) return item;
+        const minimum = normalizePositiveInteger(item.minimumQuantity, 1);
+        return { ...item, quantity: Math.max(minimum, this.clampQuantity(normalizedQuantity, item, items)) };
+      })
     );
+  }
+
+  increment(productId: string): { applied: boolean; available: number | null } {
+    const items = this.state();
+    const item = items.find((entry) => itemMatches(entry, productId));
+    if (!item) return { applied: false, available: null };
+    if (isLineBlockingCheckout(item, items) && (availableStockForLine(item, items) ?? 0) <= 0) {
+      return { applied: false, available: 0 };
+    }
+    const available = availableStockForLine(item, items);
+    const next = item.quantity + 1;
+    if (available !== null && next > available) return { applied: false, available };
+    this.updateQuantity(productId, next);
+    return { applied: true, available };
+  }
+
+  decrement(productId: string): boolean {
+    const item = this.state().find((entry) => itemMatches(entry, productId));
+    if (!item) return false;
+    const minimum = normalizePositiveInteger(item.minimumQuantity, 1);
+    if (item.quantity <= minimum) return false;
+    this.updateQuantity(productId, item.quantity - 1);
+    return true;
+  }
+
+  adjustToAvailable(productId: string): boolean {
+    const items = this.state();
+    const item = items.find((entry) => itemMatches(entry, productId));
+    if (!item) return false;
+    const available = availableStockForLine(item, items);
+    if (available === null || available <= 0) return false;
+    const minimum = normalizePositiveInteger(item.minimumQuantity, 1);
+    this.updateQuantity(productId, Math.max(minimum, available));
+    return true;
+  }
+
+  syncInventory(products: readonly Product[]): void {
+    if (!products.length) return;
+    const byId = new Map(products.map((product) => [product.id, product]));
+    this.setItems(this.state().map((item) => {
+      const product = byId.get(cartBaseId(item));
+      if (!product) return item;
+      const snapshot = inventorySnapshotFromProduct(product);
+      return {
+        ...item,
+        imageUrl: snapshot.imageUrl || item.imageUrl,
+        trackStock: snapshot.trackStock,
+        stock: snapshot.trackStock ? snapshot.stock : undefined,
+        lowStockAlert: snapshot.lowStockAlert,
+        name: String(product.name ?? item.name)
+      };
+    }));
+  }
+
+  applyRemoteStock(productId: string, available: number): void {
+    const baseId = String(productId ?? '').split('::')[0].trim();
+    const stock = Math.max(0, Math.floor(Number(available)));
+    if (!baseId || !Number.isFinite(stock)) return;
+    this.setItems(this.state().map((item) => (
+      cartBaseId(item) === baseId
+        ? { ...item, trackStock: true, stock }
+        : item
+    )));
+  }
+
+  canDecrement(item: CartItem): boolean {
+    return item.quantity > normalizePositiveInteger(item.minimumQuantity, 1);
+  }
+
+  canIncrement(item: CartItem): boolean {
+    const available = availableStockForLine(item, this.items());
+    if (available === null) return item.quantity < UNLIMITED_CART_QUANTITY;
+    return available > 0 && item.quantity < available;
+  }
+
+  stockHint(item: CartItem, attemptedOverMax = false) {
+    return stockHintForLine(item, this.items(), attemptedOverMax);
+  }
+
+  maxQuantity(item: CartItem): number {
+    return maxQuantityForLine(item, this.items());
+  }
+
+  tracksStock(item: CartItem): boolean {
+    return tracksInventory(item);
   }
 
   remove(productId: string): void {
@@ -223,6 +320,7 @@ export class CartService implements OnDestroy {
       productId,
       name,
       description: raw.description ? String(raw.description) : '',
+      imageUrl: String(raw.imageUrl ?? '').trim() || undefined,
       unitPrice,
       basePrice,
       quantity: Math.max(minimumQuantity, Math.min(MAX_RESTORED_QUANTITY, quantity)),
@@ -231,8 +329,17 @@ export class CartService implements OnDestroy {
       baseProductId,
       configurationId: configurationId || undefined,
       requiresAdvancePayment: Boolean(raw.requiresAdvancePayment) || Boolean(customization?.length),
-      customization
+      customization,
+      trackStock: raw.trackStock === true,
+      stock: raw.trackStock === true ? Math.max(0, Math.floor(Number(raw.stock ?? 0))) : undefined,
+      lowStockAlert: Number.isFinite(Number(raw.lowStockAlert)) ? Math.max(0, Math.floor(Number(raw.lowStockAlert))) : undefined
     };
+  }
+
+  private clampQuantity(quantity: number, item: CartItem, lines: CartItem[]): number {
+    const available = availableStockForLine({ ...item, quantity }, lines);
+    if (available === null) return Math.min(MAX_RESTORED_QUANTITY, quantity);
+    return Math.min(quantity, available);
   }
 
   private persistCart(items: CartItem[]): boolean {
@@ -265,6 +372,14 @@ export class CartService implements OnDestroy {
 function normalizePositiveInteger(value: unknown, fallback: number): number {
   const quantity = Math.floor(Number(value));
   return Number.isFinite(quantity) && quantity > 0 ? quantity : fallback;
+}
+
+function itemMatches(item: CartItem, productId: string): boolean {
+  return item.productId === productId;
+}
+
+function cartBaseId(item: CartItem): string {
+  return String(item.baseProductId ?? item.productId.split('::')[0] ?? '').trim();
 }
 
 

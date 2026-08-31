@@ -13,6 +13,7 @@ export const DELIVERY_RULES = {
   closedWeekdays: ORDER_RULES.closedWeekdays,
   slots: ORDER_RULES.slots,
   cashAllowedForAdvancePaymentOrders: false,
+  paymentReservationMinutes: Number(ORDER_RULES.paymentReservationMinutes) || 120,
   notes:
     "Los pedidos personalizados o bajo encargo pueden requerir pago anticipado y confirmación previa de disponibilidad."
 };

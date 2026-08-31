@@ -21,6 +21,8 @@ export interface SubmitOrderResponse {
   channel: 'backend';
   destination: string;
   warning?: string;
+  paymentExpiresAt?: string | null;
+  paymentStatus?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -146,6 +148,8 @@ export class OrderService {
         };
         coupon?: { valid?: boolean; discountAmount?: number; code?: string | null };
         totals?: { total?: number };
+        paymentExpiresAt?: string | null;
+        paymentStatus?: string;
       }>(this.backendEndpoint, {
         method: 'POST',
         headers: {
@@ -172,7 +176,9 @@ export class OrderService {
         orderId: data.orderId,
         channel: 'backend',
         destination: '',
-        warning: warningParts.length ? warningParts.join(' | ') : undefined
+        warning: warningParts.length ? warningParts.join(' | ') : undefined,
+        paymentExpiresAt: data.paymentExpiresAt ?? null,
+        paymentStatus: data.paymentStatus
       };
     } catch (error) {
       if (error instanceof Error) {

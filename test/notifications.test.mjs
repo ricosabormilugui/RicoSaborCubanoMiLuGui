@@ -35,6 +35,7 @@ const { ConfirmDialogComponent } = load('src/app/shared/ui/confirm-dialog.compon
 const { getUserFriendlyError } = load('src/app/core/utils/user-friendly-error.ts');
 const { AdminPageComponent } = load('src/app/features/admin/admin-page.component.ts', true);
 const { AdminProductsPageComponent } = load('src/app/features/admin/admin-products-page.component.ts', true);
+const { CartPageComponent } = load('src/app/features/cart/cart-page.component.ts', true);
 const { CheckoutPageComponent } = load('src/app/features/checkout/checkout-page.component.ts', true);
 const notifications = new NotificationService();
 // Focus unit tests on adapter behavior; browser QA exercises actual lazy loading.
@@ -42,23 +43,35 @@ notifications.dispatch = operation => operation(sonner);
 beforeEach(() => notifications.dismissAll());
 
 test('cupón: solo el botón Aplicar emite actividad; la validación automática permanece silenciosa', () => {
-  const component = Object.create(CheckoutPageComponent.prototype);
-  const code = { value: '', setValue(value) { this.value = value; } };
-  component.form = { controls: { couponCode: code } };
-  component.couponPreviewValid = angular.signal(false);
-  component.couponPreviewMessage = angular.signal('');
+  const component = Object.create(CartPageComponent.prototype);
+  let code = '';
+  let applied = false;
+  component.coupon = {
+    code: () => code,
+    applied: () => applied,
+    apply() {
+      const clean = String(code ?? '').trim().toUpperCase().replace(/\s+/g, '');
+      code = clean;
+      applied = clean === 'PRIMER10';
+      return {
+        valid: applied,
+        message: applied || !clean ? '' : 'Cupón no válido. Usa PRIMER10 si es tu primer pedido.'
+      };
+    }
+  };
+  component.couponMessage = angular.signal('');
   const calls = [];
   component.notifications = { success: (...args) => calls.push(['success', ...args]), warning: (...args) => calls.push(['warning', ...args]) };
   component.applyCouponWithFeedback();
   assert.equal(calls.length, 0);
-  code.value = ' primer10 ';
+  code = ' primer10 ';
   component.applyCouponWithFeedback();
   assert.equal(calls[0][0], 'success');
   assert.equal(calls[0][3].saveToHistory, true);
   assert.match(calls[0][3].history.message, /Pendiente/);
   component.applyCouponPreview();
   assert.equal(calls.length, 1);
-  code.value = 'INVALIDO';
+  code = 'INVALIDO';
   component.applyCouponWithFeedback();
   assert.equal(calls[1][0], 'warning');
   assert.equal(calls[1][3].saveToHistory, true);
@@ -299,11 +312,22 @@ test('checkbox de pago conserva el estado si se cancela la confirmación', async
 
 test('checkout mantiene carrito/intención al fallar y resuelve un solo toast', async () => {
   const component = Object.create(CheckoutPageComponent.prototype);
-  for (const key of ['loading', 'orderId', 'destination', 'isLocalDraft', 'notificationWarning']) component[key] = angular.signal(key === 'loading' ? false : '');
+  for (const key of ['loading', 'orderId', 'destination', 'isLocalDraft', 'notificationWarning', 'stockSubmitError']) component[key] = angular.signal(key === 'loading' ? false : '');
   component.notifications = notifications;
-  component.form = { markAllAsTouched() {}, value: { deliveryDate: '2026-09-01', deliverySlot: '10:00' }, controls: { deliveryType: { value: 'pickup' }, paymentMethod: { value: 'bizum' } }, invalid: false, getRawValue: () => ({}) };
+  component.form = {
+    markAllAsTouched() {},
+    value: { deliveryDate: '2026-09-01', deliverySlot: '10:00' },
+    controls: {
+      deliveryType: { value: 'pickup' },
+      paymentMethod: { value: 'bizum' },
+      couponCode: { setValue() {} }
+    },
+    invalid: false,
+    getRawValue: () => ({})
+  };
   component.cart = { items: () => [{}], clear() { assert.fail('No debe vaciar carrito'); } };
-  for (const method of ['updateAddressValidation', 'reconcileDeliverySlot', 'validateDeliverySelection', 'sanitizePhoneDigits', 'sanitizePostalCode', 'applyCouponPreview', 'reconcilePaymentMethod']) component[method] = () => {};
+  component.coupon = { applied: () => false, code: () => '' };
+  for (const method of ['updateAddressValidation', 'reconcileDeliverySlot', 'validateDeliverySelection', 'sanitizePhoneDigits', 'sanitizePostalCode', 'reconcilePaymentMethod']) component[method] = () => {};
   component.requiresAdvancePayment = () => false;
   component.paymentSettingsLoading = () => false;
   component.paymentSettingsError = () => '';

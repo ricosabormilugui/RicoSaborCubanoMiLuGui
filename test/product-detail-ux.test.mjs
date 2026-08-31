@@ -11,7 +11,7 @@ test('el detalle de producto conserva precio dinámico, carrito personalizado y 
   assert.match(source, /saveToHistory: true/);
   assert.match(source, /hasAllRequiredCustomizations/);
   assert.match(source, /buildCartCustomizationSelections/);
-  assert.match(source, /this\.cart\.add\(product, customization, quantity\)/);
+  assert.match(source, /this\.cart\.add\(evaluation\.product, customization, evaluation\.quantity\)/);
   assert.match(source, /calculateFinalUnitPrice/);
   assert.doesNotMatch(source, /loadProducts\(\)/);
   assert.doesNotMatch(source, /sku:\s*product\.id/);

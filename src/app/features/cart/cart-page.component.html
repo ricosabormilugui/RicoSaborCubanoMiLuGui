@@ -1,58 +1,63 @@
+<section class="cart-page">
+  <header class="cart-head">
+    <h1>Tu pedido</h1>
+    @if (cart.items().length) {
+      <p>Revisa los productos antes de continuar.</p>
+    }
+  </header>
 
-    <section class="cart-card card">
-      <h1>Carrito</h1>
-      <p class="empty-cart" *ngIf="!cart.items().length">Tu carrito está vacío.</p>
-
-      <div class="cart-list" *ngIf="cart.items().length" aria-label="Productos en el carrito">
-        <div class="cart-head" aria-hidden="true">
-          <span>Producto</span>
-          <span>Cant.</span>
-          <span>Precio</span>
-          <span></span>
-        </div>
-
-        <article class="cart-item" *ngFor="let item of cart.items()">
-          <div class="item-main">
-            <span class="mobile-label">Producto</span>
-            <strong class="item-name">{{ item.name }}</strong>
-            <small class="sale-meta" *ngIf="item.unitLabel || (item.minimumQuantity ?? 1) > 1">
-              {{ item.unitLabel ? 'Venta por ' + item.unitLabel : '' }}<span *ngIf="item.unitLabel && (item.minimumQuantity ?? 1) > 1"> · </span><span *ngIf="(item.minimumQuantity ?? 1) > 1">Mínimo {{ item.minimumQuantity }}</span>
-            </small>
-            <ul class="custom-summary" *ngIf="item.customization?.length">
-              <li *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.priceModifier"> (+{{ option.priceModifier | currency:'EUR' }})</span></li>
-            </ul>
-          </div>
-
-          <div class="quantity-cell">
-            <span class="mobile-label">Cantidad</span>
-            <div class="quantity-controls" [attr.aria-label]="'Cantidad de ' + item.name">
-              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity-1)" [disabled]="item.quantity <= (item.minimumQuantity ?? 1)" [attr.aria-label]="'Reducir cantidad de ' + item.name">−</button>
-              <span class="qty-value">{{ item.quantity }}</span>
-              <button class="qty-btn" type="button" (click)="cart.updateQuantity(item.productId, item.quantity+1)" [attr.aria-label]="'Aumentar cantidad de ' + item.name">+</button>
-            </div>
-          </div>
-
-          <div class="price-cell">
-            <span class="mobile-label">Precio</span>
-            <strong>{{ item.unitPrice * item.quantity | currency:'EUR' }}</strong>
-            <small *ngIf="item.quantity > 1">{{ item.unitPrice | currency:'EUR' }} por unidad</small>
-          </div>
-
-          <div class="remove-cell">
-            <button class="btn btn-danger btn-sm remove-btn" type="button" (click)="removeItem(item.productId)">Quitar</button>
-          </div>
-        </article>
+  @if (!cart.items().length) {
+    <div class="empty">
+      <p>Tu carrito está vacío</p>
+      <a routerLink="/productos" class="btn btn-primary checkout-btn">Ver productos</a>
+    </div>
+  } @else {
+    <div class="cart-layout">
+      <div class="lines" aria-label="Productos en el carrito">
+        @for (item of cart.items(); track item.productId) {
+          <app-cart-line [item]="item" mode="cart" (removed)="onRemoved($event)" />
+        }
       </div>
-
-      <div class="cart-footer" *ngIf="cart.items().length">
+      <aside class="totals">
+        <div class="coupon-box">
+          <label>
+            Código de descuento
+            <div class="coupon-row">
+              <input [value]="coupon.code()" placeholder="Código" (input)="setCouponCode($event)" aria-label="Código de descuento" />
+              <button class="btn btn-ghost coupon-apply" type="button" (click)="applyCouponWithFeedback()">Aplicar</button>
+            </div>
+          </label>
+          @if (coupon.applied()) {
+            <div class="coupon-applied">
+              <span>Cupón {{ coupon.code() }} <strong>−{{ couponDiscount() | currency:'EUR' }}</strong></span>
+              <button type="button" class="coupon-remove" (click)="removeCoupon()">Quitar</button>
+            </div>
+          }
+          @if (couponMessage()) {
+            <small class="field-error">{{ couponMessage() }}</small>
+          }
+        </div>
         <div class="total-row">
-          <span>Total</span>
+          <span>Subtotal</span>
           <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
         </div>
-        <a routerLink="/checkout" class="btn btn-primary btn-lg checkout-btn">
-          Ir al checkout
-          <app-icon name="arrow" [size]="16" />
+        @if (couponDiscount() > 0) {
+          <div class="total-row discount">
+            <span>Descuento</span>
+            <strong>−{{ couponDiscount() | currency:'EUR' }}</strong>
+          </div>
+        }
+        <div class="total-row grand">
+          <span>Total</span>
+          <strong>{{ orderPreview() | currency:'EUR' }}</strong>
+        </div>
+        @if (cart.hasStockConflicts()) {
+          <p class="stock-note">Revisa la disponibilidad de algunos productos antes de continuar.</p>
+        }
+        <a routerLink="/checkout" class="btn btn-primary checkout-btn" [class.is-disabled]="cart.hasStockConflicts()" [attr.aria-disabled]="cart.hasStockConflicts()">
+          Continuar
         </a>
-      </div>
-    </section>
-  
+      </aside>
+    </div>
+  }
+</section>

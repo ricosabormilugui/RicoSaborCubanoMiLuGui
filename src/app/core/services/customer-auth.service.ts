@@ -8,6 +8,8 @@ import { CartService } from './cart.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
 import { DeliveryStateService } from './delivery-state.service';
 import { FavoritesService } from './favorites.service';
+import { CouponDraftService } from './coupon.service';
+import { CheckoutDraftService } from './checkout-draft.service';
 import { transferGuestOrderIntent } from '../utils/order-idempotency';
 
 export interface CustomerProfile {
@@ -22,6 +24,8 @@ export class CustomerAuthService {
   private readonly cart = inject(CartService);
   private readonly delivery = inject(DeliveryStateService);
   private readonly favorites = inject(FavoritesService);
+  private readonly coupon = inject(CouponDraftService);
+  private readonly checkoutDraft = inject(CheckoutDraftService);
   private readonly confirm = inject(ConfirmDialogService);
   private readonly apiBase = `${resolveApiBaseUrl()}/auth`;
   private readonly tokenKey = 'ricosabor-customer-token';
@@ -59,6 +63,8 @@ export class CustomerAuthService {
     if (!adoptGuest) return;
     this.cart.adoptGuestCart();
     this.delivery.adoptGuestShipping();
+    this.coupon.adoptGuestCoupon();
+    this.checkoutDraft.adoptGuestDraft();
     await this.favorites.syncAuthenticatedFavorites();
     transferGuestOrderIntent(profile.userId);
   }

@@ -5,9 +5,9 @@ export const PAYMENT_METHOD_META: Array<{
   label: string;
   description: string;
 }> = [
-  { value: 'bizum', label: 'Bizum', description: 'Pago por Bizum' },
-  { value: 'bank_transfer', label: 'Transferencia', description: 'Pago por transferencia bancaria' },
-  { value: 'cash', label: 'Efectivo', description: 'Al recoger o entregar el pedido' }
+  { value: 'bizum', label: 'Bizum', description: 'Recibirás los datos de pago por email.' },
+  { value: 'bank_transfer', label: 'Transferencia', description: 'Recibirás los datos bancarios por email.' },
+  { value: 'cash', label: 'Efectivo', description: 'Disponible al recoger o entregar el pedido.' }
 ];
 
 export function getPaymentMethodLabel(method: PaymentMethod): string {

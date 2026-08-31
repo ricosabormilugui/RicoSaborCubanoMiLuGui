@@ -42,7 +42,8 @@ test('G-H: email is not sent from frontend or local fallback', () => {
 
 test('K-S: checkout uses public payment settings, not hardcoded operational data', () => {
   const config = read('src/app/core/config/payment.config.ts');
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = read('src/app/features/checkout/checkout-page.component.ts')
+    + read('src/app/features/checkout/checkout-page.component.html');
   assert.match(checkout, /paymentSettings\.getPublicSettings\(\)/);
   assert.doesNotMatch(config, /\bES\d{22}\b|\+34\d{9}/);
   assert.doesNotMatch(config, /enabled:\s*true/);

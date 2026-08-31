@@ -192,7 +192,12 @@ test('NotificationService guarda opt-in en la identidad activa y descarta sesió
 
 test('integraciones seleccionadas: carrito y pedido; campana y ruta también admiten invitados',()=>{
   const read=path=>readFileSync(resolve(root,path),'utf8');
-  for(const path of ['home/home-page.component.ts','catalog/catalog-page.component.ts','catalog/product-detail-page.component.ts','cart/cart-page.component.ts'])assert.match(read('src/app/features/'+path),/saveToHistory: true/);
+  assert.match(read('src/app/core/utils/live-add-to-cart.ts'), /saveToHistory: true/);
+  for (const path of ['home/home-page.component.ts', 'catalog/catalog-page.component.ts']) {
+    assert.match(read('src/app/features/' + path), /addSimpleProductWithFreshStock/);
+  }
+  assert.match(read('src/app/features/catalog/product-detail-page.component.ts'), /saveToHistory: true/);
+  assert.match(read('src/app/features/cart/cart-page.component.ts'), /saveToHistory: true/);
   const app=read('src/app/app.component.ts');assert.match(app,/@defer \(on immediate\) \{ <app-notification-bell \/> \}/);
   assert.doesNotMatch(app,/@if \(customerAuth.isAuthenticated\(\)\)\s*\{\s*@defer/);
   assert.doesNotMatch(read('src/app/app.routes.ts'), /path: 'mis-notificaciones'[\s\S]{0,350}canActivate/);

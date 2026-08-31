@@ -206,12 +206,18 @@ export async function deleteProduct(id) {
 }
 
 export class OrderStockError extends Error {
-  constructor(message, { productId } = {}) {
+  constructor(message, { productId, available, productName } = {}) {
     super(message);
     this.name = "OrderStockError";
     this.code = "ORDER_STOCK_CONFLICT";
     this.status = 409;
     this.productId = productId;
+    const stock = Number(available);
+    this.details = {
+      productId,
+      ...(Number.isFinite(stock) ? { available: stock } : {}),
+      ...(productName ? { productName } : {})
+    };
   }
 }
 
@@ -248,6 +254,30 @@ export async function applyOrderStockAdjustments(items = [], { session, collecti
       throw new OrderStockError("Uno de los productos ya no existe.", { productId });
     }
     if (!existing.trackStock) continue;
-    throw new OrderStockError(`No hay stock suficiente para ${existing.name ?? "uno de los productos"}.`, { productId });
+    throw new OrderStockError(`No hay stock suficiente para ${existing.name ?? "uno de los productos"}.`, {
+      productId,
+      available: Number(existing.stock ?? 0),
+      productName: existing.name
+    });
+  }
+}
+
+export async function restoreOrderStockAdjustments(items = [], { session, collection: providedCollection } = {}) {
+  const collection = providedCollection ?? await getProductsCollection();
+
+  for (const { productId, quantity } of groupOrderStockRequirements(items)) {
+    const objectId = new ObjectId(productId);
+    const now = new Date().toISOString();
+    const existing = await collection.findOne({ _id: objectId }, { session });
+    if (!existing || existing.trackStock !== true) continue;
+
+    await collection.findOneAndUpdate(
+      { _id: objectId, trackStock: true },
+      [
+        { $set: { stock: { $add: [{ $ifNull: ["$stock", 0] }, quantity] }, updatedAt: now } },
+        { $set: { available: { $gt: ["$stock", 0] } } }
+      ],
+      { returnDocument: "after", session }
+    );
   }
 }

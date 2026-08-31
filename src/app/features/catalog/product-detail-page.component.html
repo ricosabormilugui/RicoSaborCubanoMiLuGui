@@ -198,7 +198,7 @@
 
       <div class="sticky-buy" *ngIf="showStickyPurchase()" role="region" aria-label="Comprar producto">
         <strong>{{ customizedTotal(product()!) | currency:'EUR' }}</strong>
-        <button class="btn btn-primary" type="button" (click)="addToCart(product()!)">Añadir al carrito</button>
+        <button class="btn btn-primary" type="button" (click)="addToCartWithFreshStock(product()!)">Añadir al carrito</button>
       </div>
     </ng-container>
   </ng-template>

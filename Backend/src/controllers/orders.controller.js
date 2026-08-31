@@ -32,6 +32,11 @@ import {
   validateIdempotencyKey
 } from "../services/order-idempotency.service.js";
 import { commitOrderUnitOfWork, CouponConsumptionError } from "../services/order-unit-of-work.service.js";
+import {
+  isPaymentReservationExpired,
+  paymentExpiresAtForOrder
+} from "../services/order-payment-reservation.service.js";
+import { VOID_ORDER_STATUSES } from "../services/order-inventory.service.js";
 
 const allowedStatuses = new Set(["nuevo", "confirmado", "preparando", "listo", "enviado", "entregado", "cancelado", "anulado"]);
 const notifyStatuses = new Set(["confirmado", "preparando", "listo", "enviado"]);
@@ -334,6 +339,8 @@ function buildCreateOrderResponse(order, { notifications, warnings = [], replay 
       discountPercent: order.discountPercent,
       reason: null
     },
+    paymentStatus: order.paymentStatus ?? order.payment?.status ?? "pending",
+    paymentExpiresAt: order.paymentExpiresAt ?? null,
     totals: {
       subtotal: order.subtotal,
       discountAmount: order.discountAmount,
@@ -398,6 +405,7 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
   const total = Number((subtotal - discountAmount + normalizedShipping.details.cost).toFixed(2));
   const orderId = `MLG-${randomUUID().slice(0, 8).toUpperCase()}`;
   const createdAt = new Date().toISOString();
+  const paymentExpiresAt = paymentExpiresAtForOrder(normalizedPayment.method, createdAt);
   const order = {
     ...payload,
     customer: { ...(payload.customer ?? {}), phone: canonicalPhone },
@@ -417,6 +425,9 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
     payment: normalizedPayment,
     paymentMethod: normalizedPayment.method,
     paymentStatus: normalizedPayment.status,
+    paymentExpiresAt,
+    inventoryReleasedAt: null,
+    cancellationReason: null,
     requiresAdvancePayment,
     shipping: normalizedShipping.details,
     shippingCost: normalizedShipping.details.cost,
@@ -520,6 +531,14 @@ export async function createOrder(req, res) {
       orderId: result.order.orderId,
       replay: false
     });
+    if (result.order.paymentExpiresAt) {
+      logger.info("order.payment_reservation.created", {
+        requestId: req.requestId,
+        orderId: result.order.orderId,
+        paymentExpiresAt: result.order.paymentExpiresAt,
+        method: result.order.paymentMethod
+      });
+    }
     const { notifications, warnings } = await notifyPersistedOrder(result.order, {
       requestId: req.requestId
     });
@@ -689,11 +708,31 @@ export async function updateOrderPaymentForAdmin(req, res) {
     if (existing.paymentStatus === paymentStatus || existing?.payment?.status === paymentStatus) {
       return res.status(200).json({ ok: true, order: existing, notifications: { email: { sent: false, warning: "payment-unchanged" } } });
     }
+    if (paymentStatus === "paid") {
+      if (VOID_ORDER_STATUSES.includes(existing.status) || existing.inventoryReleasedAt) {
+        return res.status(409).json({
+          error: "No se puede marcar como pagado un pedido cancelado o con la reserva ya liberada.",
+          code: "PAYMENT_NOT_CONFIRMABLE"
+        });
+      }
+      if (isPaymentReservationExpired(existing)) {
+        return res.status(409).json({
+          error: "El plazo de pago ha vencido. Requiere revisión.",
+          code: "PAYMENT_EXPIRED"
+        });
+      }
+    }
     const updated = await updateOrderPayment(orderId, {
       status: paymentStatus,
       note,
       confirmedAt: paymentStatus === "paid" ? new Date().toISOString() : null
     }, { paymentUpdatedBy: req.auth?.email ?? "admin" });
+    if (paymentStatus === "paid" && !updated) {
+      return res.status(409).json({
+        error: "No se puede confirmar el pago de este pedido.",
+        code: "PAYMENT_NOT_CONFIRMABLE"
+      });
+    }
     let email = { sent: false, warning: "payment-not-notified" };
     if (notifyCustomer && paymentStatus === "paid" && existing.customer?.email) {
       try {

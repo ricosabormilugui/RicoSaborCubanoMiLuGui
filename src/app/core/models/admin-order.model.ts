@@ -51,6 +51,10 @@ export interface AdminOrder {
   paymentStatus?: AdminPaymentStatus;
   requiresAdvancePayment?: boolean;
   paymentConfirmedAt?: string;
+  paymentExpiresAt?: string | null;
+  inventoryReleasedAt?: string | null;
+  cancellationReason?: string | null;
+  paymentExpiredAt?: string | null;
   notes?: string;
   subtotal?: number;
   couponCode?: string | null;

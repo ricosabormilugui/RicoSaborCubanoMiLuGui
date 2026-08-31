@@ -17,6 +17,7 @@ import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
+import { evaluateLiveAddToCart } from '../../core/utils/cart-stock';
 import {
   buildCartCustomizationSelections,
   calculateCustomizationExtra,
@@ -200,7 +201,7 @@ export class ProductDetailPageComponent {
   }
 
   addToCart(product: Product, amount = this.quantity()): boolean {
-    if (!this.isOrderable(product)) return false;
+    if (product.trackStock !== true && !this.isOrderable(product)) return false;
     const groups = this.customizationGroups(product);
     if (this.isCustomCake(product) && !hasAllRequiredCustomizations(groups, this.selectedCustomization())) {
       const incomplete = groups.find((group) => group.required && !this.isGroupComplete(group));
@@ -210,23 +211,37 @@ export class ProductDetailPageComponent {
       return false;
     }
     const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
-    const customization = buildCartCustomizationSelections(product, this.selectedCustomization());
-    this.cart.add(product, customization, quantity);
-    const suffix = quantity > 1 ? ` (${quantity} uds.)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+    const evaluation = evaluateLiveAddToCart(product, quantity);
+    if (!evaluation.allowed) {
+      this.notifications.warning('Producto no disponible', evaluation.message, { key: 'cart-add-blocked:' + product.id });
+      return false;
+    }
+    if (evaluation.kind === 'limited') {
+      this.notifications.warning('Disponibilidad actualizada', evaluation.message, { key: 'cart-add-limited:' + product.id });
+    }
+    const customization = buildCartCustomizationSelections(evaluation.product, this.selectedCustomization());
+    this.cart.add(evaluation.product, customization, evaluation.quantity);
+    const suffix = evaluation.quantity > 1 ? ` (${evaluation.quantity} uds.)` : '';
+    this.notifications.success('Producto añadido al carrito', `${evaluation.product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
     return true;
   }
 
-  addRelated(item: Product): boolean {
+  async addToCartWithFreshStock(product: Product, amount = this.quantity()): Promise<boolean> {
+    const live = await this.catalog.refreshTrackedProduct(product);
+    if (this.product()?.id === live.id) this.product.set(live);
+    return this.addToCart(live, amount);
+  }
+
+  addRelated(item: Product): Promise<boolean> | boolean {
     if (this.isCustomCake(item)) {
       void this.router.navigate(this.productRoute(item));
       return false;
     }
-    return this.addToCart(item, 1);
+    return this.addToCartWithFreshStock(item, 1);
   }
 
   detailAddAction(product: Product): AddToCartAction {
-    return () => this.addToCart(product);
+    return () => this.addToCartWithFreshStock(product);
   }
 
   relatedAddAction(product: Product): AddToCartAction {
@@ -258,6 +273,7 @@ export class ProductDetailPageComponent {
       if (identifier !== this.productParam()) return;
       this.product.set(result.product);
       this.relatedProducts.set(result.relatedProducts);
+      this.catalog.upsertProduct(result.product);
     } catch (error) {
       if (identifier !== this.productParam()) return;
       if (!(error instanceof ApiRequestError) || error.status !== 404) {

@@ -572,9 +572,11 @@ test('claves globales de tema y cookies no se namespacian; pedidos locales ya no
   assert.doesNotMatch(checkout, /ng serve|isLocalDraft/);
   assert.match(identity, /mixsabor\.guest\.\$\{resource\}/);
   assert.match(identity, /LEGACY_LOCAL_KEYS/);
+  assert.match(identity, /'coupon' \| 'checkout-draft'/);
   assert.match(checkout, /this\.identity\.session\(\)/);
-  assert.match(checkout, /fullName: ''/);
-  assert.match(checkout, /phoneNumber: ''/);
+  assert.match(checkout, /checkoutDraft\.snapshot\(\)/);
+  assert.match(checkout, /fullName: draft\.fullName/);
+  assert.match(checkout, /phoneNumber: draft\.phoneNumber/);
   assert.match(checkout, /if \(!this\.identity\.isCurrent\(checkoutSession\)\) return/);
 });
 
@@ -623,6 +625,8 @@ test('CustomerAuthService.login hidrata favoritos del backend y logout no los co
       syncAuthenticatedFavorites: () => favorites.syncAuthenticatedFavorites(),
       adoptGuestCart: () => cart.adoptGuestCart(),
       adoptGuestShipping: () => delivery.adoptGuestShipping(),
+      adoptGuestCoupon() { return true; },
+      adoptGuestDraft() { return true; },
       warning() {}
     }) },
     '../utils/api-client': {

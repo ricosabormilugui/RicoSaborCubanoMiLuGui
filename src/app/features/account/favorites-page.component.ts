@@ -2,14 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { LucideHeart } from '@lucide/angular';
-import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
-import { getProductRoute } from '../../core/models/product-filter';
+import { Product } from '../../core/models/product.model';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { FavoritesService } from '../../core/services/favorites.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
+import { addSimpleProductWithFreshStock } from '../../core/utils/live-add-to-cart';
 
 @Component({
   standalone: true,
@@ -40,7 +40,7 @@ export class FavoritesPageComponent {
   readonly empty = computed(() => !this.isInitialLoading() && !this.products().length);
 
   constructor() {
-    void this.catalog.loadProducts().finally(() => this.catalogSettled.set(true));
+    void this.catalog.refreshAvailability().finally(() => this.catalogSettled.set(true));
     effect(() => {
       const products = this.catalog.products();
       const loading = this.catalog.loading();
@@ -61,29 +61,16 @@ export class FavoritesPageComponent {
     void this.catalog.loadProducts({ force: true });
   }
 
-  addToCart(product: Product): void {
-    if (!isProductOrderable(product)) return;
-    if (isProductCustomizable(product)) {
-      void this.router.navigate(getProductRoute(product));
-      return;
-    }
-    const quantity = minimumQuantity(product);
-    this.cart.add(product, [], quantity);
-    const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, {
-      key: 'cart-add:' + product.id,
-      saveToHistory: true,
-      history: { action: { label: 'Ver carrito', url: '/carrito' } },
-      action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') }
+  addToCart(product: Product): Promise<boolean> {
+    return addSimpleProductWithFreshStock(product, {
+      catalog: this.catalog,
+      cart: this.cart,
+      notifications: this.notifications,
+      router: this.router
     });
   }
 
   addAction(product: Product): AddToCartAction {
     return () => this.addToCart(product);
   }
-}
-
-function minimumQuantity(product: Product): number {
-  const quantity = Math.floor(Number(product.minimumQuantity ?? 1));
-  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }

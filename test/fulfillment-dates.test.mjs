@@ -98,7 +98,8 @@ test('caso K: delivery ↔ pickup recalcula fecha y franjas', () => {
 });
 
 test('el checkout valida el change del datepicker nativo', () => {
-  const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8');
+  const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8')
+    + readFileSync(new URL('src/app/features/checkout/checkout-page.component.html', rootUrl), 'utf8');
   assert.match(checkout, /onDeliveryDateChange\(\)/);
   assert.match(checkout, /\[min\]="minimumDeliveryDate\(\)"/);
   assert.match(checkout, /\[max\]="maximumDeliveryDate\(\)"/);

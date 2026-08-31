@@ -435,7 +435,7 @@ export class AppComponent {
     const nextOpen = !this.searchOpen();
     if (nextOpen) {
       this.returnFocusElement = this.document.activeElement as HTMLElement | null;
-      void this.catalog.loadProducts();
+      void this.catalog.refreshAvailability();
     }
     this.searchOpen.set(nextOpen);
     this.menuOpen.set(false);

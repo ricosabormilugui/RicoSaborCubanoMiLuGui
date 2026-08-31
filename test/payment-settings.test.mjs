@@ -4,9 +4,10 @@ import test from 'node:test';
 
 const rootUrl = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, rootUrl), 'utf8');
+const checkoutSources = () => read('src/app/features/checkout/checkout-page.component.ts') + read('src/app/features/checkout/checkout-page.component.html');
 
 test('checkout A: carga la configuración pública de pagos', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   const service = read('src/app/core/services/payment-settings.service.ts');
   assert.match(service, /\/payment-settings/);
   assert.match(checkout, /loadPaymentSettings\(\)/);
@@ -14,7 +15,7 @@ test('checkout A: carga la configuración pública de pagos', () => {
 });
 
 test('checkout B-C: solo muestra métodos activos y oculta los desactivados', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   assert.match(checkout, /settings\.bizum\.enabled/);
   assert.match(checkout, /settings\.bankTransfer\.enabled/);
   assert.match(checkout, /settings\.cash\.enabled/);
@@ -22,7 +23,7 @@ test('checkout B-C: solo muestra métodos activos y oculta los desactivados', ()
 });
 
 test('checkout D-E: loading y error de configuración', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   assert.match(checkout, /paymentSettingsLoading/);
   assert.match(checkout, /Cargando métodos de pago/);
   assert.match(checkout, /paymentSettingsError/);
@@ -30,20 +31,20 @@ test('checkout D-E: loading y error de configuración', () => {
 });
 
 test('checkout F: sin métodos disponibles muestra mensaje de negocio', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   assert.match(checkout, /Ahora mismo no hay métodos de pago disponibles/);
   assert.match(checkout, /!availablePaymentMethods\(\)\.length/);
 });
 
 test('checkout G: una selección inválida se limpia si la config cambia', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   assert.match(checkout, /reconcilePaymentMethod\(\)/);
   assert.match(checkout, /available\.some\(\(method\) => method\.value === current\)/);
 });
 
 test('checkout H: no depende de payment.config.ts hardcodeado', () => {
   const config = read('src/app/core/config/payment.config.ts');
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = checkoutSources();
   const orderService = read('src/app/core/services/order.service.ts');
   assert.doesNotMatch(config, /MANUAL_PAYMENT_DETAILS/);
   assert.doesNotMatch(config, /\bES\d{22}\b|\+34\d{9}/);

@@ -6,7 +6,12 @@ import { requestJson } from '../utils/api-client';
 import { getUserFriendlyError } from '../utils/user-friendly-error';
 
 const PRODUCTS_CACHE_KEY = 'ricosabor-products-cache';
-const PRODUCTS_REQUEST_CACHE_MS = 5 * 60_000;
+export const PRODUCTS_REQUEST_CACHE_MS = 5 * 60_000;
+export const STOCK_AVAILABILITY_MAX_AGE_MS = 60_000;
+
+export function isCatalogAvailabilityStale(lastLoadAt: number, now = Date.now()): boolean {
+  return !lastLoadAt || now - lastLoadAt >= STOCK_AVAILABILITY_MAX_AGE_MS;
+}
 
 function normalizeImages(item: Partial<ProductApiRecord> | Partial<Product>): string[] {
   const values = Array.isArray(item.images) ? item.images : [];
@@ -178,6 +183,42 @@ export class CatalogService {
   readonly loadError = signal('');
   /** True only after a successful catalog fetch in this session. Cache and fallback are not trusted for pruning. */
   readonly hasLiveCatalog = signal(false);
+
+  invalidate(): void {
+    this.lastLoadAt = 0;
+  }
+
+  isAvailabilityStale(now = Date.now()): boolean {
+    return isCatalogAvailabilityStale(this.lastLoadAt, now);
+  }
+
+  async refreshAvailability({ force = false } = {}): Promise<void> {
+    if (!force && !this.isAvailabilityStale()) return;
+    return this.loadProducts({ force: true });
+  }
+
+  upsertProduct(product: Product): void {
+    if (!product?.id) return;
+    const current = this.products();
+    const index = current.findIndex((item) => item.id === product.id);
+    if (index < 0) return;
+    const next = current.map((item, offset) => (offset === index ? product : item));
+    this.products.set(next);
+    this.writeCachedProducts(next);
+  }
+
+  async refreshTrackedProduct(product: Product): Promise<Product> {
+    if (product?.trackStock !== true) return product;
+    const identifier = String(product.slug || product.id).trim();
+    if (!identifier) return product;
+    try {
+      const live = await this.loadProductByIdentifier(identifier);
+      this.upsertProduct(live.product);
+      return live.product;
+    } catch {
+      return product;
+    }
+  }
 
   async loadProducts({ force = false } = {}): Promise<void> {
     if (this.loadingRequest) return this.loadingRequest;

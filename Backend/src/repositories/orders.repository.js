@@ -1,6 +1,8 @@
 import { ensureIndexes, getCollection, runMongoTransaction } from "../lib/mongo.js";
 import { prepareNotifications } from "./notifications.repository.js";
 import { notifyOrderOwner } from "../services/user-notification.service.js";
+import { VOID_ORDER_STATUSES, voidOrderAndReleaseInventory } from "../services/order-inventory.service.js";
+import { logger } from "../lib/logger.js";
 
 function getOrdersCollectionName() {
   return process.env.MONGODB_ORDERS_COLLECTION ?? process.env.ORDERS_COLLECTION ?? "orders";
@@ -26,7 +28,17 @@ async function getOrdersCollection() {
         },
         { keys: { createdAt: -1 }, options: { name: "orders_createdAt" } },
         { keys: { status: 1, createdAt: -1 }, options: { name: "orders_status_createdAt" } },
-        { keys: { paymentStatus: 1, createdAt: -1 }, options: { name: "orders_paymentStatus_createdAt" } }
+        { keys: { paymentStatus: 1, createdAt: -1 }, options: { name: "orders_paymentStatus_createdAt" } },
+        {
+          keys: { paymentStatus: 1, paymentExpiresAt: 1 },
+          options: {
+            name: "orders_pending_payment_expiry",
+            partialFilterExpression: {
+              paymentStatus: "pending",
+              paymentExpiresAt: { $type: "string" }
+            }
+          }
+        }
       ], { collectionName });
 
       const indexes = await collection.indexes();
@@ -131,6 +143,7 @@ export async function findCouponRedemption({ code, email, phone, customerId } = 
           { "promotions.firstOrderDiscount.status": "used" }
         ]
       },
+      { status: { $nin: ["cancelado", "anulado"] } },
       { $or: clauses }
     ]
   }, { session });
@@ -173,6 +186,27 @@ export async function updateOrderStatus(orderId, nextStatus, metadata = {}, {
 } = {}) {
   const collection = await collectionProvider();
   await prepare();
+
+  if (VOID_ORDER_STATUSES.includes(nextStatus)) {
+    const released = await voidOrderAndReleaseInventory(orderId, {
+      reason: metadata.releaseReason ?? "admin_cancelled",
+      nextStatus,
+      statusNote: metadata.statusNote ?? null,
+      updatedBy: metadata.updatedBy ?? "admin",
+      extraSet: {
+        ...(metadata.statusNote ? { statusNote: metadata.statusNote } : {}),
+        ...(metadata.deliverySignature ? { deliverySignature: metadata.deliverySignature } : {}),
+        updatedBy: metadata.updatedBy ?? "admin"
+      },
+      collection,
+      runTransaction
+    });
+    if (released) {
+      await notificationWriter(released, { session: undefined });
+      return released;
+    }
+  }
+
   return runTransaction(async session => {
     const now = new Date().toISOString();
     const result = await collection.findOneAndUpdate(
@@ -223,11 +257,73 @@ export async function appendOrderNotifications(orderId, notifications = []) {
 
 export async function deleteOrderById(orderId) {
   const collection = await getOrdersCollection();
+  await voidOrderAndReleaseInventory(orderId, {
+    reason: "admin_deleted",
+    nextStatus: "cancelado",
+    collection,
+    runTransaction: runMongoTransaction,
+    updatedBy: "admin"
+  });
   const result = await collection.deleteOne({ orderId });
   return result.deletedCount > 0;
 }
 
+export class PaymentNotConfirmableError extends Error {
+  constructor(message, code = "PAYMENT_NOT_CONFIRMABLE") {
+    super(message);
+    this.name = "PaymentNotConfirmableError";
+    this.status = 409;
+    this.code = code;
+  }
+}
+
+export async function confirmOrderPayment(orderId, paymentUpdate = {}, metadata = {}, { now = new Date() } = {}) {
+  const collection = await getOrdersCollection();
+  const nowIso = now.toISOString();
+  return runMongoTransaction(async (session) => {
+    const result = await collection.findOneAndUpdate(
+      {
+        orderId,
+        inventoryReleasedAt: null,
+        status: { $nin: VOID_ORDER_STATUSES },
+        $and: [
+          {
+            $or: [
+              { paymentExpiresAt: null },
+              { paymentExpiresAt: { $gt: nowIso } }
+            ]
+          },
+          {
+            $or: [
+              { paymentStatus: "pending" },
+              { "payment.status": "pending" }
+            ]
+          }
+        ]
+      },
+      {
+        $set: {
+          "payment.status": paymentUpdate.status,
+          paymentStatus: paymentUpdate.status,
+          ...(paymentUpdate.note ? { "payment.note": paymentUpdate.note } : {}),
+          ...(paymentUpdate.confirmedAt ? { "payment.confirmedAt": paymentUpdate.confirmedAt, paymentConfirmedAt: paymentUpdate.confirmedAt } : {}),
+          ...metadata,
+          updatedAt: nowIso
+        }
+      },
+      { returnDocument: "after", session }
+    );
+    if (result) {
+      logger.info("order.payment.confirmed", { orderId });
+    }
+    return result;
+  });
+}
+
 export async function updateOrderPayment(orderId, paymentUpdate = {}, metadata = {}) {
+  if (paymentUpdate.status === "paid") {
+    return confirmOrderPayment(orderId, paymentUpdate, metadata);
+  }
   const collection = await getOrdersCollection();
   const now = new Date().toISOString();
   const result = await collection.findOneAndUpdate(
@@ -248,9 +344,43 @@ export async function updateOrderPayment(orderId, paymentUpdate = {}, metadata =
   return result;
 }
 
+export async function listExpiredPendingPaymentOrders({ now = new Date(), limit = 50 } = {}) {
+  const collection = await getOrdersCollection();
+  const nowIso = now.toISOString();
+  return collection.find({
+    paymentStatus: "pending",
+    paymentExpiresAt: { $lte: nowIso, $type: "string" },
+    status: { $nin: VOID_ORDER_STATUSES },
+    inventoryReleasedAt: null
+  }).project({ orderId: 1 }).limit(limit).toArray();
+}
+
+export async function expirePaymentReservation(orderId, { now = new Date() } = {}) {
+  const collection = await getOrdersCollection();
+  const nowIso = now.toISOString();
+  const expired = await voidOrderAndReleaseInventory(orderId, {
+    reason: "payment_expired",
+    nextStatus: "cancelado",
+    nextPaymentStatus: "cancelled",
+    extraFilter: {
+      paymentStatus: "pending",
+      paymentExpiresAt: { $lte: nowIso }
+    },
+    extraSet: { paymentExpiredAt: nowIso },
+    statusNote: "pago no recibido dentro del plazo",
+    updatedBy: "scheduler",
+    collection,
+    runTransaction: runMongoTransaction,
+    now
+  });
+  if (expired) {
+    logger.info("order.payment_reservation.expired", { orderId });
+  }
+  return expired;
+}
+
 
 const ACTIVE_ORDER_STATUSES = ["nuevo", "confirmado", "preparando", "listo", "enviado"];
-const VOID_ORDER_STATUSES = ["cancelado", "anulado"];
 
 function getStartOfMonthIso(date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).toISOString();

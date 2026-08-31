@@ -143,7 +143,10 @@ test("stock caso 7: stock insuficiente no modifica producto ni crea ajuste", asy
   const collection = new FakeStockCollection([{ _id: PRODUCT_A, name: "A", trackStock: true, stock: 1 }]);
   await assert.rejects(
     applyOrderStockAdjustments([{ baseProductId: PRODUCT_A, quantity: 2 }], { collection, session: "tx" }),
-    (error) => error instanceof OrderStockError && error.status === 409
+    (error) => error instanceof OrderStockError
+      && error.status === 409
+      && error.details.available === 1
+      && error.details.productId === PRODUCT_A
   );
   assert.equal(collection.documents.get(PRODUCT_A).stock, 1);
   assert.equal(collection.updates.length, 0);

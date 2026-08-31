@@ -1,0 +1,290 @@
+<section class="checkout-shell">
+  @if (orderId()) {
+    <div class="app-alert app-alert-success">
+      Pedido recibido como <strong>pendiente de pago</strong>. Número: <strong>{{ orderId() }}</strong>
+      <p>{{ selectedPaymentInstructions(orderId()) }}</p>
+      @if (showsPaymentReservation()) {
+        <p>Tu pedido está reservado durante {{ paymentReservationHours() }} horas.</p>
+        <p>Realiza el pago antes de las {{ paymentDeadlineTime() }} para mantener la reserva.</p>
+        <p>El pedido se cancelará automáticamente y los productos volverán a estar disponibles.</p>
+      }
+      @if (requiresAdvancePayment()) {
+        <p class="meta">{{ deliveryRules.notes }}</p>
+      }
+    </div>
+  }
+
+  @if (notificationWarning()) {
+    <div class="app-alert app-alert-warn">{{ notificationWarning() }}</div>
+  }
+
+  @if (!orderId() && !cart.items().length) {
+    <div class="empty">
+      <p>Tu carrito está vacío</p>
+      <a routerLink="/productos" class="btn btn-primary">Volver a productos</a>
+    </div>
+  }
+
+  @if (!orderId() && cart.items().length) {
+    <form id="checkout-form" class="checkout-layout checkout-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="checkout-main">
+        <header class="checkout-intro">
+          <a class="back-link" routerLink="/carrito">← Editar pedido</a>
+          <h1>Finaliza tu pedido</h1>
+          <p>Completa los datos para preparar tu pedido.</p>
+        </header>
+
+        @if (!customerAuth.isAuthenticated()) {
+          <p class="account-note">
+            Puedes continuar como invitado.
+            <a routerLink="/login">Iniciar sesión</a>
+            ·
+            <a routerLink="/registro">Crear cuenta</a>
+          </p>
+          @if (showExistingEmailHint()) {
+            <p class="field-error">Ya existe una cuenta con este email. Inicia sesión para que este pedido quede asociado a tu cuenta.</p>
+          }
+        }
+
+        <section class="form-section">
+          <div class="section-head">
+            <span>01</span>
+            <h2>Contacto</h2>
+          </div>
+          @if (customerAuth.isAuthenticated()) {
+            <p class="meta">Pedido asociado a tu cuenta.</p>
+          }
+          <div class="grid contact-grid">
+            <label>
+              <span>Nombre completo <span class="required-mark" aria-hidden="true">*</span></span>
+              <input id="fullName" formControlName="fullName" autocomplete="name" placeholder="Tu nombre y apellidos" required
+                [class.field-invalid]="isInvalid('fullName')" [attr.aria-invalid]="ariaInvalid('fullName')"
+                [attr.aria-describedby]="isInvalid('fullName') ? 'fullName-error' : null" />
+              @if (isInvalid('fullName')) {
+                <small id="fullName-error" class="field-error">El nombre es obligatorio.</small>
+              }
+            </label>
+            <label>
+              Email
+              <input id="email" formControlName="email" type="email" autocomplete="email" placeholder="tu@email.com (opcional)"
+                [class.field-invalid]="isInvalid('email')" [attr.aria-invalid]="ariaInvalid('email')"
+                [attr.aria-describedby]="isInvalid('email') ? 'email-error' : null" />
+              @if (isInvalid('email')) {
+                <small id="email-error" class="field-error">Introduce un email válido o déjalo vacío.</small>
+              }
+            </label>
+          </div>
+          <label>
+            <span>Teléfono <span class="required-mark" aria-hidden="true">*</span></span>
+            <div class="phone-input">
+              <select formControlName="phoneCountryCode" aria-label="Prefijo telefónico">
+                <option value="34">🇪🇸 +34</option>
+                <option value="1">🇺🇸 +1</option>
+                <option value="52">🇲🇽 +52</option>
+              </select>
+              <input
+                formControlName="phoneNumber"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel-national"
+                aria-label="Número de teléfono"
+                placeholder="644423790"
+                required
+                [class.field-invalid]="isInvalid('phoneNumber')"
+                [attr.aria-invalid]="ariaInvalid('phoneNumber')"
+                [attr.aria-describedby]="isInvalid('phoneNumber') ? 'phoneNumber-error' : null"
+                (input)="sanitizePhoneDigits()" />
+            </div>
+            @if (isInvalid('phoneNumber')) {
+              <small id="phoneNumber-error" class="field-error">Escribe solo dígitos: entre 7 y 12 números.</small>
+            }
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-head">
+            <span>02</span>
+            <h2>Entrega</h2>
+          </div>
+          <fieldset class="choice-fieldset">
+            <legend class="visually-hidden">Tipo de entrega</legend>
+            <div class="choice-row" role="radiogroup" aria-label="Tipo de entrega">
+              <button type="button" role="radio" class="choice" [class.active]="form.controls.deliveryType.value === 'delivery'" [attr.aria-checked]="form.controls.deliveryType.value === 'delivery'" (click)="form.controls.deliveryType.setValue('delivery')">Domicilio</button>
+              <button type="button" role="radio" class="choice" [class.active]="form.controls.deliveryType.value === 'pickup'" [attr.aria-checked]="form.controls.deliveryType.value === 'pickup'" (click)="form.controls.deliveryType.setValue('pickup')">Recogida</button>
+            </div>
+          </fieldset>
+          <div class="grid">
+            <label>
+              <span>Fecha <span class="required-mark" aria-hidden="true">*</span></span>
+              <input id="deliveryDate" formControlName="deliveryDate" type="date" required
+                [min]="minimumDeliveryDate()" [max]="maximumDeliveryDate()"
+                [class.field-invalid]="isInvalid('deliveryDate')" [attr.aria-invalid]="ariaInvalid('deliveryDate')"
+                [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'"
+                (change)="onDeliveryDateChange()" />
+              <small id="deliveryDate-help" class="meta">Necesitamos al menos {{ requiredAdvanceNoticeHours() }} horas de antelación.</small>
+              @if (isInvalid('deliveryDate')) {
+                <small id="deliveryDate-error" class="field-error">{{ deliveryDateError() }}</small>
+              }
+            </label>
+            <fieldset class="slots" [class.field-invalid-group]="isInvalid('deliverySlot')">
+              <legend>Horario <span class="required-mark" aria-hidden="true">*</span></legend>
+              <div class="slot-buttons" role="radiogroup" aria-label="Franja horaria"
+                [attr.aria-invalid]="ariaInvalid('deliverySlot')"
+                [attr.aria-describedby]="isInvalid('deliverySlot') ? 'deliverySlot-error' : null">
+                @for (slot of availableSlots(); track slot) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="slot-btn"
+                    [class.active]="form.controls.deliverySlot.value === slot"
+                    [disabled]="!isSlotAvailable(slot)"
+                    [attr.aria-checked]="form.controls.deliverySlot.value === slot"
+                    (click)="selectSlot(slot)">
+                    {{ slot }}
+                  </button>
+                }
+              </div>
+              @if (isInvalid('deliverySlot')) {
+                <small id="deliverySlot-error" class="field-error">{{ deliverySlotError() }}</small>
+              }
+            </fieldset>
+          </div>
+          @if (form.controls.deliveryType.value === 'delivery') {
+            <div class="grid">
+              <label>
+                <span>Dirección <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="address" formControlName="address" autocomplete="street-address" placeholder="Calle, número, piso"
+                  required
+                  [class.field-invalid]="isInvalid('address')" [attr.aria-invalid]="ariaInvalid('address')"
+                  [attr.aria-describedby]="isInvalid('address') ? 'address-error' : null" />
+                @if (isInvalid('address')) {
+                  <small id="address-error" class="field-error">La dirección es obligatoria para entrega a domicilio.</small>
+                }
+              </label>
+              <label>
+                <span>Código postal <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="postalCode" formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922"
+                  required
+                  [class.field-invalid]="isInvalid('postalCode')" [attr.aria-invalid]="ariaInvalid('postalCode')"
+                  [attr.aria-describedby]="isInvalid('postalCode') ? 'postalCode-error' : null" (input)="sanitizePostalCode()" />
+                @if (isInvalid('postalCode')) {
+                  <small id="postalCode-error" class="field-error">Introduce un código postal válido.</small>
+                }
+              </label>
+            </div>
+            <label>
+              Referencia
+              <input formControlName="reference" placeholder="Portal, timbre, indicaciones" />
+            </label>
+          }
+          <p class="shipping-quote" [class.blocked]="!shippingQuote().available">{{ shippingQuote().message }}</p>
+          <label>
+            Notas del pedido
+            <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>
+          </label>
+        </section>
+
+        <section class="form-section">
+          <div class="section-head">
+            <span>03</span>
+            <h2>Pago</h2>
+          </div>
+          <fieldset class="payment-fieldset">
+            <legend class="visually-hidden">Método de pago</legend>
+            @if (!paymentSettingsLoading() && !paymentSettingsError() && availablePaymentMethods().length) {
+              <div class="payment-options" role="radiogroup" aria-label="Método de pago">
+                @for (method of availablePaymentMethods(); track method.value) {
+                  <label class="payment-option" [class.active]="form.controls.paymentMethod.value === method.value">
+                    <input type="radio" formControlName="paymentMethod" [value]="method.value" />
+                    <span>
+                      <strong>{{ method.label }}</strong>
+                      <small>{{ method.description }}</small>
+                    </span>
+                  </label>
+                }
+              </div>
+            }
+            @if (paymentSettingsLoading()) {
+              <p class="meta">Cargando métodos de pago…</p>
+            }
+            @if (paymentSettingsError()) {
+              <div class="app-alert app-alert-warn">
+                {{ paymentSettingsError() }}
+                <button class="btn btn-ghost retry-btn" type="button" (click)="loadPaymentSettings()">Reintentar</button>
+              </div>
+            }
+            @if (!paymentSettingsLoading() && !paymentSettingsError() && !availablePaymentMethods().length) {
+              <div class="app-alert app-alert-warn">
+                Ahora mismo no hay métodos de pago disponibles. Contacta con nosotros para completar tu pedido.
+              </div>
+            }
+          </fieldset>
+          <p class="payment-instructions">{{ selectedPaymentInstructions(orderId()) }}</p>
+          @if (requiresAdvancePayment()) {
+            <p class="meta">{{ deliveryRules.notes }}</p>
+          }
+          <label class="consent-check">
+            <input type="checkbox" formControlName="marketingConsent" />
+            <span>Acepto recibir promociones y activar el cupón inicial para validación manual según la <a routerLink="/legal/privacidad">política de privacidad</a>.</span>
+          </label>
+          <label class="consent-check">
+            <input type="checkbox" formControlName="legalConsent" required [attr.aria-invalid]="ariaInvalid('legalConsent')"
+              [attr.aria-describedby]="isInvalid('legalConsent') ? 'legalConsent-error' : null" />
+            <span>He leído y acepto las <a routerLink="/legal/condiciones-compra">condiciones de compra</a>, la <a routerLink="/legal/privacidad">política de privacidad</a>, la <a routerLink="/legal/envios">política de envíos</a> y la <a routerLink="/legal/devoluciones-cancelaciones">política de devoluciones/cancelaciones</a>.</span>
+          </label>
+          @if (isInvalid('legalConsent')) {
+            <small id="legalConsent-error" class="field-error">Debes aceptar las condiciones legales para crear el pedido.</small>
+          }
+        </section>
+      </div>
+
+      <aside class="summary" id="checkout-summary">
+        <div class="summary-head">
+          <h2>Tu pedido</h2>
+        </div>
+        @if (hasBlockingStock() || stockSubmitError()) {
+          <div class="stock-banner" aria-live="polite">
+            <p>{{ stockSubmitError() || 'La disponibilidad de tu pedido ha cambiado.' }}</p>
+            <a class="edit-link" routerLink="/carrito">Editar pedido</a>
+          </div>
+        }
+        <div class="summary-items">
+          @for (item of cart.items(); track item.productId) {
+            <app-cart-line [item]="item" mode="summary" />
+          }
+        </div>
+        <div class="summary-line">
+          <span>Subtotal</span>
+          <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
+        </div>
+        <div class="summary-line">
+          <span>Entrega</span>
+          <strong>{{ shippingQuote().cost | currency:'EUR' }}</strong>
+        </div>
+        @if (couponDiscountPreview() > 0) {
+          <div class="summary-line discount">
+            <span>Cupón {{ coupon.code() }}</span>
+            <strong>−{{ couponDiscountPreview() | currency:'EUR' }}</strong>
+          </div>
+        }
+        <div class="summary-total">
+          <span>Total</span>
+          <strong>{{ orderTotal() | currency:'EUR' }}</strong>
+        </div>
+        <button
+          class="btn btn-primary submit-btn"
+          type="submit"
+          [disabled]="submitDisabled()"
+          [attr.aria-busy]="loading()">
+          @if (loading()) {
+            <span class="spinner" aria-hidden="true"></span>
+            Procesando…
+          } @else {
+            Confirmar pedido
+          }
+        </button>
+        <a class="edit-link summary-back" routerLink="/carrito">Editar pedido</a>
+      </aside>
+    </form>
+  }
+</section>

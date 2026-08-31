@@ -1,4 +1,4 @@
-import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
+﻿import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,6 +11,9 @@ import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DeliveryStateService } from '../../core/services/delivery-state.service';
 import { ActiveIdentityService } from '../../core/services/active-identity.service';
+import { CatalogService } from '../../core/services/catalog.service';
+import { CouponDraftService } from '../../core/services/coupon.service';
+import { CheckoutDraftService } from '../../core/services/checkout-draft.service';
 import { PAYMENT_METHOD_META } from '../../core/config/payment.config';
 import { PaymentSettingsService } from '../../core/services/payment-settings.service';
 import { PublicPaymentSettings } from '../../core/models/payment-settings.model';
@@ -19,6 +22,7 @@ import {
   ShippingQuote,
   calculateShippingQuote,
   explainUnavailableDate,
+  formatPaymentDeadlineTime,
   getMaximumFulfillmentDate,
   getMinimumFulfillmentDate,
   getSlotsForDeliveryType,
@@ -29,363 +33,14 @@ import {
   validateFulfillmentSelection
 } from '../../core/config/shipping.config';
 import { resolveApiBaseUrl } from '../../core/config/api.config';
+import { cartBaseProductId, formatStockConflictMessage } from '../../core/utils/cart-stock';
+import { CartLineComponent } from '../../shared/ui/cart-line.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  template: `
-    <section class="checkout-shell">
-      <header class="checkout-hero card">
-        <div>
-          <p class="eyebrow">Pedido manual</p>
-          <h1>Finaliza tu pedido</h1>
-          <p class="meta">Recibiremos tu pedido como <strong>pendiente de pago</strong>. Lo confirmaremos definitivamente cuando validemos el pago.</p>
-        </div>
-        <div class="status-pill">Sin pasarela online</div>
-      </header>
-
-      <div class="empty-cart card" *ngIf="!cart.items().length; else checkoutContent">
-        <h2>Tu carrito está vacío</h2>
-        <p class="meta">Añade productos al carrito para poder continuar con el pedido.</p>
-      </div>
-
-      <ng-template #checkoutContent>
-        <div class="checkout-layout">
-          <form class="checkout-form card" [formGroup]="form" (ngSubmit)="submit()">
-            
-            <section class="form-section" *ngIf="!customerAuth.isAuthenticated()">
-              <div class="section-head"><span>0</span><div><h2>Cuenta recomendada</h2><p>Crea una cuenta para consultar tus pedidos, ver estados y recibir actualizaciones.</p></div></div>
-              <div class="account-cta">
-                <a class="btn" routerLink="/login">Iniciar sesión</a>
-                <a class="btn" routerLink="/registro">Crear cuenta</a>
-                <span class="meta">Puedes continuar como invitado.</span>
-              </div>
-              <p class="field-error" *ngIf="showExistingEmailHint()">Ya existe una cuenta con este email. Inicia sesión para que este pedido quede asociado a tu cuenta.</p>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <span>1</span>
-                <div>
-                  <h2>Datos de contacto</h2>
-                  <p>Te contactaremos para validar el pago y coordinar la entrega.</p>
-                  <small class="meta" *ngIf="customerAuth.isAuthenticated()">Pedido asociado a tu cuenta.</small>
-                </div>
-              </div>
-
-              <div class="grid">
-                <label>
-                  <span>Nombre completo <span class="required-mark" aria-hidden="true">*</span></span>
-                  <input id="fullName" formControlName="fullName" autocomplete="name" placeholder="Tu nombre y apellidos" required
-                    [class.field-invalid]="isInvalid('fullName')" [attr.aria-invalid]="ariaInvalid('fullName')"
-                    [attr.aria-describedby]="isInvalid('fullName') ? 'fullName-error' : null" />
-                  <small id="fullName-error" class="field-error" *ngIf="isInvalid('fullName')">El nombre es obligatorio.</small>
-                </label>
-
-                <label>
-                  Email
-                  <input id="email" formControlName="email" type="email" autocomplete="email" placeholder="tu@email.com (opcional)"
-                    [class.field-invalid]="isInvalid('email')" [attr.aria-invalid]="ariaInvalid('email')"
-                    [attr.aria-describedby]="isInvalid('email') ? 'email-error' : null" />
-                  <small id="email-error" class="field-error" *ngIf="isInvalid('email')">Introduce un email válido o déjalo vacío.</small>
-                </label>
-              </div>
-
-              <label>
-                <span>Teléfono <span class="required-mark" aria-hidden="true">*</span></span>
-                <div class="phone-input">
-                  <select formControlName="phoneCountryCode" aria-label="Prefijo telefónico">
-                    <option value="34">🇪🇸 +34</option>
-                    <option value="1">🇺🇸 +1</option>
-                    <option value="52">🇲🇽 +52</option>
-                  </select>
-                  <input
-                    formControlName="phoneNumber"
-                    type="tel"
-                    inputmode="numeric"
-                    autocomplete="tel-national"
-                    aria-label="Número de teléfono"
-                    placeholder="644423790"
-                    required
-                    [class.field-invalid]="isInvalid('phoneNumber')"
-                    [attr.aria-invalid]="ariaInvalid('phoneNumber')"
-                    [attr.aria-describedby]="isInvalid('phoneNumber') ? 'phoneNumber-error' : null"
-                    (input)="sanitizePhoneDigits()" />
-                </div>
-                <small id="phoneNumber-error" class="field-error" *ngIf="isInvalid('phoneNumber')">Escribe solo dígitos: entre 7 y 12 números.</small>
-              </label>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <span>2</span>
-                <div>
-                  <h2>Entrega</h2>
-                  <p>Elige cómo y cuándo quieres recibir tu pedido.</p>
-                </div>
-              </div>
-
-              <div class="grid">
-                <label>
-                  Tipo de entrega
-                  <select formControlName="deliveryType">
-                    <option value="delivery">Domicilio</option>
-                    <option value="pickup">Recoger</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Fecha <span class="required-mark" aria-hidden="true">*</span></span>
-                  <input id="deliveryDate" formControlName="deliveryDate" type="date" required
-                    [min]="minimumDeliveryDate()" [max]="maximumDeliveryDate()"
-                    [class.field-invalid]="isInvalid('deliveryDate')" [attr.aria-invalid]="ariaInvalid('deliveryDate')"
-                    [attr.aria-describedby]="isInvalid('deliveryDate') ? 'deliveryDate-error' : 'deliveryDate-help'"
-                    (change)="onDeliveryDateChange()" />
-                  <small id="deliveryDate-help" class="meta">Necesitamos al menos {{ requiredAdvanceNoticeHours() }} horas para preparar tu pedido, según la franja elegida.</small>
-                  <small id="deliveryDate-error" class="field-error" *ngIf="isInvalid('deliveryDate')">{{ deliveryDateError() }}</small>
-                </label>
-              </div>
-
-              <div class="slots" [class.field-invalid-group]="isInvalid('deliverySlot')">
-                <p><strong>Franja horaria <span class="required-mark" aria-hidden="true">*</span></strong></p>
-                <div class="slot-buttons" role="radiogroup" aria-label="Franja horaria"
-                  [attr.aria-invalid]="ariaInvalid('deliverySlot')"
-                  [attr.aria-describedby]="isInvalid('deliverySlot') ? 'deliverySlot-error' : null">
-                  <button
-                    *ngFor="let slot of availableSlots()"
-                    type="button"
-                    role="radio"
-                    class="slot-btn"
-                    [class.active]="form.controls.deliverySlot.value === slot"
-                    [disabled]="!isSlotAvailable(slot)"
-                    [attr.aria-checked]="form.controls.deliverySlot.value === slot"
-                    (click)="selectSlot(slot)">
-                    {{ slot }}
-                  </button>
-                </div>
-                <small id="deliverySlot-error" class="field-error" *ngIf="isInvalid('deliverySlot')">{{ deliverySlotError() }}</small>
-              </div>
-
-              <div class="grid">
-                <label>
-                  <span>Dirección <span *ngIf="form.controls.deliveryType.value === 'delivery'" class="required-mark" aria-hidden="true">*</span></span>
-                  <input id="address" formControlName="address" autocomplete="street-address" placeholder="Calle, número, piso"
-                    [attr.required]="form.controls.deliveryType.value === 'delivery' ? '' : null"
-                    [class.field-invalid]="isInvalid('address')" [attr.aria-invalid]="ariaInvalid('address')"
-                    [attr.aria-describedby]="isInvalid('address') ? 'address-error' : null" />
-                  <small id="address-error" class="field-error" *ngIf="isInvalid('address')">La dirección es obligatoria para entrega a domicilio.</small>
-                </label>
-                <label>
-                  <span>Código postal <span *ngIf="form.controls.deliveryType.value === 'delivery'" class="required-mark" aria-hidden="true">*</span></span>
-                  <input id="postalCode" formControlName="postalCode" inputmode="numeric" autocomplete="postal-code" placeholder="28922"
-                    [attr.required]="form.controls.deliveryType.value === 'delivery' ? '' : null"
-                    [class.field-invalid]="isInvalid('postalCode')" [attr.aria-invalid]="ariaInvalid('postalCode')"
-                    [attr.aria-describedby]="isInvalid('postalCode') ? 'postalCode-error' : null" (input)="sanitizePostalCode()" />
-                  <small id="postalCode-error" class="field-error" *ngIf="isInvalid('postalCode')">Introduce un código postal válido.</small>
-                </label>
-              </div>
-
-              <div class="shipping-quote" [class.blocked]="!shippingQuote().available">
-                <strong>Zona y coste de envío</strong>
-                <p>{{ shippingQuote().message }}</p>
-                <p class="meta">Necesitamos al menos {{ requiredAdvanceNoticeHours() }} horas para preparar tu pedido.</p>
-              </div>
-
-              <div class="grid">
-                <label>
-                  Referencia
-                  <input formControlName="reference" placeholder="Portal, timbre, indicaciones" />
-                </label>
-              </div>
-
-              <label>
-                Notas del pedido
-                <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>
-              </label>
-
-              <label class="consent-check">
-                <input type="checkbox" formControlName="marketingConsent" />
-                <span>Acepto recibir promociones y activar el cupón inicial para validación manual según la <a routerLink="/legal/privacidad">política de privacidad</a>.</span>
-              </label>
-
-              <label class="consent-check">
-                <input type="checkbox" formControlName="legalConsent" required [attr.aria-invalid]="ariaInvalid('legalConsent')"
-                  [attr.aria-describedby]="isInvalid('legalConsent') ? 'legalConsent-error' : null" />
-                <span>He leído y acepto las <a routerLink="/legal/condiciones-compra">condiciones de compra</a>, la <a routerLink="/legal/privacidad">política de privacidad</a>, la <a routerLink="/legal/envios">política de envíos</a> y la <a routerLink="/legal/devoluciones-cancelaciones">política de devoluciones/cancelaciones</a>.</span>
-              </label>
-              <small id="legalConsent-error" class="field-error" *ngIf="isInvalid('legalConsent')">Debes aceptar las condiciones legales para crear el pedido.</small>
-            </section>
-
-            <section class="form-section">
-              <div class="section-head">
-                <span>3</span>
-                <div>
-                  <h2>Pago manual</h2>
-                  <p>El pedido queda pendiente hasta validar el pago.</p>
-                </div>
-              </div>
-
-              <div class="payment-options" role="radiogroup" aria-label="Método de pago" *ngIf="!paymentSettingsLoading() && !paymentSettingsError() && availablePaymentMethods().length">
-                <label class="payment-card" *ngFor="let method of availablePaymentMethods()" [class.active]="form.controls.paymentMethod.value === method.value">
-                  <input type="radio" formControlName="paymentMethod" [value]="method.value" />
-                  <span>
-                    <strong>{{ method.label }}</strong>
-                    <small>{{ method.description }}</small>
-                  </span>
-                </label>
-              </div>
-              <p class="meta" *ngIf="paymentSettingsLoading()">Cargando métodos de pago…</p>
-              <div class="app-alert app-alert-warn" *ngIf="paymentSettingsError()">
-                {{ paymentSettingsError() }}
-                <button class="btn btn-secondary" type="button" (click)="loadPaymentSettings()">Reintentar</button>
-              </div>
-              <div class="app-alert app-alert-warn" *ngIf="!paymentSettingsLoading() && !paymentSettingsError() && !availablePaymentMethods().length">
-                Ahora mismo no hay métodos de pago disponibles. Contacta con nosotros para completar tu pedido.
-              </div>
-
-              <div class="payment-instructions">
-                <strong>Instrucciones</strong>
-                <p>{{ selectedPaymentInstructions(orderId()) }}</p>
-                <p class="meta" *ngIf="requiresAdvancePayment()">{{ deliveryRules.notes }}</p>
-              </div>
-            </section>
-
-            <div class="form-actions">
-              <div class="pending-note">Estado inicial: <strong>pendiente de pago</strong></div>
-              <button class="btn btn-primary submit-btn" type="submit" [disabled]="loading() || !cart.items().length || paymentSettingsLoading() || !availablePaymentMethods().length" [attr.aria-busy]="loading()">
-                <span class="spinner" *ngIf="loading()" aria-hidden="true"></span>
-                {{ loading() ? 'Creando pedido...' : 'Confirmar pedido pendiente de pago' }}
-              </button>
-            </div>
-          </form>
-
-          <aside class="summary-card card">
-            <h2>Resumen</h2>
-            <div class="summary-items">
-              <div class="summary-item" *ngFor="let item of cart.items()">
-                <div>
-                  <strong>{{ item.name }}</strong>
-                  <small *ngFor="let option of item.customization">{{ option.label }}: {{ option.value }}<span *ngIf="option.priceModifier"> (+{{ option.priceModifier | currency:'EUR' }})</span></small>
-                  <span>{{ item.quantity }} × {{ item.unitPrice | currency:'EUR' }}</span>
-                </div>
-                <strong>{{ item.unitPrice * item.quantity | currency:'EUR' }}</strong>
-              </div>
-            </div>
-            <div class="coupon-box">
-              <label>
-                Cupón descuento
-                <div class="coupon-row">
-                  <input [value]="form.controls.couponCode.value" placeholder="Cupon" (input)="setCouponCode($event)" />
-                  <button class="btn btn-secondary" type="button" (click)="applyCouponWithFeedback()">Aplicar</button>
-                </div>
-              </label>
-              <small class="coupon-ok" *ngIf="couponPreviewValid()">Cupón preaplicado. El backend validará que sea tu primer pedido.</small>
-              <small class="field-error" *ngIf="couponPreviewMessage()">{{ couponPreviewMessage() }}</small>
-            </div>
-            <div class="summary-line">
-              <span>Subtotal</span>
-              <strong>{{ cart.subtotal() | currency:'EUR' }}</strong>
-            </div>
-            <div class="summary-line discount" *ngIf="couponDiscountPreview() > 0">
-              <span>Descuento Cupon</span>
-              <strong>-{{ couponDiscountPreview() | currency:'EUR' }}</strong>
-            </div>
-            <div class="summary-line">
-              <span>Envío</span>
-              <strong>{{ shippingQuote().cost | currency:'EUR' }}</strong>
-            </div>
-            <div class="summary-total">
-              <span>Total</span>
-              <strong>{{ orderTotal() | currency:'EUR' }}</strong>
-            </div>
-            <div class="payment-summary">
-              <span>Método</span>
-              <strong>{{ selectedPaymentLabel() }}</strong>
-              <small>Se validará manualmente antes de confirmar definitivamente.</small>
-            </div>
-          </aside>
-        </div>
-      </ng-template>
-
-      <div class="app-alert app-alert-success" *ngIf="orderId()">
-        ✅ Pedido recibido como <strong>pendiente de pago</strong>. Número: <strong>{{ orderId() }}</strong>
-        <p>{{ selectedPaymentInstructions(orderId()) }}</p>
-                <p class="meta" *ngIf="requiresAdvancePayment()">{{ deliveryRules.notes }}</p>
-      </div>
-      <div class="app-alert app-alert-warn" *ngIf="notificationWarning()">{{ notificationWarning() }}</div>
-    </section>
-  `,
-  styles: [
-    `.checkout-shell{display:grid;gap:clamp(.65rem,2vw,.85rem);width:100%;max-width:100%;min-width:0;overflow-x:clip;padding:0 0 1.4rem}`,
-    `.checkout-hero{display:grid;gap:.6rem;align-items:flex-start;min-width:0;max-width:100%;padding:clamp(.75rem,2vw,.9rem);background:linear-gradient(135deg,color-mix(in srgb,var(--surface-1) 36%,var(--surface-0) 64%),var(--surface-0))}`,
-    `.eyebrow{margin:0;color:var(--accent-green);font-weight:800;text-transform:uppercase;font-size:.8rem;letter-spacing:.04em}`,
-    `h1,h2{margin:.1rem 0 .3rem;line-height:1.1;overflow-wrap:anywhere}h1{font-size:var(--title-page)}h2{font-size:clamp(1.05rem,2vw,1.3rem)}`,
-    `.meta,.section-head p,.payment-card small,.payment-summary small{color:var(--text-soft);overflow-wrap:anywhere}`,
-    `.status-pill,.pending-note{width:max-content;max-width:100%;border:1px solid var(--border-soft);background:var(--surface-1);border-radius:999px;padding:.35rem .7rem;color:var(--text-soft);font-weight:800;white-space:normal;overflow-wrap:anywhere}`,
-    `.checkout-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(.65rem,2vw,.85rem);align-items:start;min-width:0}`,
-    `.checkout-form{display:grid;gap:clamp(.65rem,2vw,.85rem);min-width:0;max-width:100%;padding:clamp(.72rem,2vw,.9rem)}`,
-    `.form-section{display:grid;gap:.65rem;min-width:0;max-width:100%;border:1px solid color-mix(in srgb,var(--border-soft) 78%,transparent);border-radius:14px;padding:clamp(.7rem,2vw,.88rem);background:color-mix(in srgb,var(--surface-0) 84%,var(--surface-1) 16%)}`,
-    `.section-head{display:flex;gap:.65rem;align-items:flex-start;min-width:0}`,
-    `.section-head div{min-width:0}`,
-    `.section-head span{display:grid;place-items:center;flex:0 0 30px;height:30px;border-radius:50%;background:var(--accent-red);color:var(--on-accent);font-weight:900}`,
-    `.section-head p{margin:0;font-size:.92rem;line-height:1.45}`,
-    `.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:.7rem;min-width:0}`,
-    `label{display:grid;gap:.35rem;min-width:0;max-width:100%;color:var(--text-main);font-weight:800;overflow-wrap:anywhere}`,
-    `input,select,textarea{width:100%;min-width:0;max-width:100%}`,
-    `.phone-input{display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;min-width:0}`,
-    `.slots{display:grid;gap:.45rem;min-width:0}`,
-    `.slots p{margin:0;color:var(--text-main)}`,
-    `.slot-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr));gap:.5rem;min-width:0}`,
-    `.slot-btn{min-width:0;background:var(--surface-1);color:var(--text-main);border:1px solid var(--border-soft);border-radius:999px;padding:.5rem .72rem;cursor:pointer;min-height:40px;white-space:normal;line-height:1.15}`,
-    `.slot-btn.active{background:var(--ok-active-bg);color:var(--ok-active-text);border-color:var(--ok-active-bg)}`,
-    `.slot-btn:hover,.slot-btn:focus-visible,.payment-card:hover,.payment-card:focus-within{outline:2px solid color-mix(in srgb,var(--accent-green) 42%,transparent);outline-offset:2px}`,
-    `textarea{min-height:84px;resize:vertical}`,
-    `.field-error{color:var(--error-text);font-weight:700;line-height:1.35;overflow-wrap:anywhere}`,
-    `.required-mark{display:inline;color:var(--error-text);font-weight:900}`,
-    `input.field-invalid,select.field-invalid,textarea.field-invalid{border-color:var(--error-text);box-shadow:0 0 0 1px var(--error-text)}`,
-    `.field-invalid-group .slot-buttons{border:1px solid var(--error-text);border-radius:12px;padding:.45rem}`,
-    `.slot-btn:disabled{cursor:not-allowed;opacity:.5}`,
-    `.consent-check{display:flex;align-items:flex-start;gap:.55rem;min-width:0;font-weight:700;color:var(--text-soft)}`,
-    `.consent-check input{flex:0 0 18px;margin-top:.2rem;width:18px;height:18px}`,
-    `.consent-check input[aria-invalid="true"]{outline:2px solid var(--error-text);outline-offset:2px}`,
-    `.consent-check span{min-width:0;line-height:1.45;overflow-wrap:anywhere}`,
-    `.consent-check a{color:var(--accent-green);font-weight:900}`,
-    `.payment-options{display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;min-width:0}`,
-    `.payment-card{display:flex;gap:.6rem;align-items:flex-start;min-width:0;border:1px solid var(--border-soft);border-radius:14px;padding:.75rem;background:var(--surface-1);cursor:pointer}`,
-    `.payment-card.active{border-color:var(--accent-green);background:color-mix(in srgb,var(--accent-green) 14%,var(--surface-1))}`,
-    `.payment-card input{flex:0 0 18px;width:18px;height:18px;margin-top:.15rem}`,
-    `.payment-card span{display:grid;gap:.2rem;min-width:0;overflow-wrap:anywhere}`,
-    `.shipping-quote{min-width:0;border-left:4px solid var(--accent-green);background:var(--surface-1);border-radius:12px;padding:.78rem;color:var(--text-main)}`,
-    `.shipping-quote.blocked{border-left-color:var(--error-text)}`,
-    `.shipping-quote p{margin:.25rem 0 0;color:var(--text-soft);line-height:1.45;overflow-wrap:anywhere}`,
-    `.payment-instructions{min-width:0;border-left:4px solid var(--accent-green);background:var(--surface-1);border-radius:12px;padding:.78rem;color:var(--text-main)}`,
-    `.payment-instructions p{margin:.3rem 0 0;color:var(--text-soft);line-height:1.45;overflow-wrap:anywhere}`,
-    `.form-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:.7rem;align-items:center;min-width:0}`,
-    `.submit-btn{width:100%;max-width:100%;min-height:46px;display:inline-flex;justify-content:center;align-items:center;gap:.5rem;white-space:normal;line-height:1.15;text-align:center}`,
-    `.spinner{flex:0 0 18px;width:18px;height:18px;border:2px solid var(--on-accent);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite}`,
-    `.summary-card{display:grid;gap:.7rem;min-width:0;max-width:100%;padding:clamp(.72rem,2vw,.9rem)}`,
-    `.summary-items{display:grid;gap:.65rem;max-height:none;overflow:visible;padding-right:0;min-width:0}`,
-    `.summary-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.65rem;align-items:flex-start;border-bottom:1px solid var(--border-soft);padding-bottom:.65rem;min-width:0}`,
-    `.summary-item div{display:grid;gap:.2rem;min-width:0}`,
-    `.summary-item strong{min-width:0;overflow-wrap:anywhere}`,
-    `.summary-item>strong{text-align:right;white-space:nowrap}`,
-    `.summary-item span{color:var(--text-soft);font-size:.9rem;overflow-wrap:anywhere}`,
-    `.coupon-box{min-width:0;border:1px solid var(--border-soft);border-radius:12px;padding:.72rem;background:var(--surface-1);display:grid;gap:.35rem}`,
-    `.coupon-row{display:grid;grid-template-columns:minmax(0,1fr);gap:.5rem;min-width:0}`,
-    `.coupon-row .btn{width:100%;min-height:40px;white-space:normal}`,
-    `.coupon-ok,.summary-line.discount strong{color:var(--ok-text);font-weight:800}`,
-    `.summary-line,.summary-total{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;min-width:0;font-size:1rem}`,
-    `.summary-line span,.summary-total span{min-width:0;overflow-wrap:anywhere}`,
-    `.summary-line strong{color:var(--text-main);text-align:right;overflow-wrap:anywhere}`,
-    `.summary-total strong{color:var(--accent-green);font-size:clamp(1.25rem,5vw,1.45rem);text-align:right;overflow-wrap:anywhere}`,
-    `.payment-summary{display:grid;gap:.25rem;min-width:0;border:1px solid var(--border-soft);border-radius:12px;padding:.72rem;background:var(--surface-1);overflow-wrap:anywhere}`,
-    `.empty-cart{text-align:center;min-width:0}`,
-    `@keyframes spin{to{transform:rotate(360deg)}}`,
-    `@media (min-width:560px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.phone-input{grid-template-columns:minmax(110px,150px) minmax(0,1fr)}.coupon-row{grid-template-columns:minmax(0,1fr) auto}.coupon-row .btn{width:auto}.form-actions{grid-template-columns:minmax(0,1fr) auto}.submit-btn{width:auto}.pending-note{justify-self:start}}`,
-    `@media (min-width:760px){.checkout-hero{display:flex;justify-content:space-between}.payment-options{grid-template-columns:repeat(3,minmax(0,1fr))}.summary-items{max-height:42vh;overflow:auto;padding-right:.2rem}}`,
-    `@media (min-width:981px){.checkout-layout{grid-template-columns:minmax(0,1fr) minmax(300px,380px)}.summary-card{position:sticky;top:86px}}`,
-    `@media (max-width:420px){.section-head{gap:.55rem}.section-head span{flex-basis:28px;height:28px}.slot-buttons{grid-template-columns:1fr}.summary-item{grid-template-columns:minmax(0,1fr)}.summary-item>strong{text-align:left;white-space:normal}}`,
-    `@media (prefers-reduced-motion:reduce){.spinner{animation:none}}`
-  ]
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, CartLineComponent],
+  templateUrl: './checkout-page.component.html',
+  styleUrls: ['./checkout-page.component.css']
 })
 export class CheckoutPageComponent {
   private readonly fb = inject(FormBuilder);
@@ -397,15 +52,16 @@ export class CheckoutPageComponent {
   readonly orderId = signal('');
   readonly destination = signal('');
   readonly notificationWarning = signal('');
-  readonly couponPreviewMessage = signal('');
-  readonly couponPreviewValid = signal(false);
   readonly emailAlreadyRegistered = signal(false);
   readonly paymentSettingsLoading = signal(true);
   readonly paymentSettingsError = signal('');
   readonly publicPayment = signal<PublicPaymentSettings | null>(null);
   readonly completedPaymentMethod = signal<PaymentMethod | null>(null);
+  readonly paymentExpiresAt = signal('');
+  readonly stockSubmitError = signal('');
   readonly paymentMethods = PAYMENT_METHOD_META;
   readonly deliveryRules = DELIVERY_RULES;
+  private hydrating = false;
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -432,7 +88,10 @@ export class CheckoutPageComponent {
     private readonly notifications: NotificationService,
     private readonly deliveryState: DeliveryStateService,
     private readonly identity: ActiveIdentityService,
-    private readonly paymentSettings: PaymentSettingsService
+    private readonly paymentSettings: PaymentSettingsService,
+    private readonly catalog: CatalogService,
+    public readonly coupon: CouponDraftService,
+    private readonly checkoutDraft: CheckoutDraftService
   ) {
     effect(() => {
       this.identity.session();
@@ -456,37 +115,87 @@ export class CheckoutPageComponent {
       if (this.requiresAdvancePayment() && !this.deliveryRules.cashAllowedForAdvancePaymentOrders && this.form.controls.paymentMethod.value === 'cash') {
         this.reconcilePaymentMethod();
       }
+      this.persistCheckoutState();
     });
     void this.loadPaymentSettings();
+    void this.refreshInventory();
+  }
+
+  async refreshInventory(): Promise<void> {
+    try {
+      await this.catalog.loadProducts({ force: true });
+    } catch {
+      // CatalogService already stores a user-facing error; cart keeps the last known snapshot.
+    }
+    const products = this.catalog.products();
+    if (products.length) this.cart.syncInventory(products);
+  }
+
+  hasBlockingStock(): boolean {
+    return Boolean(this.cart.hasStockConflicts?.());
+  }
+
+  submitDisabled(): boolean {
+    return this.loading()
+      || !this.cart.items().length
+      || this.paymentSettingsLoading()
+      || !this.availablePaymentMethods().length
+      || this.hasBlockingStock();
   }
 
   private resetPersonalForm(): void {
-    const email = this.identity.identity()?.type === 'user' ? (this.customerAuth.profile()?.email ?? '') : '';
+    this.hydrating = true;
+    const draft = this.checkoutDraft.snapshot();
+    const accountEmail = this.identity.identity()?.type === 'user' ? (this.customerAuth.profile()?.email ?? '') : '';
     this.form.reset({
-      fullName: '',
-      phoneCountryCode: '34',
-      phoneNumber: '',
-      email,
+      fullName: draft.fullName,
+      phoneCountryCode: draft.phoneCountryCode || '34',
+      phoneNumber: draft.phoneNumber,
+      email: accountEmail || draft.email,
       deliveryType: this.deliveryState.type(),
       deliveryDate: this.deliveryState.date() ?? '',
       deliverySlot: this.deliveryState.slot() ?? '',
-      address: '',
-      postalCode: '',
-      reference: '',
-      notes: '',
-      marketingConsent: false,
-      legalConsent: false,
-      paymentMethod: 'bizum',
-      couponCode: ''
-    });
-    this.couponPreviewValid.set(false);
-    this.couponPreviewMessage.set('');
+      address: draft.address,
+      postalCode: draft.postalCode,
+      reference: draft.reference,
+      notes: draft.notes,
+      marketingConsent: draft.marketingConsent,
+      legalConsent: draft.legalConsent,
+      paymentMethod: draft.paymentMethod,
+      couponCode: this.coupon.applied() ? this.coupon.code() : ''
+    }, { emitEvent: false });
     this.emailAlreadyRegistered.set(false);
     this.orderId.set('');
     this.destination.set('');
     this.notificationWarning.set('');
+    this.paymentExpiresAt.set('');
+    this.stockSubmitError.set('');
     this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.reconcileDeliverySlot();
+    this.hydrating = false;
+  }
+
+  private persistCheckoutState(): void {
+    if (this.hydrating || this.orderId()) return;
+    const value = this.form.getRawValue();
+    this.checkoutDraft.save({
+      fullName: value.fullName,
+      phoneCountryCode: value.phoneCountryCode,
+      phoneNumber: value.phoneNumber,
+      email: value.email,
+      address: value.address,
+      postalCode: value.postalCode,
+      reference: value.reference,
+      notes: value.notes,
+      marketingConsent: value.marketingConsent,
+      legalConsent: value.legalConsent,
+      paymentMethod: value.paymentMethod
+    });
+    this.deliveryState.setDeliveryState({
+      date: value.deliveryDate || '',
+      slot: value.deliverySlot || '',
+      type: value.deliveryType
+    });
   }
 
 
@@ -550,8 +259,20 @@ export class CheckoutPageComponent {
     );
   }
 
+  paymentReservationHours(): number {
+    return Math.max(1, Math.round(this.deliveryRules.paymentReservationMinutes / 60));
+  }
+
+  paymentDeadlineTime(): string {
+    return formatPaymentDeadlineTime(this.paymentExpiresAt());
+  }
+
+  showsPaymentReservation(): boolean {
+    return Boolean(this.paymentExpiresAt()) && this.completedPaymentMethod() !== 'cash';
+  }
+
   couponDiscountPreview(): number {
-    return this.couponPreviewValid() ? Number((this.cart.subtotal() * 0.10).toFixed(2)) : 0;
+    return this.coupon.discount(this.cart.subtotal());
   }
 
   orderTotal(): number {
@@ -661,51 +382,6 @@ export class CheckoutPageComponent {
     }
   }
 
-  setCouponCode(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-    this.form.controls.couponCode.setValue(input?.value ?? '');
-    this.sanitizeCouponCode();
-  }
-
-  sanitizeCouponCode(): void {
-    const clean = String(this.form.controls.couponCode.value ?? '').toUpperCase().replace(/\s+/g, '');
-    if (clean !== this.form.controls.couponCode.value) {
-      this.form.controls.couponCode.setValue(clean);
-    }
-    if (!clean) {
-      this.couponPreviewValid.set(false);
-      this.couponPreviewMessage.set('');
-    }
-  }
-
-  applyCouponPreview(): void {
-    this.sanitizeCouponCode();
-    const code = String(this.form.controls.couponCode.value ?? '').trim().toUpperCase();
-
-    if (!code) {
-      this.couponPreviewValid.set(false);
-      this.couponPreviewMessage.set('');
-      return;
-    }
-
-    if (code !== 'PRIMER10') {
-      this.couponPreviewValid.set(false);
-      this.couponPreviewMessage.set('Cupón no válido. Usa PRIMER10 si es tu primer pedido.');
-      return;
-    }
-
-    this.couponPreviewValid.set(true);
-    this.couponPreviewMessage.set('');
-  }
-
-  applyCouponWithFeedback(): void {
-    this.applyCouponPreview();
-    if (!this.form.controls.couponCode.value.trim()) return;
-    const history = { action: { label: 'Revisar pedido', url: '/checkout' } };
-    if (this.couponPreviewValid()) this.notifications.success('Cupón preaplicado', 'Se validará al confirmar el pedido.', { saveToHistory: true, history: { ...history, message: 'Pendiente de la validación del servidor al confirmar el pedido.' } });
-    else this.notifications.warning('Cupón rechazado', this.couponPreviewMessage(), { saveToHistory: true, history });
-  }
-
   sanitizePostalCode(): void {
     const clean = normalizePostalCode(this.form.controls.postalCode.value);
     if (clean !== this.form.controls.postalCode.value) {
@@ -799,6 +475,13 @@ export class CheckoutPageComponent {
       return;
     }
 
+    if (this.hasBlockingStock()) {
+      this.stockSubmitError.set('La disponibilidad de tu pedido ha cambiado.');
+      this.notifications.warning('Revisa el pedido', 'La disponibilidad de tu pedido ha cambiado.');
+      this.focusSummary();
+      return;
+    }
+
     this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.reconcileDeliverySlot();
     this.validateDeliverySelection();
@@ -811,7 +494,7 @@ export class CheckoutPageComponent {
 
     this.sanitizePhoneDigits();
     this.sanitizePostalCode();
-    this.applyCouponPreview();
+    this.form.controls.couponCode.setValue(this.coupon.applied() ? this.coupon.code() : '', { emitEvent: false });
 
     if (this.paymentSettingsLoading() || this.paymentSettingsError() || !this.availablePaymentMethods().length) {
       this.notifications.warning(
@@ -847,6 +530,7 @@ export class CheckoutPageComponent {
     this.orderId.set('');
     this.destination.set('');
     this.notificationWarning.set('');
+    this.stockSubmitError.set('');
 
     const id = this.notifications.loading('Procesando pedido…', 'Estamos validando disponibilidad y stock.', { key: 'checkout' });
     const historySession = this.notifications.historySession();
@@ -861,10 +545,16 @@ export class CheckoutPageComponent {
 
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
+      this.paymentExpiresAt.set(result.paymentExpiresAt ?? '');
       this.notificationWarning.set(result.warning ? getUserFriendlyError(result.warning, 'El pedido se ha guardado, pero no se pudo enviar el aviso por correo.') : '');
 
       this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: true, history: { sessionVersion: historySession, accountEquivalent: result.channel === 'backend' } });
+      this.catalog.invalidate();
+      void this.catalog.loadProducts({ force: true });
+      this.hydrating = true;
       this.cart.clear();
+      this.coupon.clear();
+      this.checkoutDraft.clear();
       this.orderService.completeOrderIntent();
 
       const accountEmail = this.customerAuth.profile()?.email ?? '';
@@ -883,17 +573,48 @@ export class CheckoutPageComponent {
         legalConsent: false,
         paymentMethod: 'bizum',
         couponCode: ''
-      });
-      this.couponPreviewValid.set(false);
-      this.couponPreviewMessage.set('');
+      }, { emitEvent: false });
       this.deliveryState.clear();
+      this.hydrating = false;
     } catch (error) {
       if (!this.identity.isCurrent(checkoutSession)) return;
-      const message = getUserFriendlyError(error, 'No hemos podido enviar tu pedido. Revisa los datos e inténtalo de nuevo.');
+      const message = this.applyStockSubmitError(error)
+        || getUserFriendlyError(error, 'No hemos podido enviar tu pedido. Revisa los datos e inténtalo de nuevo.');
       this.notifications.updateError(id, 'No se pudo enviar el pedido', message, { saveToHistory: true, history: { sessionVersion: historySession, action: { label: 'Revisar pedido', url: '/checkout' } } });
+      if (this.stockSubmitError?.()) this.focusSummary();
     } finally {
       if (this.identity.isCurrent(checkoutSession)) this.loading.set(false);
     }
+  }
+
+  private applyStockSubmitError(error: unknown): string | null {
+    if (!error || typeof error !== 'object') return null;
+    const source = error as {
+      body?: { code?: string; productId?: string; available?: number; productName?: string };
+      code?: string;
+    };
+    if ((source.body?.code ?? source.code) !== 'ORDER_STOCK_CONFLICT') return null;
+    const productId = String(source.body?.productId ?? '').trim();
+    const available = source.body?.available;
+    if (productId && available !== undefined) {
+      this.cart.applyRemoteStock?.(productId, available);
+    }
+    const line = this.cart.items().find((item) => item.productId === productId || cartBaseProductId(item) === productId);
+    const message = formatStockConflictMessage({
+      productName: source.body?.productName || line?.name,
+      requested: line?.quantity,
+      available
+    });
+    this.stockSubmitError.set('La disponibilidad de tu pedido ha cambiado.');
+    this.catalog.invalidate();
+    void this.catalog.loadProducts({ force: true });
+    return message;
+  }
+
+  private focusSummary(): void {
+    globalThis.setTimeout(() => {
+      this.document.getElementById('checkout-summary')?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
   }
 
   private focusFirstInvalidField(): void {

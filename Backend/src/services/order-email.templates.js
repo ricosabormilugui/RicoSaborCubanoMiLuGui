@@ -8,6 +8,10 @@ import {
 import { joinPublicAssetUrl } from "../config/site.config.js";
 import { logger } from "../lib/logger.js";
 import {
+  formatPaymentDeadlineTime,
+  shouldShowPaymentDeadline
+} from "./order-payment-reservation.service.js";
+import {
   buildPaymentSettingsFromEnv,
   formatIbanDisplay,
   normalizePaymentSettings
@@ -349,6 +353,30 @@ function buildFulfillmentText(order) {
   return fulfillmentFields(order).map((field) => `${field.label}: ${field.value}`).join("\n");
 }
 
+function paymentReservationHtml(order) {
+  if (!shouldShowPaymentDeadline(order)) return "";
+  const time = formatPaymentDeadlineTime(order.paymentExpiresAt);
+  return `
+    <div style="background:${EMAIL_THEME.infoBg};border:1px solid ${EMAIL_THEME.infoBorder};border-left:4px solid ${EMAIL_THEME.banner};padding:14px 16px;margin-bottom:18px;color:${EMAIL_THEME.infoText};">
+      <p style="margin:0 0 8px;font-size:15px;letter-spacing:.04em;"><strong>PAGO PENDIENTE</strong></p>
+      <p style="margin:0 0 8px;">Tu pedido está reservado hasta las ${escapeHtml(time)}.</p>
+      <p style="margin:0 0 8px;">Realiza el pago antes de esa hora para mantener tu reserva.</p>
+      <p style="margin:0;">Si no recibimos el pago dentro del plazo, el pedido se cancelará automáticamente.</p>
+    </div>
+  `;
+}
+
+function paymentReservationText(order) {
+  if (!shouldShowPaymentDeadline(order)) return "";
+  const time = formatPaymentDeadlineTime(order.paymentExpiresAt);
+  return [
+    "PAGO PENDIENTE",
+    `Tu pedido está reservado hasta las ${time}.`,
+    "Realiza el pago antes de esa hora para mantener tu reserva.",
+    "Si no recibimos el pago dentro del plazo, el pedido se cancelará automáticamente."
+  ].join("\n");
+}
+
 function paymentHeadline(order) {
   const status = paymentStatusOf(order);
   if (status === "paid") return "Pago recibido";
@@ -574,6 +602,7 @@ export function buildCustomerOrderEmail(order, options = {}) {
     bodyHtml: `
       <p style="margin:0 0 12px;font-size:16px;">¡Gracias, <strong>${escapeHtml(customerName)}</strong>!</p>
       <p style="margin:0 0 18px;font-size:14px;color:${EMAIL_THEME.muted};">${escapeHtml(intro)}</p>
+      ${paymentReservationHtml(order)}
       <div style="background:${EMAIL_THEME.infoBg};border:1px solid ${EMAIL_THEME.infoBorder};border-left:4px solid ${EMAIL_THEME.banner};padding:14px 16px;margin-bottom:18px;color:${EMAIL_THEME.infoText};">
         <p style="margin:0 0 8px;"><strong>Número de pedido:</strong> ${escapeHtml(order.orderId ?? "")}</p>
         ${paymentDetailHtml(order, options)}
@@ -589,6 +618,7 @@ export function buildCustomerOrderEmail(order, options = {}) {
     `${BRAND_CONFIG.name} · Pedido recibido`,
     `Hola ${customerName},`,
     intro,
+    paymentReservationText(order),
     `Número de pedido: ${order.orderId ?? ""}`,
     `Método de pago: ${getPaymentMethodLabel(getPaymentMethod(order))}`,
     `Estado del pago: ${getPaymentStatusLabel(order)}`,
@@ -658,6 +688,9 @@ export function buildOrderStatusEmail(order, { status, statusNote } = {}, option
   const customerName = order?.customer?.fullName ?? "cliente";
   const statusLabel = mapOrderStatusLabel(resolvedStatus);
   const note = String(statusNote ?? "").trim();
+  const expiredCopy = order?.cancellationReason === "payment_expired"
+    ? "El pedido se canceló automáticamente porque no recibimos el pago dentro del plazo."
+    : "";
   const html = wrapEmail({
     env: options.env,
     orderId: order?.orderId,
@@ -667,6 +700,7 @@ export function buildOrderStatusEmail(order, { status, statusNote } = {}, option
     bodyHtml: `
       <p style="margin:0 0 12px;">Hola <strong>${escapeHtml(customerName)}</strong>,</p>
       <p style="margin:0 0 16px;">El estado de tu pedido es: <strong>${escapeHtml(statusLabel)}</strong>.</p>
+      ${expiredCopy ? `<p style="margin:0 0 16px;">${escapeHtml(expiredCopy)}</p>` : ""}
       ${buildFulfillmentHtml(order)}
       ${note ? `<p style="margin:16px 0 0;"><strong>Nota:</strong> ${escapeHtml(note)}</p>` : ""}
       <p style="margin:18px 0 0;font-size:13px;color:${EMAIL_THEME.muted};">Gracias por confiar en ${escapeHtml(BRAND_CONFIG.name)}.</p>
@@ -676,6 +710,7 @@ export function buildOrderStatusEmail(order, { status, statusNote } = {}, option
     `${BRAND_CONFIG.name} · ${statusLabel}`,
     `Hola ${customerName},`,
     `El estado de tu pedido ${order?.orderId ?? ""} es: ${statusLabel}.`,
+    expiredCopy,
     buildFulfillmentText(order),
     note ? `Nota: ${note}` : "",
     `Gracias por confiar en ${BRAND_CONFIG.name}.`,

@@ -71,7 +71,8 @@ test('el diálogo destructivo de categorías gestiona foco, Tab y Escape', () =>
 });
 
 test('checkout enfoca el primer control inválido tras validar', () => {
-  const checkout = read('src/app/features/checkout/checkout-page.component.ts');
+  const checkout = read('src/app/features/checkout/checkout-page.component.ts')
+    + read('src/app/features/checkout/checkout-page.component.html');
   assert.match(checkout, /focusFirstInvalidField\(\)/);
   assert.match(checkout, /\.checkout-form \[aria-invalid="true"\]/);
   assert.match(checkout, /target\?\.focus\(\)/);
@@ -104,5 +105,6 @@ test('productos y categorías reutilizan la carga durante cinco minutos', () => 
   const products = read('src/app/core/services/catalog.service.ts');
   const categories = read('src/app/core/services/product-category.service.ts');
   assert.match(products, /PRODUCTS_REQUEST_CACHE_MS = 5 \* 60_000/);
+  assert.match(products, /STOCK_AVAILABILITY_MAX_AGE_MS = 60_000/);
   assert.match(categories, /PUBLIC_CATEGORIES_CACHE_MS = 5 \* 60_000/);
 });

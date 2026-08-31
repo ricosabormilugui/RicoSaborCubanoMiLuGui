@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
+import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
@@ -14,6 +14,7 @@ import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import { addSimpleProductWithFreshStock } from '../../core/utils/live-add-to-cart';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
 
@@ -80,7 +81,7 @@ export class CatalogPageComponent implements OnDestroy {
     private readonly seo: SeoService,
     private readonly productCategories: ProductCategoryService
   ) {
-    void this.catalog.loadProducts();
+    void this.catalog.refreshAvailability();
     void this.productCategories.loadPublicCategories().catch(() => undefined);
     this.route.paramMap.subscribe((params) => {
       const routeCategory = normalizeCategorySlug(params.get('category'));
@@ -239,16 +240,13 @@ export class CatalogPageComponent implements OnDestroy {
     return getProductRoute(product);
   }
 
-  addToCart(product: Product): void {
-    if (!isProductOrderable(product)) return;
-    if (this.isCustomizable(product)) {
-      void this.router.navigate(this.productRoute(product));
-      return;
-    }
-    const quantity = this.minimumQuantity(product);
-    this.cart.add(product, [], quantity);
-    const suffix = quantity > 1 ? ` (${quantity} uds. mínimas)` : '';
-    this.notifications.success('Producto añadido al carrito', `${product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+  addToCart(product: Product): Promise<boolean> {
+    return addSimpleProductWithFreshStock(product, {
+      catalog: this.catalog,
+      cart: this.cart,
+      notifications: this.notifications,
+      router: this.router
+    });
   }
 
   addAction(product: Product): AddToCartAction {
@@ -257,11 +255,6 @@ export class CatalogPageComponent implements OnDestroy {
 
   isCustomizable(product: Product): boolean {
     return isProductCustomizable(product);
-  }
-
-  minimumQuantity(product: Product): number {
-    const quantity = Math.floor(Number(product.minimumQuantity ?? 1));
-    return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
   }
 
   private updateSearchParam(_value: string): void {
