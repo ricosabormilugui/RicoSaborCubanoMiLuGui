@@ -190,6 +190,6 @@ test('el destino de pedido no expone nombres internos de backend', () => {
   const orders = readFileSync(resolve(root, 'src/app/core/services/order.service.ts'), 'utf8');
   assert.doesNotMatch(orders, /destination: `Backend API/);
   assert.doesNotMatch(orders, /Netlify Function \(submit-order\)/);
-  assert.doesNotMatch(orders, /destination: 'memoria local/);
-  assert.match(orders, /sin persistir el pedido completo/);
+  assert.doesNotMatch(orders, /saveOrderLocally|LOCAL-\$\{Date\.now/);
+  assert.match(orders, /channel: 'backend'/);
 });

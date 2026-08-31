@@ -21,6 +21,19 @@ export function getIntegerEnv(name, fallback, { min = 1, max = Number.MAX_SAFE_I
   return value;
 }
 
+function rejectLocalhostInProduction(name, value, appEnvironment) {
+  if (appEnvironment !== "production" || !value) return;
+  let hostname;
+  try {
+    hostname = new URL(value).hostname.toLowerCase();
+  } catch {
+    return;
+  }
+  if (["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname)) {
+    throw new Error(`${name} cannot point to localhost when APP_ENV=production`);
+  }
+}
+
 function validateHttpUrl(name, value) {
   if (!value) return;
   let parsed;
@@ -56,6 +69,7 @@ export function validateRuntimeEnv(env = process.env) {
 
   const frontendUrl = getOptionalEnv("FRONTEND_URL", undefined, env);
   validateHttpUrl("FRONTEND_URL", frontendUrl);
+  rejectLocalhostInProduction("FRONTEND_URL", frontendUrl, appEnvironment);
   const corsOrigin = getOptionalEnv("CORS_ORIGIN", frontendUrl, env);
   const corsOrigins = String(corsOrigin ?? "").split(",").map((origin) => origin.trim()).filter(Boolean);
   if (environment === "production" && (!corsOrigins.length || corsOrigins.includes("*"))) {
@@ -63,6 +77,7 @@ export function validateRuntimeEnv(env = process.env) {
   }
   for (const origin of corsOrigins) {
     if (origin !== "*") validateHttpUrl("CORS_ORIGIN", origin);
+    rejectLocalhostInProduction("CORS_ORIGIN", origin, appEnvironment);
   }
 
   const resend = ["RESEND_API_KEY", "NOTIFY_EMAIL_FROM", "NOTIFY_EMAIL_TO"];

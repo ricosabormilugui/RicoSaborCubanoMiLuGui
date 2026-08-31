@@ -57,29 +57,15 @@ export interface Order {
 }
 ```
 
-## Envío de pedidos (sin pasarela)
+## Envío de pedidos (canónico)
 
-### Opción A (rápida): Netlify Forms
-- Pros: implementación rápida, sin backend propio.
-- Contras: estructura menos flexible para lógica compleja.
+```text
+Frontend → POST /api/orders → Netlify api-proxy → Express (Render)
+  → validación + idempotencia + transacción Mongo
+  → email Resend (solo si el pedido quedó persistido)
+```
 
-### Opción B (recomendada): Netlify Functions
-- Endpoint serverless para validar y registrar pedido.
-- Permite integrar notificaciones y persistencia externa.
+La Function de Netlify en este flujo es solo `api-proxy` (`/api/*` y `/sitemap.xml`).
 
-## Escalabilidad de fase 2
+Pagos: Mongo `payment_settings` es la fuente canónica. `PAYMENT_*` solo arranca la config si el documento aún no existe.
 
-- Persistencia en Supabase/Firebase.
-- Dashboard interno de pedidos.
-- Contacto manual por WhatsApp mediante enlace wa.me, sin API automática.
-- Historial de cliente y recompra.
-
-
-## Backend recomendado (implementado en Netlify Function)
-
-- Endpoint: `netlify/functions/submit-order.ts`.
-- Persistencia: MongoDB Atlas (`MONGODB_URI`, `MONGODB_DB_NAME`).
-- Notificaciones:
-  - Email por Resend (si hay credenciales).
-  - SMS por Twilio (si hay credenciales).
-- Estado inicial del pedido al guardar: `nuevo`.

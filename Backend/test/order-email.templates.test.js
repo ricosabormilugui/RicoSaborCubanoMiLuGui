@@ -310,8 +310,7 @@ test("efectivo y pedido pagado se representan según la lógica existente", () =
 test("las fuentes de email no contienen PENDIENTE_CONFIGURAR", () => {
   const files = [
     new URL("../src/services/email.service.js", import.meta.url),
-    new URL("../src/services/order-email.templates.js", import.meta.url),
-    new URL("../../netlify/functions/submit-order.ts", import.meta.url)
+    new URL("../src/services/order-email.templates.js", import.meta.url)
   ];
   for (const file of files) {
     assert.doesNotMatch(readFileSync(file, "utf8"), /PENDIENTE_CONFIGURAR/);

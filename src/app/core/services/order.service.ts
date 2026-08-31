@@ -1,6 +1,5 @@
 import { Injectable, effect, untracked } from '@angular/core';
 import { CheckoutFormData, OrderPayload, PaymentMethod } from '../models/order.model';
-import { ORDER_SUBMISSION_MODE } from '../config/order.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { getCheckoutPaymentInstructions, getPaymentMethodLabel } from '../config/payment.config';
 import { CartService } from './cart.service';
@@ -19,14 +18,13 @@ export function getPaymentInstructions(method: PaymentMethod, orderId?: string):
 
 export interface SubmitOrderResponse {
   orderId: string;
-  channel: 'netlify' | 'local' | 'backend';
+  channel: 'backend';
   destination: string;
   warning?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class OrderService {
-  private readonly netlifyEndpoint = '/.netlify/functions/submit-order';
   private readonly backendEndpoint = `${resolveApiBaseUrl()}/orders`;
   private readonly orderIntent: OrderIdempotencyIntent;
 
@@ -123,20 +121,7 @@ export class OrderService {
 
   async submitOrder(payload: OrderPayload): Promise<SubmitOrderResponse> {
     const idempotencyKey = this.orderIntent.keyFor(payload);
-    if (ORDER_SUBMISSION_MODE === 'local') {
-      return this.saveOrderLocally(payload);
-    }
-
-    if (ORDER_SUBMISSION_MODE === 'netlify') {
-      return this.submitToNetlify(payload, idempotencyKey);
-    }
-
-    const backendResult = await this.submitToBackend(payload, idempotencyKey);
-    if (backendResult) {
-      return backendResult;
-    }
-
-    throw new Error('No se pudo guardar el pedido en el backend.');
+    return this.submitToBackend(payload, idempotencyKey);
   }
 
   completeOrderIntent(): void {
@@ -147,51 +132,10 @@ export class OrderService {
     return this.orderIntent.adoptGuestIntent();
   }
 
-  private async submitToNetlify(
-    payload: OrderPayload,
-    idempotencyKey: string
-  ): Promise<SubmitOrderResponse> {
-    try {
-      const data = await requestJson<{
-        orderId: string;
-        warning?: string;
-        notifications?: Array<{
-          channel: string;
-          sent: boolean;
-          detail?: string;
-        }> | Record<string, unknown>;
-      }>(this.netlifyEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify(payload)
-      }, 'No se pudo enviar el pedido.', 15_000);
-
-      const notificationErrors = (Array.isArray(data.notifications) ? data.notifications : [])
-        .filter((item) => !item.sent && item.detail)
-        .map((item) => `${item.channel}: ${item.detail}`);
-
-      const warning =
-        [data.warning, ...notificationErrors].filter(Boolean).join(' | ') ||
-        undefined;
-
-      return {
-        orderId: data.orderId,
-        channel: 'netlify',
-        destination: '',
-        warning
-      };
-    } catch (error) {
-      if (this.isLocalEnvironment()) {
-        return this.saveOrderLocally(payload);
-      }
-      throw error;
-    }
-  }
-
   private async submitToBackend(
     payload: OrderPayload,
     idempotencyKey: string
-  ): Promise<SubmitOrderResponse | null> {
+  ): Promise<SubmitOrderResponse> {
     try {
       const data = await requestJson<{
         orderId: string;
@@ -212,7 +156,7 @@ export class OrderService {
             : {})
         },
         body: JSON.stringify(payload)
-      }, 'No se pudo enviar el pedido.', 15_000);
+      }, 'No hemos podido enviar tu pedido. Inténtalo de nuevo.', 15_000);
 
       const warningParts: string[] = [];
 
@@ -224,7 +168,6 @@ export class OrderService {
         warningParts.push(...data.warnings);
       }
 
-
       return {
         orderId: data.orderId,
         channel: 'backend',
@@ -235,7 +178,7 @@ export class OrderService {
       if (error instanceof Error) {
         throw error;
       }
-      return null;
+      throw new Error('No hemos podido enviar tu pedido. Inténtalo de nuevo.');
     }
   }
 
@@ -243,19 +186,5 @@ export class OrderService {
     const code = String(countryCode ?? '').replace(/\D/g, '');
     const cleanNumber = String(number ?? '').replace(/\D/g, '');
     return `${code}${cleanNumber}`;
-  }
-
-  private isLocalEnvironment(): boolean {
-    const host = globalThis?.location?.hostname ?? '';
-    return host === 'localhost' || host === '127.0.0.1';
-  }
-
-  private saveOrderLocally(_payload: OrderPayload): SubmitOrderResponse {
-    // Local submit is in-memory only (sin persistir el pedido completo).
-    return {
-      orderId: `LOCAL-${Date.now()}`,
-      channel: 'local',
-      destination: ''
-    };
   }
 }

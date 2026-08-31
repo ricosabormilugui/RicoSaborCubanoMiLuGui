@@ -78,7 +78,7 @@ Configurar en el contexto exacto de staging:
 | --- | --- |
 | `BACKEND_API_URL` | Functions; URL HTTPS exclusiva de Render staging, sin barra final innecesaria |
 | `BACKEND_TIMEOUT_MS` | Functions; `10000` salvo ajuste medido |
-| `EXTERNAL_HTTP_TIMEOUT_MS` | Functions; `10000` salvo ajuste medido para `submit-order` |
+| `EXTERNAL_HTTP_TIMEOUT_MS` | Backend Render; timeout de HTTP saliente (email/proveedores), no una Function de pedidos |
 
 No configurar Resend, Mongo, JWT, admin ni `PAYMENT_*` en Netlify: el storefront usa `/api/orders` y el backend Render envía los emails. Las variables de funciones deben definirse en la UI/CLI de Netlify para el contexto `branch:staging`; no deben versionarse. Netlify permite valores por contexto y recomienda guardar secretos fuera de `netlify.toml`: [deploy contexts](https://docs.netlify.com/deploy/deploy-overview/), [variables por contexto](https://docs.netlify.com/build/environment-variables/overview/).
 

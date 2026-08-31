@@ -311,12 +311,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
         <p>{{ selectedPaymentInstructions(orderId()) }}</p>
                 <p class="meta" *ngIf="requiresAdvancePayment()">{{ deliveryRules.notes }}</p>
       </div>
-      <p class="meta" *ngIf="destination()">Destino: {{ destination() }}</p>
       <div class="app-alert app-alert-warn" *ngIf="notificationWarning()">{{ notificationWarning() }}</div>
-      <div class="app-alert app-alert-info" *ngIf="isLocalDraft()">
-        Estás en modo local (<code>ng serve</code>). Este pedido se guardó solo en tu navegador.
-        Para enviarlo realmente al backend despliega el frontend y configura el modo <strong><code>api</code></strong> con tu URL de Render.
-      </div>
     </section>
   `,
   styles: [
@@ -401,7 +396,6 @@ export class CheckoutPageComponent {
   readonly loading = signal(false);
   readonly orderId = signal('');
   readonly destination = signal('');
-  readonly isLocalDraft = signal(false);
   readonly notificationWarning = signal('');
   readonly couponPreviewMessage = signal('');
   readonly couponPreviewValid = signal(false);
@@ -490,7 +484,6 @@ export class CheckoutPageComponent {
     this.emailAlreadyRegistered.set(false);
     this.orderId.set('');
     this.destination.set('');
-    this.isLocalDraft.set(false);
     this.notificationWarning.set('');
     this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.reconcileDeliverySlot();
@@ -853,7 +846,6 @@ export class CheckoutPageComponent {
     this.loading.set(true);
     this.orderId.set('');
     this.destination.set('');
-    this.isLocalDraft.set(false);
     this.notificationWarning.set('');
 
     const id = this.notifications.loading('Procesando pedido…', 'Estamos validando disponibilidad y stock.', { key: 'checkout' });
@@ -869,10 +861,9 @@ export class CheckoutPageComponent {
 
       this.orderId.set(result.orderId);
       this.destination.set(result.destination);
-      this.isLocalDraft.set(result.channel === 'local');
       this.notificationWarning.set(result.warning ? getUserFriendlyError(result.warning, 'El pedido se ha guardado, pero no se pudo enviar el aviso por correo.') : '');
 
-      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: result.channel !== 'local', history: { sessionVersion: historySession, accountEquivalent: result.channel === 'backend' } });
+      this.notifications.updateSuccess(id, 'Pedido recibido', `Tu pedido ${result.orderId} queda pendiente de pago.`, { saveToHistory: true, history: { sessionVersion: historySession, accountEquivalent: result.channel === 'backend' } });
       this.cart.clear();
       this.orderService.completeOrderIntent();
 
@@ -898,7 +889,7 @@ export class CheckoutPageComponent {
       this.deliveryState.clear();
     } catch (error) {
       if (!this.identity.isCurrent(checkoutSession)) return;
-      const message = getUserFriendlyError(error, 'No fue posible registrar el pedido. Intenta nuevamente.');
+      const message = getUserFriendlyError(error, 'No hemos podido enviar tu pedido. Revisa los datos e inténtalo de nuevo.');
       this.notifications.updateError(id, 'No se pudo enviar el pedido', message, { saveToHistory: true, history: { sessionVersion: historySession, action: { label: 'Revisar pedido', url: '/checkout' } } });
     } finally {
       if (this.identity.isCurrent(checkoutSession)) this.loading.set(false);

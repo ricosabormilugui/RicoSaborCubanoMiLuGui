@@ -199,7 +199,7 @@ test('ConfirmDialog Tab/Shift+Tab contienen el foco y cerrar restaura scroll/foc
   assert.equal(doc.activeElement, 'trigger');
 });
 
-for (const [status, expected] of [[401, /sesión/], [403, /permisos/], [409, /conflicto/], [500, /Inténtalo/], [0, /conexión/]]) {
+for (const [status, expected] of [[401, /sesión/], [403, /permisos/], [409, /conflicto/], [500, /Inténtalo/], [0, /conectar/]]) {
   test(`normaliza HTTP ${status}`, () => assert.match(getUserFriendlyError({ status }), expected));
 }
 test('preserva stock/validación y oculta errores técnicos, HTML y objetos', () => {

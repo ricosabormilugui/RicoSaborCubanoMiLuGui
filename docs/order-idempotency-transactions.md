@@ -18,7 +18,7 @@ La creación no era atómica. El orden real era:
 
 Dos POST podían crear dos `orderId`. Además, un fallo entre los pasos 5–8 podía dejar cliente/cupón/stock/pedido parcialmente actualizado y dos pedidos concurrentes podían sobrepasar stock.
 
-`api-proxy` y `submit-order` ya reenviaban `Idempotency-Key`, pero el frontend no lo generaba y el backend no lo consumía. `submit-order` requiere `BACKEND_API_URL` y toda creación termina en `POST /api/orders`; su código de email heredado no constituye una ruta de persistencia alternativa.
+`api-proxy` reenvía `Idempotency-Key`. Toda creación termina en Express `POST /api/orders`.
 
 ## Flujo nuevo
 
@@ -84,7 +84,7 @@ El índice parcial ignora pedidos antiguos sin campo; no requiere backfill ni mi
 - Misma clave + fingerprint distinto: `409 Conflict`, código `IDEMPOTENCY_CONFLICT`.
 - Clave ausente o inválida: `400`, código `INVALID_IDEMPOTENCY_KEY`.
 
-El header de replay se expone por CORS y se conserva tanto en `api-proxy` como en `submit-order`. No existe endpoint público de búsqueda por clave.
+El header de replay se expone por CORS y se conserva en `api-proxy`. No existe endpoint público de búsqueda por clave.
 
 ## Concurrencia y transacción
 

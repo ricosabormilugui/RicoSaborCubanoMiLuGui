@@ -568,7 +568,8 @@ test('claves globales de tema y cookies no se namespacian; pedidos locales ya no
   assert.match(cookies, /ricosabor-cookie-consent-v1/);
   assert.doesNotMatch(auth, /localStorage\.clear\(/);
   assert.doesNotMatch(orders, /ricosabor-local-orders/);
-  assert.match(orders, /sin persistir el pedido completo/);
+  assert.doesNotMatch(orders, /saveOrderLocally|LOCAL-\$\{Date\.now/);
+  assert.doesNotMatch(checkout, /ng serve|isLocalDraft/);
   assert.match(identity, /mixsabor\.guest\.\$\{resource\}/);
   assert.match(identity, /LEGACY_LOCAL_KEYS/);
   assert.match(checkout, /this\.identity\.session\(\)/);

@@ -6,6 +6,7 @@ import { validateRuntimeEnv } from "../src/lib/env.js";
 import { applyStagingEmailSafety } from "../src/services/email.service.js";
 import { createRateLimit } from "../src/middleware/rate-limit.middleware.js";
 import { persistOrderAndNotify } from "../src/controllers/orders.controller.js";
+import { readFileSync } from "node:fs";
 
 async function withServer(options, run) {
   const server = createApp(options).listen(0, "127.0.0.1");
@@ -216,4 +217,38 @@ test("producción rechaza por seguridad un destinatario de redirección staging"
     () => validateRuntimeEnv(environment),
     /STAGING_EMAIL_TO cannot be configured when APP_ENV=production/
   );
+});
+
+test("producción no acepta localhost como FRONTEND_URL", () => {
+  assert.throws(
+    () => validateRuntimeEnv({
+      NODE_ENV: "production",
+      MONGODB_URI: "mongodb://database.test/mixsabor",
+      AUTH_TOKEN_SECRET: "test-secret-with-at-least-32-characters",
+      FRONTEND_URL: "http://localhost:4200",
+      CORS_ORIGIN: "http://localhost:4200"
+    }),
+    /localhost/
+  );
+});
+
+test("un secreto de autenticación corto impide el arranque", () => {
+  assert.throws(
+    () => validateRuntimeEnv({
+      NODE_ENV: "production",
+      MONGODB_URI: "mongodb://database.test/mixsabor",
+      AUTH_TOKEN_SECRET: "short",
+      FRONTEND_URL: "https://mixsabor.test",
+      CORS_ORIGIN: "https://mixsabor.test"
+    }),
+    /AUTH_TOKEN_SECRET/
+  );
+});
+
+test("el email de pedido solo se envía después de persistir", () => {
+  const controller = readFileSync(new URL("../src/controllers/orders.controller.js", import.meta.url), "utf8");
+  const persist = controller.indexOf("executeIdempotentOrderCreation");
+  const notify = controller.indexOf("notifyPersistedOrder(result.order");
+  assert.ok(persist >= 0 && notify > persist);
+  assert.match(controller, /if \(result.replay\)/);
 });

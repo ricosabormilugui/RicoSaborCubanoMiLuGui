@@ -55,9 +55,8 @@ Variables obligatorias del backend en producción:
 - [x] `npm run build` y directorio `dist/ricosabor-tienda/browser` coinciden con `netlify.toml`.
 - [x] `/api/*` y `/sitemap.xml` apuntan a `api-proxy`.
 - [x] `api-proxy` probado localmente: 200 real, 502 sin backend, 504 por timeout y propagación de `requestId`.
-- [x] `submit-order` empaqueta y responde 405/400/503 de forma controlada.
-- [x] El storefront usa `ORDER_SUBMISSION_MODE=api`: los pedidos pasan por `/api/orders` y `api-proxy`.
-- [x] Variables presentes en los bundles finales: `api-proxy` usa `BACKEND_API_URL` y `BACKEND_TIMEOUT_MS`; `submit-order` usa `BACKEND_API_URL` y `EXTERNAL_HTTP_TIMEOUT_MS`.
+- [x] Pedidos: el storefront usa `POST /api/orders` (`api-proxy` → Express). No hay Function `submit-order`.
+- [x] Variables presentes en los bundles finales: `api-proxy` usa `BACKEND_API_URL` y `BACKEND_TIMEOUT_MS`.
 - [x] Resend y `PAYMENT_*` no sobreviven en los bundles Netlify actuales; se configuran en el backend Render, que es quien envía el email.
 - [x] Fallback SPA devuelve `index.html`; una ruta frontend desconocida seguirá teniendo HTTP 200.
 - [ ] Configurar `BACKEND_API_URL` con la URL pública HTTPS de Render, sin barra final innecesaria.

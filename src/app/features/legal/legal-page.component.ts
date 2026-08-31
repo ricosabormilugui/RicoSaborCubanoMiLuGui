@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LEGAL_BUSINESS_CONFIG, LEGAL_DOCUMENTS, getLegalDocument } from '../../core/config/legal.config';
+import { LEGAL_BUSINESS_CONFIG, LEGAL_DOCUMENTS, LEGAL_IDENTITY_DISPLAY, getLegalDocument } from '../../core/config/legal.config';
 import { SeoService } from '../../core/services/seo.service';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
@@ -24,14 +24,14 @@ import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
       </nav>
 
       <section class="identity">
-        <h2>Datos configurables del responsable</h2>
+        <h2>Datos del responsable</h2>
         <dl>
-          <div><dt>Nombre comercial</dt><dd>{{ business.tradeName }}</dd></div>
-          <div><dt>Razón social</dt><dd>{{ business.legalName }}</dd></div>
-          <div><dt>CIF/NIF</dt><dd>{{ business.taxId }}</dd></div>
-          <div><dt>Dirección fiscal</dt><dd>{{ business.fiscalAddress }}</dd></div>
-          <div><dt>Email legal</dt><dd>{{ business.legalEmail }}</dd></div>
-          <div><dt>Teléfono</dt><dd>{{ business.phone }}</dd></div>
+          <div><dt>Nombre comercial</dt><dd>{{ identity.tradeName }}</dd></div>
+          <div><dt>Razón social</dt><dd>{{ identity.legalName }}</dd></div>
+          <div><dt>CIF/NIF</dt><dd>{{ identity.taxId }}</dd></div>
+          <div><dt>Dirección fiscal</dt><dd>{{ identity.fiscalAddress }}</dd></div>
+          <div><dt>Email</dt><dd>{{ identity.legalEmail }}</dd></div>
+          <div><dt>Teléfono</dt><dd>{{ identity.phone }}</dd></div>
         </dl>
       </section>
 
@@ -76,6 +76,7 @@ export class LegalPageComponent {
   private readonly seo = inject(SeoService);
   private readonly paramMap = toSignal(this.route.paramMap);
   readonly business = LEGAL_BUSINESS_CONFIG;
+  readonly identity = LEGAL_IDENTITY_DISPLAY;
   readonly documents = LEGAL_DOCUMENTS;
   readonly document = computed(() => getLegalDocument(this.paramMap()?.get('slug')));
 

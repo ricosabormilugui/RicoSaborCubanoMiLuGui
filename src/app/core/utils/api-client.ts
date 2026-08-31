@@ -35,9 +35,9 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
     return await fetch(input, { ...init, headers, signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiRequestError('La operación superó el tiempo de espera. Inténtalo de nuevo.', 0, undefined, 'timeout');
+      throw new ApiRequestError('No hemos podido conectar en este momento. Inténtalo de nuevo.', 0, undefined, 'timeout');
     }
-    throw new ApiRequestError('No podemos conectar con el servicio. Comprueba tu conexión e inténtalo de nuevo.', 0, undefined, 'network');
+    throw new ApiRequestError('No hemos podido conectar en este momento. Inténtalo de nuevo.', 0, undefined, 'network');
   } finally {
     globalThis.clearTimeout(timeout);
   }

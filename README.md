@@ -9,8 +9,8 @@ Proyecto base para una tienda web en **Angular + TypeScript** con backend server
 - Catálogo de productos con búsqueda y filtro por categoría.
 - Carrito con suma automática y control de cantidades.
 - Checkout sin pago online (captura datos de cliente + entrega + notas).
-- Envío de pedido configurable: local, Netlify o backend API.
-- Envío de notificaciones automáticas por **email**.
+- Envío de pedido canónico: `POST /api/orders` (Netlify `api-proxy` → backend Express).
+- Envío de notificaciones automáticas por **email** desde el backend, solo tras persistir el pedido.
 - Formulario de solicitud de información.
 
 ---
@@ -25,7 +25,7 @@ src/app/features/contact
 src/app/core/services
 src/app/core/config/order.config.ts
 
-netlify/functions/submit-order.ts
+netlify/functions/api-proxy.ts
 
 Backend/
 ```
@@ -96,30 +96,26 @@ WhatsApp no usa API, webhook ni envío automático. La web solo muestra un enlac
 https://wa.me/34614272838?text=Hola%2C%20quiero%20hacer%20una%20consulta%20sobre%20un%20producto%20o%20pedido.
 ```
 
-La función **Netlify** `netlify/functions/submit-order.ts`:
+La ruta canónica de pedidos es:
 
-1. Valida el payload del pedido.
-2. Envía notificación por email (Resend).
-3. Devuelve `orderId` para mostrar confirmación en checkout.
+```text
+Frontend → POST /api/orders → api-proxy → Express → Mongo → email
+```
+
+`netlify.toml` reescribe `/api/*` a `api-proxy`. No existe Function `submit-order`.
 
 ---
 
 # Variables de entorno (Netlify)
 
-## Email (Resend)
+El storefront en Netlify necesita el backend público:
 
 ```
-RESEND_API_KEY
-NOTIFY_EMAIL_FROM
-NOTIFY_EMAIL_TO
+BACKEND_API_URL=https://tu-backend.onrender.com
+BACKEND_TIMEOUT_MS=10000
 ```
 
-Ejemplo:
-
-```
-NOTIFY_EMAIL_FROM="Pedidos MIXSABOR <pedidos@tudominio.com>"
-NOTIFY_EMAIL_TO=ventas@tudominio.com
-```
+Resend y `PAYMENT_*` se configuran en el **backend** (Render). `PAYMENT_*` solo sirve de bootstrap inicial si Mongo aún no tiene `payment_settings`.
 
 ---
 
@@ -128,72 +124,20 @@ NOTIFY_EMAIL_TO=ventas@tudominio.com
 Si el checkout confirma pedido pero no llegan notificaciones:
 
 1. Abre **DevTools → Network**
-2. Revisa la respuesta de:
-
-```
-POST /.netlify/functions/submit-order
-```
-
-Ejemplo de respuesta:
-
-```json
-{
- "notifications": [
-   { "channel": "email", "sent": true }
- ]
-}
-```
-
-Esto permite ver el resultado del email automático.
+2. Revisa `POST /api/orders`.
+3. Comprueba que `notifications.email.sent` es `true` en la respuesta del backend.
 
 ---
 
-# Modos de envío de pedidos
+# Envío de pedidos
 
-Configurable en:
-
-```
-src/app/core/config/order.config.ts
-```
-
----
-
-## Modo local
+Única ruta autoritativa:
 
 ```
-ORDER_SUBMISSION_MODE = 'local'
+POST /api/orders
 ```
 
-Guarda pedidos en **localStorage**.
-
----
-
-## Modo Netlify
-
-```
-ORDER_SUBMISSION_MODE = 'netlify'
-```
-
-Usa:
-
-```
-/.netlify/functions/submit-order
-```
-
----
-
-## Modo Backend API (Render)
-
-```
-ORDER_SUBMISSION_MODE = 'api'
-```
-
-Envía pedidos a:
-
-```
-https://tu-backend.onrender.com/api/orders
-```
-
+No hay pedidos locales en producción ni en desarrollo por defecto. Un fallo de API es un error: el carrito se conserva y no se muestra éxito.
 ---
 
 # Backend Node / Express

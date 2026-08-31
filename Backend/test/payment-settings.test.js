@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { requireAdmin } from "../src/middleware/auth.middleware.js";
+import { signToken } from "../src/lib/auth.js";
 import { createPaymentSettingsHandlers } from "../src/controllers/payment-settings.controller.js";
 import { createMemoryPaymentSettingsRepository } from "../src/repositories/payment-settings.repository.js";
 import {
@@ -265,4 +266,33 @@ test("el bootstrap desde env no mezcla un documento existente", async () => {
   );
   const stored = await service.getCanonical();
   assert.equal(stored.bizum.phone, "+34622222222");
+});
+
+test("pago R: JWT de cliente no accede a admin payment-settings", () => {
+  process.env.AUTH_TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || "test-secret-with-at-least-32-characters";
+  const token = signToken({ sub: "user-1", role: "customer", email: "c@test.com" });
+  const response = mockResponse();
+  let continued = false;
+  requireAdmin({ headers: { authorization: `Bearer ${token}` } }, response, () => { continued = true; });
+  assert.equal(response.statusCode, 403);
+  assert.equal(continued, false);
+});
+
+test("PUT admin ignora campos extra y fija updatedBy desde el token", async () => {
+  const { handlers, repository } = createService(completeSettings());
+  const response = mockResponse();
+  await handlers.updatePaymentSettingsForAdmin({
+    auth: { role: "admin", email: "admin@mixsabor.test" },
+    body: {
+      ...completeSettings(),
+      updatedBy: "attacker",
+      _id: "other",
+      secret: "nope"
+    }
+  }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.payment.secret, undefined);
+  const stored = await repository.findPaymentSettingsDocument();
+  assert.equal(stored.updatedBy, "admin@mixsabor.test");
+  assert.equal(stored.secret, undefined);
 });

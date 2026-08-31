@@ -1,5 +1,6 @@
 import { LEGAL_NAV_LINKS } from './legal-links.config';
 import { BRAND_CONFIG } from './brand.config';
+import contactConfig from '../../../../shared/contact.config.json';
 
 export interface LegalBusinessConfig {
   tradeName: string;
@@ -25,19 +26,44 @@ export interface LegalDocument {
   sections: LegalDocumentSection[];
 }
 
+export function isPendingLegalValue(value: string): boolean {
+  return !value || String(value).startsWith('PENDIENTE_CONFIGURAR_');
+}
+
+export function displayLegalValue(value: string, fallback = 'Pendiente de publicación'): string {
+  return isPendingLegalValue(value) ? fallback : value;
+}
+
+function formatPublicPhone(raw: string): string {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (digits.startsWith('34') && digits.length >= 11) {
+    return `+34 ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+  }
+  return digits;
+}
+
 export const LEGAL_BUSINESS_CONFIG: LegalBusinessConfig = {
   tradeName: BRAND_CONFIG.name,
   legalName: 'PENDIENTE_CONFIGURAR_RAZON_SOCIAL',
   taxId: 'PENDIENTE_CONFIGURAR_CIF_NIF',
   fiscalAddress: 'PENDIENTE_CONFIGURAR_DIRECCION_FISCAL',
-  legalEmail: 'PENDIENTE_CONFIGURAR_EMAIL_LEGAL',
-  phone: 'PENDIENTE_CONFIGURAR_TELEFONO_LEGAL',
+  legalEmail: contactConfig.salesEmail,
+  phone: formatPublicPhone(contactConfig.whatsappPhone),
   bankAccountHolder: 'PENDIENTE_CONFIGURAR_TITULAR_BANCARIO',
   jurisdiction: 'España / Unión Europea',
   lastUpdated: '12/05/2026'
 } as const;
 
-const identityParagraph = `Responsable: ${LEGAL_BUSINESS_CONFIG.legalName}, CIF/NIF ${LEGAL_BUSINESS_CONFIG.taxId}, domicilio fiscal ${LEGAL_BUSINESS_CONFIG.fiscalAddress}, email ${LEGAL_BUSINESS_CONFIG.legalEmail} y teléfono ${LEGAL_BUSINESS_CONFIG.phone}.`;
+export const LEGAL_IDENTITY_DISPLAY = {
+  tradeName: LEGAL_BUSINESS_CONFIG.tradeName,
+  legalName: displayLegalValue(LEGAL_BUSINESS_CONFIG.legalName),
+  taxId: displayLegalValue(LEGAL_BUSINESS_CONFIG.taxId),
+  fiscalAddress: displayLegalValue(LEGAL_BUSINESS_CONFIG.fiscalAddress),
+  legalEmail: LEGAL_BUSINESS_CONFIG.legalEmail,
+  phone: LEGAL_BUSINESS_CONFIG.phone
+} as const;
+
+const identityParagraph = `El sitio opera bajo el nombre comercial ${LEGAL_BUSINESS_CONFIG.tradeName}. Email de contacto: ${LEGAL_BUSINESS_CONFIG.legalEmail}. Teléfono/WhatsApp: ${LEGAL_BUSINESS_CONFIG.phone}. La razón social, el CIF/NIF y el domicilio fiscal definitivos se publicarán cuando estén confirmados por asesoría legal.`;
 
 export const LEGAL_DOCUMENTS: LegalDocument[] = [
   {
@@ -47,7 +73,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
     sections: [
       {
         title: 'Titularidad del sitio',
-        paragraphs: [identityParagraph, `Este sitio opera bajo el nombre comercial ${LEGAL_BUSINESS_CONFIG.tradeName}. Los datos identificativos definitivos deben configurarse antes de la publicación en producción.`]
+        paragraphs: [identityParagraph, `Este sitio opera bajo el nombre comercial ${LEGAL_BUSINESS_CONFIG.tradeName}. Los datos identificativos de razón social, CIF/NIF y domicilio fiscal se publicarán cuando estén confirmados.`]
       },
       {
         title: 'Uso del sitio',
@@ -112,7 +138,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
       },
       {
         title: 'Pagos manuales',
-        paragraphs: [`Los métodos disponibles son Bizum, transferencia bancaria y efectivo/cash. El titular bancario configurado actualmente es: ${LEGAL_BUSINESS_CONFIG.bankAccountHolder}.`, 'No introduzcas datos sensibles de tarjetas en notas o formularios.']
+        paragraphs: ['Los métodos de pago disponibles (Bizum, transferencia o efectivo) se muestran en el checkout según la configuración vigente. El pedido queda pendiente hasta validar el pago manualmente.', 'No introduzcas datos sensibles de tarjetas en notas o formularios.']
       },
       {
         title: 'Precios y disponibilidad',
