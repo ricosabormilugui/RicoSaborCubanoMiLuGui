@@ -20,11 +20,11 @@
             <img
               class="hero-image"
               [src]="imageUrl(selectedImage() || currentImages()[0] || fallbackImage, 1200)"
-              [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [480, 720, 960, 1200])"
-              sizes="(min-width: 1024px) 46vw, 100vw"
+              [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [540, 720, 900, 1200])"
+              sizes="(min-width: 1024px) 580px, 100vw"
               [alt]="productImageAlt(product()!)"
               width="900"
-              height="700"
+              height="900"
               decoding="async"
               fetchpriority="high" />
           </div>
@@ -43,7 +43,7 @@
                 sizes="64px"
                 [alt]=""
                 width="120"
-                height="90"
+                height="120"
                 loading="lazy"
                 decoding="async" />
             </button>

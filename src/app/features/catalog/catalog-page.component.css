@@ -48,7 +48,7 @@
 .empty-state { display: grid; justify-items: center; gap: .5rem; padding: clamp(1.5rem, 5vw, 3rem) 1rem; border: 1px dashed var(--border-soft); border-radius: var(--radius-card); background: color-mix(in srgb, var(--surface-0) 82%, var(--bg-elevated) 18%); color: var(--text-main); text-align: center; font-weight: 700; }
 .empty-state span { color: var(--text-soft); }
 
-.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; align-items: stretch; width: 100%; min-width: 0; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: start; gap: .55rem; align-items: stretch; width: 100%; min-width: 0; }
 .product { position: relative; display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent); border-radius: 12px; background: var(--surface-0); box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-soft) 35%, transparent); }
 .content { display: grid; gap: .28rem; min-width: 0; padding: .5rem .55rem .55rem; }
 .actions { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
@@ -68,5 +68,5 @@
 
 @media(max-width:300px){.grid{grid-template-columns:1fr}}
 @media(min-width:768px){.hero{gap:.6rem;padding:.6rem 0 .7rem}.hero-eyebrow{display:block}.hero h1{font-size:clamp(2rem,3.5vw,2.45rem)}.hero>p{margin:-.1rem 0 .25rem;font-size:.94rem}.catalog-toolbar{width:min(100%,820px)}.products-wrap{padding:.9rem 0 1.6rem}.section-title{font-size:clamp(1.35rem,2vw,1.65rem)}.results-count{font-size:.84rem}.grid{gap:.7rem}.best-sellers-head{align-items:flex-end;justify-content:space-between;flex-direction:row}.best-sellers-head>span{text-align:right}}
-@media(min-width:900px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(min-width:1100px){.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem}}
+@media(min-width:900px){.grid{grid-template-columns:repeat(3,minmax(0,260px))}}
+@media(min-width:1100px){.grid{grid-template-columns:repeat(4,minmax(0,260px));gap:.8rem}}

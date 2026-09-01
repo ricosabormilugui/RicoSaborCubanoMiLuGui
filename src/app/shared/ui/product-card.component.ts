@@ -94,7 +94,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
     }
     .product-image {
       display: block;
-      aspect-ratio: 4 / 3;
+      aspect-ratio: 1 / 1;
       overflow: hidden;
       border-radius: 11px 11px 0 0;
       background: color-mix(in srgb, var(--brand-cream) 38%, var(--surface-0));
@@ -328,7 +328,7 @@ export class ProductCardComponent {
   readonly addAction = input<AddToCartAction>();
   readonly priority = input(false);
   readonly density = input<'default' | 'compact'>('default');
-  readonly sizes = input('(min-width: 1100px) 25vw, (min-width: 768px) 33vw, 50vw');
+  readonly sizes = input('(min-width: 1100px) 260px, (min-width: 900px) 33vw, 50vw');
 
   readonly customizable = computed(() => isProductCustomizable(this.product()));
   readonly orderable = computed(() => isProductOrderable(this.product()));
@@ -337,7 +337,7 @@ export class ProductCardComponent {
   readonly showFavoriteAction = computed(() => !this.auth.isAdminAccount());
   readonly route = computed(() => getProductRoute(this.product()));
   readonly imageWidth = computed(() => this.isCompact() ? 360 : 800);
-  readonly imageHeight = computed(() => this.isCompact() ? 360 : 600);
+  readonly imageHeight = computed(() => this.isCompact() ? 360 : 800);
   readonly favoriteIconSize = computed(() => this.isCompact() ? 13 : 18);
   readonly actionIconSize = computed(() => this.isCompact() ? 14 : 18);
   readonly imageUrl = computed(() => optimizedImageUrl(this.product().imageUrl || FALLBACK_IMAGE, this.imageWidth()));

@@ -67,7 +67,7 @@ test('G-L: categorías 1:1, Más vendidos compacto, catálogo y admin intactos',
   assert.match(card, /density = input<'default' \| 'compact'>/);
   assert.match(card, /:host\.is-compact \.product-image \{\s*aspect-ratio: 1 \/ 1/);
   assert.match(card, /\.product-image img\s*\{[^}]*object-fit:\s*contain/s);
-  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.doesNotMatch(card, /object-fit:\s*cover/);
   assert.match(card, /showFavoriteAction = computed\(\(\) => !this\.auth\.isAdminAccount\(\)\)/);
 
@@ -76,6 +76,8 @@ test('G-L: categorías 1:1, Más vendidos compacto, catálogo y admin intactos',
   assert.doesNotMatch(catalogMain[0], /density="compact"/);
   assert.doesNotMatch(catalogMain[0], /variant="compact"/);
   assert.match(catalog, /class="best-sellers"[\s\S]*density="compact"/);
+  assert.match(homeHtml, /density="compact"/);
+  assert.match(detail, /object-fit: contain/);
   assert.match(detail, /object-fit: contain/);
   assert.doesNotMatch(global, /\.brick-media/);
 });

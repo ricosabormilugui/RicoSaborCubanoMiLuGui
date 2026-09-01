@@ -53,7 +53,7 @@ test('home renders the public admin categories at a bounded size and two product
   assert.match(styles, /\.collection-photo\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*9/);
   assert.doesNotMatch(styles, /\.brick-media\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
-  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.match(card, /\.product-image img\s*\{[^}]*height:\s*100%/s);
 });
 
@@ -63,7 +63,10 @@ test('catalog product cards stay compact and two-up from the mobile base', async
   const card = await read('src/app/shared/ui/product-card.component.ts');
 
   assert.match(styles, /\.grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
+  assert.match(styles, /repeat\(4,\s*minmax\(0,\s*260px\)\)/);
+  assert.match(card, /density = input<'default' \| 'compact'>/);
+  assert.match(card, /:host\.is-compact \{[^}]*max-width:\s*160px/s);
+  assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.match(card, /object-fit:\s*contain/);
   assert.match(card, /-webkit-line-clamp:\s*2/);
   assert.match(card, /@media \(hover: hover\) and \(pointer: fine\)/);

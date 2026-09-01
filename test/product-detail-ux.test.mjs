@@ -36,6 +36,7 @@ test('el detalle rediseñado usa configurador semántico, related cards y sticky
   assert.match(template, /role]="group.selectionType === 'multiple' \? 'checkbox' : 'radio'/);
   assert.match(template, /class="sticky-buy"/);
   assert.match(template, /class="qty"/);
+  assert.match(template, /\[540, 720, 900, 1200\]/);
   assert.doesNotMatch(template, /mini-product/);
   assert.doesNotMatch(template, /type="number"/);
   assert.doesNotMatch(source, /swiper|slick|splide|glightbox/i);
@@ -43,6 +44,10 @@ test('el detalle rediseñado usa configurador semántico, related cards y sticky
   assert.doesNotMatch(template, /class="favorite"/);
   assert.doesNotMatch(template, /lucideHeart/);
   assert.match(styles, /object-fit: contain/);
+  assert.match(styles, /\.hero-frame[\s\S]*aspect-ratio: 1 \/ 1/);
+  assert.match(styles, /\.hero-frame[\s\S]*max-width: 580px/);
+  assert.match(styles, /\.hero-image[\s\S]*object-fit: contain/);
+  assert.doesNotMatch(styles, /object-fit: cover/);
   assert.match(styles, /\.thumb img \{[^}]*object-fit: contain/s);
   assert.match(styles, /env\(safe-area-inset-bottom/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
