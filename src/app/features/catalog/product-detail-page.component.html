@@ -18,6 +18,7 @@
         <div class="media-col">
           <div class="hero-frame">
             <img
+              #heroImage
               class="hero-image"
               [src]="imageUrl(selectedImage() || currentImages()[0] || fallbackImage, 1200)"
               [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [540, 720, 900, 1200])"
@@ -143,6 +144,7 @@
               <button type="button" (click)="adjustQuantity(1)" [disabled]="!canIncrease(product()!)" aria-label="Aumentar cantidad">+</button>
             </div>
             <app-add-to-cart-button
+              #detailAddCta
               class="buy-cta"
               variant="large"
               [disabled]="!canAdd(product()!)"
@@ -202,7 +204,7 @@
 
       <div class="sticky-buy" *ngIf="showStickyPurchase()" role="region" aria-label="Comprar producto">
         <strong>{{ customizedTotal(product()!) | currency:'EUR' }}</strong>
-        <button class="btn btn-primary" type="button" [disabled]="!canAdd(product()!)" (click)="addToCartWithFreshStock(product()!)">Añadir al carrito</button>
+        <button class="btn btn-primary" type="button" [disabled]="!canAdd(product()!)" (click)="addToCartWithFreshStock(product()!, quantity(), $event)">Añadir al carrito</button>
       </div>
     </ng-container>
   </ng-template>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
+import { CartAnimationService } from '../../core/services/cart-animation.service';
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product, ProductCustomizationGroupKey, ProductCustomizationOption } from '../../core/models/product.model';
@@ -40,6 +41,7 @@ import {
 export class ProductDetailPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
   private readonly injector = inject(Injector);
+  private readonly cartAnimation = inject(CartAnimationService);
   readonly brand = BRAND_CONFIG;
   readonly bestSellersEyebrow = BEST_SELLERS_EYEBROW;
   readonly bestSellersTitle = BEST_SELLERS_TITLE;
@@ -58,6 +60,8 @@ export class ProductDetailPageComponent {
   readonly detailLoading = signal(true);
   readonly detailError = signal('');
   readonly purchaseAnchor = viewChild<ElementRef<HTMLElement>>('purchaseAnchor');
+  private readonly heroImage = viewChild<ElementRef<HTMLImageElement>>('heroImage');
+  private readonly detailAddCta = viewChild('detailAddCta', { read: ElementRef });
   private lastConfiguredProductId = '';
 
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
@@ -277,10 +281,12 @@ export class ProductDetailPageComponent {
     return true;
   }
 
-  async addToCartWithFreshStock(product: Product, amount = this.quantity()): Promise<boolean> {
+  async addToCartWithFreshStock(product: Product, amount = this.quantity(), event?: Event): Promise<boolean> {
     const live = await this.catalog.refreshTrackedProduct(product);
     if (this.product()?.id === live.id) this.product.set(live);
-    return this.addToCart(live, amount);
+    const added = this.addToCart(live, amount);
+    if (added && this.product()?.id === live.id) this.playAddToCartAnimation(event);
+    return added;
   }
 
   addRelated(item: Product): Promise<boolean> | boolean {
@@ -297,6 +303,15 @@ export class ProductDetailPageComponent {
 
   relatedAddAction(product: Product): AddToCartAction {
     return () => this.addRelated(product);
+  }
+
+  private playAddToCartAnimation(_event?: Event): void {
+    const hero = this.heroImage()?.nativeElement ?? null;
+    const product = this.product();
+    this.cartAnimation.animateAddToCart({
+      sourceElement: hero ?? this.detailAddCta()?.nativeElement ?? null,
+      imageUrl: hero?.currentSrc || hero?.src || this.selectedImage() || product?.imageUrl || this.fallbackImage
+    });
   }
 
   private optionId(option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }

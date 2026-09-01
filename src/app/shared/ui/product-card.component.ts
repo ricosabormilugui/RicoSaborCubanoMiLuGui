@@ -1,10 +1,11 @@
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
 import { getProductRoute } from '../../core/models/product-filter';
+import { CartAnimationService } from '../../core/services/cart-animation.service';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { FavoritesService } from '../../core/services/favorites.service';
 import { ProductCategoryService } from '../../core/services/product-category.service';
@@ -68,7 +69,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
             <svg lucideArrowRight [size]="actionIconSize()" [strokeWidth]="1.6" aria-hidden="true" />
           </a>
         } @else {
-          <button class="cta" type="button" [attr.aria-label]="'Añadir ' + product().name + ' al carrito'" (click)="add()">
+          <button class="cta" type="button" [attr.aria-label]="'Añadir ' + product().name + ' al carrito'" (click)="add($event)">
             <svg lucidePlus [size]="actionIconSize()" [strokeWidth]="1.6" aria-hidden="true" />
           </button>
         }
@@ -319,10 +320,12 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
   }
 })
 export class ProductCardComponent {
+  private readonly host = inject(ElementRef<HTMLElement>);
   private readonly router = inject(Router);
   private readonly favorites = inject(FavoritesService);
   private readonly auth = inject(CustomerAuthService);
   private readonly categories = inject(ProductCategoryService);
+  private readonly cartAnimation = inject(CartAnimationService);
 
   readonly product = input.required<Product>();
   readonly addAction = input<AddToCartAction>();
@@ -356,12 +359,26 @@ export class ProductCardComponent {
     this.favorites.toggle(this.product().id);
   }
 
-  add(): void {
+  async add(event?: Event): Promise<void> {
     if (!this.orderable()) return;
     if (this.customizable()) {
       void this.router.navigate(this.route());
       return;
     }
-    void this.addAction()?.();
+    try {
+      const added = await this.addAction()?.();
+      if (added !== true) return;
+      const image = this.productImage();
+      this.cartAnimation.animateAddToCart({
+        sourceElement: image ?? (event?.currentTarget instanceof Element ? event.currentTarget : null),
+        imageUrl: image?.currentSrc || image?.src || this.product().imageUrl || FALLBACK_IMAGE
+      });
+    } catch {
+      return;
+    }
+  }
+
+  private productImage(): HTMLImageElement | null {
+    return this.host.nativeElement.querySelector('.product-image img');
   }
 }

@@ -18,6 +18,7 @@ import { CookieConsentService } from './core/services/cookie-consent.service';
 import { CookieBannerComponent } from './shared/ui/cookie-banner.component';
 import { IconComponent } from './shared/ui/icon.component';
 import { AccountMenuComponent } from './shared/ui/account-menu.component';
+import { CartFlyTargetDirective } from './shared/ui/cart-fly-target.directive';
 import { getProductCategoryLabel } from './core/config/product-categories.config';
 import { ProductCategoryService } from './core/services/product-category.service';
 import { SeoMetaInput, SeoService } from './core/services/seo.service';
@@ -27,7 +28,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent, AccountMenuComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, NotificationsComponent, ConfirmDialogComponent, CookieBannerComponent, IconComponent, NotificationBellComponent, AccountMenuComponent, CartFlyTargetDirective],
   template: `
     <div class="app-shell" [class.is-auth]="isAuthSurface()">
       <div class="top-banner">
@@ -61,7 +62,7 @@ import { BRAND_CONFIG, getBrandLogo } from './core/config/brand.config';
 
             <app-account-menu (opened)="onAccountMenuOpened()" />
 
-            <button class="icon-btn cart-box" type="button" (click)="openCart()" aria-label="Carrito" title="Carrito">
+            <button class="icon-btn cart-box" type="button" appCartFlyTarget data-cart-target (click)="openCart()" aria-label="Carrito" title="Carrito">
               <app-icon name="cart" />
               <span class="badge" *ngIf="cart.totalItems()">{{ cart.totalItems() }}</span>
             </button>
