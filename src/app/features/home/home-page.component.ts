@@ -41,7 +41,7 @@ export class HomePageComponent {
   readonly marqueeItems = ['Casero', 'Sabor cubano', 'Por encargo', 'Hecho con cariño'];
   readonly marqueeLoop = Array.from({ length: 4 }, () => this.marqueeItems).flat();
 
-  readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 4));
+  readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 5));
   readonly heroImage = computed(() => this.homeContent.content().heroImageUrl);
   readonly cubanImage = computed(() => this.homeContent.content().cubanImageUrl);
   readonly cakesImage = computed(() => this.homeContent.content().cakesImageUrl);

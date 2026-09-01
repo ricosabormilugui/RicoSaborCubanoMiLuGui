@@ -47,7 +47,11 @@ test('home renders the public admin categories at a bounded size and two product
   assert.match(template, /app-product-card/);
   assert.match(styles, /flex:\s*0 0 clamp\(168px, 18vw, 240px\)/);
   assert.match(styles, /max-width:\s*240px/);
-  assert.match(styles, /\.product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /\.product-grid\s*\{[^}]*repeat\(5,\s*minmax\(0,\s*220px\)\)/s);
+  assert.match(styles, /\.brick-media\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*10/s);
+  assert.match(styles, /\.collection-photo\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
+  assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*9/);
+  assert.doesNotMatch(styles, /\.brick-media\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
   assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
   assert.match(card, /\.product-image img\s*\{[^}]*height:\s*100%/s);
 });
@@ -66,6 +70,7 @@ test('catalog product cards stay compact and two-up from the mobile base', async
   assert.doesNotMatch(template, /product-description/);
   assert.doesNotMatch(template, /Ver detalles/);
   assert.match(template, /app-product-card/);
+  assert.doesNotMatch(template, /density="compact"/);
   assert.doesNotMatch(template, /variant="compact"/);
 });
 

@@ -57,7 +57,7 @@
           <article class="slot" *ngFor="let category of categories()">
             <label class="field">
               <span>{{ category.label }}</span>
-              <small>Tarjeta de categoría en la home</small>
+              <small>Tarjeta de categoría en la home · 1000×1000 (1:1)</small>
               <input
                 [(ngModel)]="form.categoryImages[category.slug]"
                 [name]="'category-' + category.slug"

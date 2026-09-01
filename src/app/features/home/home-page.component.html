@@ -23,7 +23,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="heroImage()" [src]="imageUrl(heroImage(), 1200)" [attr.srcset]="imageSrcset(heroImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" [alt]="'Comida y tartas de ' + brand.name" width="1200" height="900" fetchpriority="high" />
+      <img *ngIf="heroImage()" [src]="imageUrl(heroImage(), 1200)" [attr.srcset]="imageSrcset(heroImage(), [480, 768, 1200, 1600])" sizes="(min-width: 901px) min(60vw, 760px), 100vw" [alt]="'Comida y tartas de ' + brand.name" width="1600" height="1000" fetchpriority="high" />
     </div>
   </section>
 
@@ -48,7 +48,7 @@
     <div class="collections-track" #collectionsTrack>
       <a class="collection-card" *ngFor="let category of collections(); trackBy: trackCategory" [class.no-image]="!category.imageUrl" [routerLink]="['/categoria', category.slug]">
         <span class="collection-photo" *ngIf="category.imageUrl">
-          <img [src]="imageUrl(category.imageUrl, 480)" [attr.srcset]="imageSrcset(category.imageUrl, [240, 360, 480])" sizes="(max-width: 600px) 45vw, 240px" [alt]="category.label" width="320" height="200" [attr.loading]="category.priority ? 'eager' : 'lazy'" [attr.fetchpriority]="category.priority ? 'high' : null" decoding="async" />
+          <img [src]="imageUrl(category.imageUrl, 480)" [attr.srcset]="imageSrcset(category.imageUrl, [240, 360, 480])" sizes="(max-width: 600px) 45vw, 240px" [alt]="category.label" width="800" height="800" [attr.loading]="category.priority ? 'eager' : 'lazy'" [attr.fetchpriority]="category.priority ? 'high' : null" decoding="async" />
         </span>
         <span class="collection-label">{{ category.label }}</span>
       </a>
@@ -72,7 +72,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="cubanImage()" [src]="imageUrl(cubanImage(), 1200)" [attr.srcset]="imageSrcset(cubanImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" alt="Comida cubana casera" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cubanImage()" [src]="imageUrl(cubanImage(), 1200)" [attr.srcset]="imageSrcset(cubanImage(), [480, 768, 1200, 1600])" sizes="(min-width: 901px) min(60vw, 760px), 100vw" alt="Comida cubana casera" width="1600" height="1000" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -93,7 +93,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="cakesImage()" [src]="imageUrl(cakesImage(), 1200)" [attr.srcset]="imageSrcset(cakesImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" [alt]="'Tartas personalizadas de ' + brand.name" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="cakesImage()" [src]="imageUrl(cakesImage(), 1200)" [attr.srcset]="imageSrcset(cakesImage(), [480, 768, 1200, 1600])" sizes="(min-width: 901px) min(60vw, 760px), 100vw" [alt]="'Tartas personalizadas de ' + brand.name" width="1600" height="1000" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -110,7 +110,7 @@
       </div>
     </div>
     <div class="brick-media">
-      <img *ngIf="spanishImage()" [src]="imageUrl(spanishImage(), 1200)" [attr.srcset]="imageSrcset(spanishImage(), [480, 768, 1200, 1600])" sizes="(min-width: 900px) 58vw, 100vw" alt="Platos de inspiración española" width="1200" height="900" loading="lazy" decoding="async" />
+      <img *ngIf="spanishImage()" [src]="imageUrl(spanishImage(), 1200)" [attr.srcset]="imageSrcset(spanishImage(), [480, 768, 1200, 1600])" sizes="(min-width: 901px) min(60vw, 760px), 100vw" alt="Platos de inspiración española" width="1600" height="1000" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -154,9 +154,10 @@
     <div class="product-grid">
       <app-product-card
         *ngFor="let product of bestSellers(); trackBy: trackProduct"
+        density="compact"
         [product]="product"
         [addAction]="addAction(product)"
-        [sizes]="'(min-width: 900px) 25vw, 50vw'" />
+        [sizes]="'(min-width: 900px) 220px, 172px'" />
     </div>
   </section>
 

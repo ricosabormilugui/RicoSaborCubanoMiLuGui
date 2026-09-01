@@ -27,10 +27,10 @@ export class AdminHomePageComponent {
   readonly error = signal('');
   readonly categories = this.productCategories.categories;
   readonly brickSlots: Array<{ key: keyof Omit<HomeContent, 'categoryImages'>; label: string; hint: string }> = [
-    { key: 'heroImageUrl', label: 'Hero', hint: 'Bloque principal: comida cubana casera y tartas por encargo' },
-    { key: 'cubanImageUrl', label: 'Comida cubana', hint: 'Sabor de casa, para pedir cuando quieras' },
-    { key: 'cakesImageUrl', label: 'Tartas', hint: 'Cumpleaños, eventos y celebraciones' },
-    { key: 'spanishImageUrl', label: 'Comida española', hint: 'Platos para reuniones y mesa familiar' }
+    { key: 'heroImageUrl', label: 'Hero', hint: 'Bloque principal · 1600×1000 (16:10)' },
+    { key: 'cubanImageUrl', label: 'Comida cubana', hint: 'Sabor de casa · 1600×1000 (16:10)' },
+    { key: 'cakesImageUrl', label: 'Tartas', hint: 'Celebraciones · 1600×1000 (16:10)' },
+    { key: 'spanishImageUrl', label: 'Comida española', hint: 'Mesa familiar · 1600×1000 (16:10)' }
   ];
 
   constructor(

@@ -106,6 +106,29 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       object-fit: contain;
       object-position: center;
     }
+    :host.is-compact {
+      max-width: 240px;
+    }
+    :host.is-compact .product-image {
+      aspect-ratio: 1 / 1;
+    }
+    :host.is-compact .body {
+      padding: .42rem .48rem .48rem;
+      gap: .22rem;
+    }
+    :host.is-compact .product-name {
+      min-height: 2.4em;
+      font-size: .78rem;
+    }
+    :host.is-compact .price strong { font-size: .88rem; }
+    :host.is-compact .favorite,
+    :host.is-compact .cta {
+      width: 44px;
+      height: 44px;
+    }
+    :host.is-compact .cta {
+      flex: 0 0 44px;
+    }
     :host(.is-sold-out) .product-image img { opacity: .72; filter: grayscale(.18); }
     .badge {
       position: absolute;
@@ -255,7 +278,8 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
     }
   `],
   host: {
-    '[class.is-sold-out]': '!orderable()'
+    '[class.is-sold-out]': '!orderable()',
+    '[class.is-compact]': 'isCompact()'
   }
 })
 export class ProductCardComponent {
@@ -267,10 +291,12 @@ export class ProductCardComponent {
   readonly product = input.required<Product>();
   readonly addAction = input<AddToCartAction>();
   readonly priority = input(false);
+  readonly density = input<'default' | 'compact'>('default');
   readonly sizes = input('(min-width: 1100px) 25vw, (min-width: 768px) 33vw, 50vw');
 
   readonly customizable = computed(() => isProductCustomizable(this.product()));
   readonly orderable = computed(() => isProductOrderable(this.product()));
+  readonly isCompact = computed(() => this.density() === 'compact');
   readonly favorite = computed(() => this.showFavoriteAction() && this.favorites.isFavorite(this.product().id));
   readonly showFavoriteAction = computed(() => !this.auth.isAdminAccount());
   readonly route = computed(() => getProductRoute(this.product()));
