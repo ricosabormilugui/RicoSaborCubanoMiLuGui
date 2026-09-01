@@ -133,16 +133,18 @@
     <section class="best-sellers" *ngIf="bestSellers().length">
       <div class="best-sellers-head">
         <div>
-          <span class="section-eyebrow">Los favoritos</span>
-          <h2 class="section-title">Más vendidos</h2>
+          <span class="section-eyebrow">{{ bestSellersEyebrow }}</span>
+          <h2 class="section-title">{{ bestSellersTitle }}</h2>
         </div>
         <span>Los productos que nuestros clientes vuelven a elegir.</span>
       </div>
-      <div class="grid">
+      <div class="product-collection">
         <app-product-card
           *ngFor="let product of bestSellers(); trackBy: trackProduct"
+          density="compact"
           [product]="product"
-          [addAction]="addAction(product)" />
+          [addAction]="addAction(product)"
+          [sizes]="compactProductSizes" />
       </div>
     </section>
   </ng-container>

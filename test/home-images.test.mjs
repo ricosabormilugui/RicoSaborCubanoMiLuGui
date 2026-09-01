@@ -46,20 +46,21 @@ test('A-F: hero y bricks editoriales comparten frame 16:10 y cover', async () =>
 });
 
 test('G-L: categorías 1:1, Más vendidos compacto, catálogo y admin intactos', async () => {
-  const [home, homeHtml, card, catalog, detail, global] = await Promise.all([
+  const [home, homeHtml, card, catalog, detail, global, collection] = await Promise.all([
     read('src/app/features/home/home-page.component.css'),
     read('src/app/features/home/home-page.component.html'),
     read('src/app/shared/ui/product-card.component.ts'),
     read('src/app/features/catalog/catalog-page.component.html'),
     read('src/app/features/catalog/product-detail-page.component.css'),
-    read('src/styles.scss')
+    read('src/styles.scss'),
+    read('src/app/shared/ui/product-collection.css')
   ]);
 
   assert.match(home, /\.collection-photo\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.match(home, /\.collection-card\s*\{[^}]*flex:\s*0 0 clamp\(168px, 18vw, 240px\)/s);
   assert.match(home, /\.collection-photo img\s*\{[^}]*object-fit:\s*contain/s);
-  assert.match(home, /\.product-grid\s*\{[^}]*repeat\(5,\s*minmax\(0,\s*220px\)\)/s);
-  assert.match(home, /flex:\s*0 0 172px/);
+  assert.match(collection, /\.product-collection\s*\{[^}]*repeat\(auto-fill,\s*160px\)/s);
+  assert.match(collection, /flex:\s*0 0 152px/);
   assert.match(homeHtml, /density="compact"/);
   assert.match(homeHtml, /class="collection-card"/);
 
@@ -70,8 +71,71 @@ test('G-L: categorías 1:1, Más vendidos compacto, catálogo y admin intactos',
   assert.doesNotMatch(card, /object-fit:\s*cover/);
   assert.match(card, /showFavoriteAction = computed\(\(\) => !this\.auth\.isAdminAccount\(\)\)/);
 
-  assert.doesNotMatch(catalog, /density="compact"/);
-  assert.doesNotMatch(catalog, /variant="compact"/);
+  const catalogMain = catalog.match(/filteredProducts\(\)[\s\S]*?<\/div>/);
+  assert.ok(catalogMain, 'falta el grid principal del catálogo');
+  assert.doesNotMatch(catalogMain[0], /density="compact"/);
+  assert.doesNotMatch(catalogMain[0], /variant="compact"/);
+  assert.match(catalog, /class="best-sellers"[\s\S]*density="compact"/);
   assert.match(detail, /object-fit: contain/);
   assert.doesNotMatch(global, /\.brick-media/);
+});
+
+test('A-M: Destacados compactos en Home, catálogo default y misma lógica de producto', async () => {
+  const [home, homeHtml, card, catalog, favorites, related, adminProducts, collection] = await Promise.all([
+    read('src/app/features/home/home-page.component.css'),
+    read('src/app/features/home/home-page.component.html'),
+    read('src/app/shared/ui/product-card.component.ts'),
+    read('src/app/features/catalog/catalog-page.component.html'),
+    read('src/app/features/account/favorites-page.component.html'),
+    read('src/app/features/catalog/product-detail-page.component.html'),
+    read('src/app/features/admin/admin-products-page.component.html'),
+    read('src/app/shared/ui/product-collection.css')
+  ]);
+
+  const bestSellers = homeHtml.match(/class="best-sellers"[\s\S]*?<\/section>/);
+  assert.ok(bestSellers, 'falta la sección Más vendidos');
+  assert.doesNotMatch(bestSellers[0], /Favoritos/i);
+  assert.match(bestSellers[0], /bestSellersEyebrow/);
+  assert.match(bestSellers[0], /bestSellersTitle/);
+  assert.match(bestSellers[0], /density="compact"/);
+  assert.match(bestSellers[0], /Ver todos los productos/);
+
+  const catalogMain = catalog.match(/filteredProducts\(\)[\s\S]*?<\/div>/);
+  assert.ok(catalogMain);
+  assert.doesNotMatch(catalogMain[0], /density="compact"/);
+  assert.doesNotMatch(favorites, /density="compact"/);
+  assert.match(related, /density="compact"/);
+
+  assert.match(card, /:host\.is-compact \{[^}]*max-width:\s*160px/s);
+  assert.match(card, /:host\.is-compact \{[^}]*height:\s*auto/s);
+  assert.match(card, /:host\.is-compact \.product-image \{\s*aspect-ratio: 1 \/ 1/);
+  assert.match(card, /\.product-image img\s*\{[^}]*object-fit:\s*contain/s);
+  assert.match(card, /\.product-image img\s*\{[^}]*object-position:\s*center/s);
+  assert.match(card, /:host\.is-compact \.body \{[^}]*padding:\s*\.28rem \.34rem \.3rem/s);
+  assert.match(card, /:host\.is-compact \.body \{[^}]*flex:\s*none/s);
+  assert.match(card, /:host\.is-compact \.product-name \{\s*min-height:\s*0/);
+  assert.match(card, /:host\.is-compact \.meta \{\s*min-height:\s*34px/);
+  assert.match(card, /:host\.is-compact \.meta \{\s*[^}]*margin-top:\s*0/s);
+  assert.match(card, /:host\.is-compact \.cta \{\s*width:\s*34px/);
+  assert.doesNotMatch(card, /:host\.is-compact \.body \{[^}]*flex:\s*1 1 auto/s);
+  assert.doesNotMatch(card, /:host\.is-compact \.meta \{\s*margin-top:\s*auto/);
+  assert.doesNotMatch(card, /:host\.is-compact \.product-name \{\s*min-height:\s*2\.46em/);
+  assert.match(card, /-webkit-line-clamp:\s*2/);
+  assert.match(card, /isProductCustomizable|customizable\(\)/);
+  assert.match(card, /lucideArrowRight/);
+  assert.match(card, /lucidePlus/);
+  assert.match(card, /showFavoriteAction = computed\(\(\) => !this\.auth\.isAdminAccount\(\)\)/);
+  assert.match(card, /isCompact\(\) \? \[160, 320, 400\]/);
+  assert.match(card, /imageWidth = computed\(\(\) => this\.isCompact\(\) \? 360 : 800\)/);
+  assert.match(card, /readonly product = input\.required<Product>\(\)/);
+  assert.match(card, /isProductOrderable/);
+  assert.match(card, /FavoritesService/);
+
+  assert.match(collection, /overflow-x:\s*auto/);
+  assert.match(collection, /scroll-snap-type:\s*x proximity/);
+  assert.match(collection, /flex:\s*0 0 152px/);
+  assert.match(collection, /justify-content:\s*start/);
+  assert.doesNotMatch(collection, /\.product-collection\s*\{[^}]*1fr/s);
+
+  assert.match(adminProducts, /1000×1000 px \(1:1\)/);
 });

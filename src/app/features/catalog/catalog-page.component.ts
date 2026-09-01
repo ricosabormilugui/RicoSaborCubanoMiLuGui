@@ -14,6 +14,7 @@ import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { IconComponent } from '../../shared/ui/icon.component';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
+import { BEST_SELLERS_EYEBROW, BEST_SELLERS_TITLE, COMPACT_PRODUCT_SIZES } from '../../core/config/best-sellers.config';
 import { addSimpleProductWithFreshStock } from '../../core/utils/live-add-to-cart';
 
 type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
@@ -22,7 +23,7 @@ type CatalogSort = 'featured' | 'price-asc' | 'price-desc' | 'name-asc';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, ProductCardComponent, IconComponent],
   templateUrl: './catalog-page.component.html',
-  styleUrls: ['./catalog-page.component.css']
+  styleUrls: ['./catalog-page.component.css', '../../shared/ui/product-collection.css']
 })
 export class CatalogPageComponent implements OnDestroy {
   private readonly document = inject(DOCUMENT);
@@ -36,6 +37,9 @@ export class CatalogPageComponent implements OnDestroy {
   readonly routeCategory = signal('');
   readonly filtersOpen = signal(false);
   readonly skeletonCards = Array.from({ length: 6 });
+  readonly bestSellersEyebrow = BEST_SELLERS_EYEBROW;
+  readonly bestSellersTitle = BEST_SELLERS_TITLE;
+  readonly compactProductSizes = COMPACT_PRODUCT_SIZES;
 
   readonly selectedCategoryRecord = computed(() => this.productCategories.categories().find((item) => item.slug === this.routeCategory()));
   readonly invalidCategory = computed(() => Boolean(

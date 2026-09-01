@@ -17,12 +17,13 @@ import { ProductCategoryService } from '../../core/services/product-category.ser
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 import { addSimpleProductWithFreshStock } from '../../core/utils/live-add-to-cart';
+import { BEST_SELLERS_EYEBROW, BEST_SELLERS_TITLE, COMPACT_PRODUCT_SIZES } from '../../core/config/best-sellers.config';
 
 @Component({
   standalone: true,
   imports: [CommonModule, RouterLink, ProductCardComponent, IconComponent],
   templateUrl: './home-page.component.html',
-  styleUrls: ['./home-page.component.css']
+  styleUrls: ['./home-page.component.css', '../../shared/ui/product-collection.css']
 })
 export class HomePageComponent {
   private readonly catalog = inject(CatalogService);
@@ -40,6 +41,9 @@ export class HomePageComponent {
   readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
   readonly marqueeItems = ['Casero', 'Sabor cubano', 'Por encargo', 'Hecho con cariño'];
   readonly marqueeLoop = Array.from({ length: 4 }, () => this.marqueeItems).flat();
+  readonly bestSellersEyebrow = BEST_SELLERS_EYEBROW;
+  readonly bestSellersTitle = BEST_SELLERS_TITLE;
+  readonly compactProductSizes = COMPACT_PRODUCT_SIZES;
 
   readonly bestSellers = computed(() => selectBestSellers(this.catalog.products(), 5));
   readonly heroImage = computed(() => this.homeContent.content().heroImageUrl);

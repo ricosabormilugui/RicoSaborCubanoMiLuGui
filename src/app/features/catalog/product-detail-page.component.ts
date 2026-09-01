@@ -16,6 +16,7 @@ import { ApiRequestError } from '../../core/utils/api-client';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
+import { BEST_SELLERS_EYEBROW, BEST_SELLERS_TITLE, COMPACT_PRODUCT_SIZES } from '../../core/config/best-sellers.config';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
 import { evaluateLiveAddToCart, maxAddableQuantity, stockHintForProduct, tracksInventory, UNLIMITED_CART_QUANTITY } from '../../core/utils/cart-stock';
 import {
@@ -34,12 +35,15 @@ import {
   standalone: true,
   imports: [CommonModule, RouterLink, AddToCartButtonComponent, ProductCardComponent],
   templateUrl: './product-detail-page.component.html',
-  styleUrls: ['./product-detail-page.component.css']
+  styleUrls: ['./product-detail-page.component.css', '../../shared/ui/product-collection.css']
 })
 export class ProductDetailPageComponent {
   private readonly productCategories = inject(ProductCategoryService);
   private readonly injector = inject(Injector);
   readonly brand = BRAND_CONFIG;
+  readonly bestSellersEyebrow = BEST_SELLERS_EYEBROW;
+  readonly bestSellersTitle = BEST_SELLERS_TITLE;
+  readonly compactProductSizes = COMPACT_PRODUCT_SIZES;
   readonly fallbackImage = 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=900';
   readonly optionPreviewLimit = 8;
   readonly productParam = signal('');

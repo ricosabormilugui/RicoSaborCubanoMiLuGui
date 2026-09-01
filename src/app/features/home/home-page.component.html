@@ -146,18 +146,18 @@
   <section class="best-sellers" *ngIf="bestSellers().length" aria-labelledby="best-sellers-title">
     <div class="section-bar">
       <div>
-        <span class="eyebrow">Favoritos</span>
-        <h2 id="best-sellers-title">Más vendidos</h2>
+        <span class="eyebrow">{{ bestSellersEyebrow }}</span>
+        <h2 id="best-sellers-title">{{ bestSellersTitle }}</h2>
       </div>
       <a class="section-link" routerLink="/productos">Ver todos los productos</a>
     </div>
-    <div class="product-grid">
+    <div class="product-collection">
       <app-product-card
         *ngFor="let product of bestSellers(); trackBy: trackProduct"
         density="compact"
         [product]="product"
         [addAction]="addAction(product)"
-        [sizes]="'(min-width: 900px) 220px, 172px'" />
+        [sizes]="compactProductSizes" />
     </div>
   </section>
 

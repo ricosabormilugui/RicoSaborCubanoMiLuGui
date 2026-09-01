@@ -186,15 +186,17 @@
 
       <section class="related" *ngIf="relatedProducts().length">
         <div class="related-head">
-          <h2>Más vendidos</h2>
+          <span class="related-eyebrow">{{ bestSellersEyebrow }}</span>
+          <h2>{{ bestSellersTitle }}</h2>
           <p>También te puede gustar</p>
         </div>
-        <div class="related-grid">
+        <div class="product-collection">
           <app-product-card
             *ngFor="let item of relatedProducts(); trackBy: trackProduct"
+            density="compact"
             [product]="item"
             [addAction]="relatedAddAction(item)"
-            [sizes]="'(min-width: 768px) 22vw, 46vw'" />
+            [sizes]="compactProductSizes" />
         </div>
       </section>
 

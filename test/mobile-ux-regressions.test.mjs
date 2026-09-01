@@ -29,11 +29,12 @@ test('navbar actions share a frameless icon target and keep a 44px mobile hit ar
 });
 
 test('home renders the public admin categories at a bounded size and two product cards per row on mobile', async () => {
-  const [component, template, styles, card] = await Promise.all([
+  const [component, template, styles, card, collection] = await Promise.all([
     read('src/app/features/home/home-page.component.ts'),
     read('src/app/features/home/home-page.component.html'),
     read('src/app/features/home/home-page.component.css'),
-    read('src/app/shared/ui/product-card.component.ts')
+    read('src/app/shared/ui/product-card.component.ts'),
+    read('src/app/shared/ui/product-collection.css')
   ]);
 
   assert.doesNotMatch(component, /filter\(\(category\) => Boolean\(category\.imageUrl\)\)/);
@@ -47,7 +48,7 @@ test('home renders the public admin categories at a bounded size and two product
   assert.match(template, /app-product-card/);
   assert.match(styles, /flex:\s*0 0 clamp\(168px, 18vw, 240px\)/);
   assert.match(styles, /max-width:\s*240px/);
-  assert.match(styles, /\.product-grid\s*\{[^}]*repeat\(5,\s*minmax\(0,\s*220px\)\)/s);
+  assert.match(collection, /\.product-collection\s*\{[^}]*repeat\(auto-fill,\s*160px\)/s);
   assert.match(styles, /\.brick-media\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*10/s);
   assert.match(styles, /\.collection-photo\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s);
   assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*9/);
@@ -70,8 +71,11 @@ test('catalog product cards stay compact and two-up from the mobile base', async
   assert.doesNotMatch(template, /product-description/);
   assert.doesNotMatch(template, /Ver detalles/);
   assert.match(template, /app-product-card/);
-  assert.doesNotMatch(template, /density="compact"/);
-  assert.doesNotMatch(template, /variant="compact"/);
+  const catalogMain = template.match(/filteredProducts\(\)[\s\S]*?<\/div>/);
+  assert.ok(catalogMain);
+  assert.doesNotMatch(catalogMain[0], /density="compact"/);
+  assert.doesNotMatch(catalogMain[0], /variant="compact"/);
+  assert.match(template, /class="best-sellers"[\s\S]*density="compact"/);
 });
 
 test('the mobile footer centers the real brand logo', async () => {

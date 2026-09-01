@@ -27,8 +27,8 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
           [attr.srcset]="srcset()"
           [attr.sizes]="sizes()"
           [alt]="imageAlt()"
-          width="800"
-          height="600"
+          [attr.width]="imageWidth()"
+          [attr.height]="imageHeight()"
           [attr.loading]="priority() ? 'eager' : 'lazy'"
           [attr.fetchpriority]="priority() ? 'high' : null"
           decoding="async" />
@@ -44,7 +44,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
           [attr.aria-pressed]="favorite()"
           [attr.aria-label]="favorite() ? 'Quitar ' + product().name + ' de favoritos' : 'Guardar ' + product().name + ' en favoritos'"
           (click)="toggleFavorite($event)">
-          <svg lucideHeart [size]="18" [strokeWidth]="1.6" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
+          <svg lucideHeart [size]="favoriteIconSize()" [strokeWidth]="1.6" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
         </button>
       }
     </div>
@@ -61,15 +61,15 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
         }
         @if (!orderable()) {
           <button class="cta" type="button" disabled aria-label="Producto agotado">
-            <svg lucidePlus [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
+            <svg lucidePlus [size]="actionIconSize()" [strokeWidth]="1.6" aria-hidden="true" />
           </button>
         } @else if (customizable()) {
           <a class="cta" [routerLink]="route()" [attr.aria-label]="'Personalizar ' + product().name">
-            <svg lucideArrowRight [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
+            <svg lucideArrowRight [size]="actionIconSize()" [strokeWidth]="1.6" aria-hidden="true" />
           </a>
         } @else {
           <button class="cta" type="button" [attr.aria-label]="'Añadir ' + product().name + ' al carrito'" (click)="add()">
-            <svg lucidePlus [size]="18" [strokeWidth]="1.6" aria-hidden="true" />
+            <svg lucidePlus [size]="actionIconSize()" [strokeWidth]="1.6" aria-hidden="true" />
           </button>
         }
       </div>
@@ -105,29 +105,6 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       height: 100%;
       object-fit: contain;
       object-position: center;
-    }
-    :host.is-compact {
-      max-width: 240px;
-    }
-    :host.is-compact .product-image {
-      aspect-ratio: 1 / 1;
-    }
-    :host.is-compact .body {
-      padding: .42rem .48rem .48rem;
-      gap: .22rem;
-    }
-    :host.is-compact .product-name {
-      min-height: 2.4em;
-      font-size: .78rem;
-    }
-    :host.is-compact .price strong { font-size: .88rem; }
-    :host.is-compact .favorite,
-    :host.is-compact .cta {
-      width: 44px;
-      height: 44px;
-    }
-    :host.is-compact .cta {
-      flex: 0 0 44px;
     }
     :host(.is-sold-out) .product-image img { opacity: .72; filter: grayscale(.18); }
     .badge {
@@ -242,6 +219,65 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       opacity: .55;
       cursor: not-allowed;
     }
+    :host.is-compact {
+      width: 100%;
+      max-width: 160px;
+      height: auto;
+      border-radius: 10px;
+    }
+    :host.is-compact .media {
+      flex: none;
+    }
+    :host.is-compact .product-image {
+      aspect-ratio: 1 / 1;
+      border-radius: 9px 9px 0 0;
+    }
+    :host.is-compact .body {
+      display: flex;
+      flex: none;
+      flex-direction: column;
+      gap: .1rem;
+      padding: .28rem .34rem .3rem;
+    }
+    :host.is-compact .product-name {
+      min-height: 0;
+      font-size: .72rem;
+      line-height: 1.2;
+    }
+    :host.is-compact .meta {
+      min-height: 34px;
+      margin-top: 0;
+      gap: .2rem;
+    }
+    :host.is-compact .price {
+      flex-wrap: nowrap;
+      gap: .1rem .16rem;
+    }
+    :host.is-compact .price span { font-size: .52rem; }
+    :host.is-compact .price strong { font-size: .78rem; }
+    :host.is-compact .price.is-sold strong { font-size: .62rem; }
+    :host.is-compact .badge {
+      top: .28rem;
+      left: .28rem;
+      max-width: calc(100% - 2.4rem);
+      padding: .08rem .28rem;
+      font-size: .48rem;
+    }
+    :host.is-compact .favorite {
+      top: .2rem;
+      right: .2rem;
+      width: 28px;
+      height: 28px;
+    }
+    :host.is-compact .cta {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+    }
+    :host.is-compact .favorite::after,
+    :host.is-compact .cta::after {
+      inset: -8px;
+    }
     .product-image:focus-visible {
       outline: 3px solid color-mix(in srgb, var(--accent-green) 65%, transparent);
       outline-offset: -3px;
@@ -300,8 +336,12 @@ export class ProductCardComponent {
   readonly favorite = computed(() => this.showFavoriteAction() && this.favorites.isFavorite(this.product().id));
   readonly showFavoriteAction = computed(() => !this.auth.isAdminAccount());
   readonly route = computed(() => getProductRoute(this.product()));
-  readonly imageUrl = computed(() => optimizedImageUrl(this.product().imageUrl || FALLBACK_IMAGE, 800));
-  readonly srcset = computed(() => responsiveImageSrcset(this.product().imageUrl, [360, 540, 720, 900]));
+  readonly imageWidth = computed(() => this.isCompact() ? 360 : 800);
+  readonly imageHeight = computed(() => this.isCompact() ? 360 : 600);
+  readonly favoriteIconSize = computed(() => this.isCompact() ? 13 : 18);
+  readonly actionIconSize = computed(() => this.isCompact() ? 14 : 18);
+  readonly imageUrl = computed(() => optimizedImageUrl(this.product().imageUrl || FALLBACK_IMAGE, this.imageWidth()));
+  readonly srcset = computed(() => responsiveImageSrcset(this.product().imageUrl, this.isCompact() ? [160, 320, 400] : [360, 540, 720, 900]));
   readonly badge = computed(() => !this.orderable() ? 'Agotado' : this.customizable() ? 'Personalizable' : '');
   readonly imageAlt = computed(() => {
     const product = this.product();

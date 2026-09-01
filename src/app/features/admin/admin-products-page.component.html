@@ -182,7 +182,7 @@
           <div class="subsection-heading"><div><h4>Imágenes del producto</h4><p>Actualmente las imágenes se añaden mediante URL.</p></div></div>
           <div class="image-url-card">
             <div class="image-placeholder" aria-hidden="true">＋</div>
-            <label class="field"><span>URL de imagen principal</span><input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://ejemplo.com/producto.webp" /><small>Formatos recomendados: PNG, JPG o WebP.</small></label>
+            <label class="field"><span>URL de imagen principal</span><input [(ngModel)]="form.imageUrl" name="imageUrl" placeholder="https://ejemplo.com/producto.webp" /><small>Recomendado: 1000×1000 px (1:1), WebP. El mismo archivo sirve para catálogo, destacados, relacionados y favoritos.</small></label>
           </div>
           <label class="field gallery-field"><span>Galería de imágenes</span><textarea [(ngModel)]="imagesText" name="imagesText" placeholder="Una URL por línea"></textarea><small>La primera imagen seguirá siendo la principal.</small></label>
           <div class="image-previews" *ngIf="imagePreviewUrls().length" aria-label="Vista previa de imágenes">
