@@ -129,7 +129,7 @@ export class CheckoutPageComponent {
       // CatalogService already stores a user-facing error; cart keeps the last known snapshot.
     }
     const products = this.catalog.products();
-    if (products.length) this.cart.syncInventory(products);
+    this.cart.syncInventory(products, { pruneMissing: this.catalog.hasLiveCatalog() });
   }
 
   hasBlockingStock(): boolean {

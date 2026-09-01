@@ -71,7 +71,8 @@
             </div>
             <p class="lede">{{ introText(product()!) }}</p>
             <p class="note" *ngIf="minimumQuantity(product()!) > 1">Pedido mínimo: {{ minimumQuantity(product()!) }} unidades.</p>
-            <p class="note is-alert" *ngIf="!isOrderable(product()!)">Producto agotado temporalmente. Puedes consultar sus detalles y volver más adelante.</p>
+            <p class="note is-alert" *ngIf="!isOrderable(product()!)">Producto agotado</p>
+            <p class="note" [class.is-alert]="stockHint(product()!).kind === 'max' || stockHint(product()!).kind === 'out'" *ngIf="isOrderable(product()!) && stockHint(product()!).message">{{ stockHint(product()!).message }}</p>
           </header>
 
           <section
@@ -135,18 +136,19 @@
             <p>{{ configurationSummary(product()!).join(' · ') }}</p>
           </div>
 
-          <div class="buy-row" #purchaseAnchor *ngIf="isOrderable(product()!)">
+          <div class="buy-row" #purchaseAnchor>
             <div class="qty" role="group" [attr.aria-label]="'Cantidad, mínimo ' + minimumQuantity(product()!)">
-              <button type="button" (click)="adjustQuantity(-1)" [disabled]="quantity() <= minimumQuantity(product()!)" aria-label="Reducir cantidad">−</button>
+              <button type="button" (click)="adjustQuantity(-1)" [disabled]="!canDecrease(product()!)" aria-label="Reducir cantidad">−</button>
               <span aria-live="polite">{{ quantity() }}</span>
-              <button type="button" (click)="adjustQuantity(1)" [disabled]="quantity() >= 99" aria-label="Aumentar cantidad">+</button>
+              <button type="button" (click)="adjustQuantity(1)" [disabled]="!canIncrease(product()!)" aria-label="Aumentar cantidad">+</button>
             </div>
             <app-add-to-cart-button
               class="buy-cta"
               variant="large"
+              [disabled]="!canAdd(product()!)"
               [action]="detailAddAction(product()!)"
               label="Añadir al carrito"
-              [ariaLabel]="'Añadir ' + product()!.name + ' al carrito'" />
+              [ariaLabel]="canAdd(product()!) ? 'Añadir ' + product()!.name + ' al carrito' : 'Producto agotado'" />
           </div>
           <p class="field-error" *ngIf="customizationError()" role="alert">{{ customizationError() }}</p>
         </div>
@@ -198,7 +200,7 @@
 
       <div class="sticky-buy" *ngIf="showStickyPurchase()" role="region" aria-label="Comprar producto">
         <strong>{{ customizedTotal(product()!) | currency:'EUR' }}</strong>
-        <button class="btn btn-primary" type="button" (click)="addToCartWithFreshStock(product()!)">Añadir al carrito</button>
+        <button class="btn btn-primary" type="button" [disabled]="!canAdd(product()!)" (click)="addToCartWithFreshStock(product()!)">Añadir al carrito</button>
       </div>
     </ng-container>
   </ng-template>

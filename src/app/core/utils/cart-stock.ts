@@ -11,6 +11,29 @@ export function tracksInventory(item: Pick<CartItem, 'trackStock'> | Pick<Produc
   return item?.trackStock === true;
 }
 
+export function occupiedQuantityForProduct(productId: string, lines: readonly CartItem[]): number {
+  const baseId = String(productId ?? '').trim();
+  if (!baseId) return 0;
+  return lines
+    .filter((line) => cartBaseProductId(line) === baseId)
+    .reduce((sum, line) => sum + Math.max(0, Math.floor(Number(line.quantity) || 0)), 0);
+}
+
+export function remainingStockForProduct(
+  product: Pick<Product, 'id' | 'trackStock' | 'stock'>,
+  lines: readonly CartItem[]
+): number | null {
+  if (!tracksInventory(product)) return null;
+  const stock = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+  return Math.max(0, stock - occupiedQuantityForProduct(product.id, lines));
+}
+
+export function maxAddableQuantity(product: Product, lines: readonly CartItem[]): number {
+  const remaining = remainingStockForProduct(product, lines);
+  if (remaining === null) return UNLIMITED_CART_QUANTITY;
+  return remaining;
+}
+
 export function availableStockForLine(item: CartItem, lines: readonly CartItem[]): number | null {
   if (!tracksInventory(item)) return null;
   const stock = Math.max(0, Math.floor(Number(item.stock ?? 0)));
@@ -21,6 +44,10 @@ export function availableStockForLine(item: CartItem, lines: readonly CartItem[]
   return Math.max(0, stock - reservedByOthers);
 }
 
+export function isLineUnavailable(item: Pick<CartItem, 'unavailable'> | null | undefined): boolean {
+  return item?.unavailable === true;
+}
+
 export function maxQuantityForLine(item: CartItem, lines: readonly CartItem[]): number {
   const minimum = Math.max(1, Math.floor(Number(item.minimumQuantity ?? 1)) || 1);
   const available = availableStockForLine(item, lines);
@@ -29,6 +56,7 @@ export function maxQuantityForLine(item: CartItem, lines: readonly CartItem[]): 
 }
 
 export function isLineOutOfStock(item: CartItem, lines: readonly CartItem[]): boolean {
+  if (isLineUnavailable(item)) return true;
   const available = availableStockForLine(item, lines);
   return available !== null && available <= 0;
 }
@@ -39,6 +67,7 @@ export function isLineOverStock(item: CartItem, lines: readonly CartItem[]): boo
 }
 
 export function isLineBlockingCheckout(item: CartItem, lines: readonly CartItem[]): boolean {
+  if (isLineUnavailable(item)) return true;
   if (!tracksInventory(item)) return false;
   const available = availableStockForLine(item, lines);
   if (available === null) return false;
@@ -61,7 +90,39 @@ export interface StockHint {
   message: string;
 }
 
+export function stockHintForProduct(product: Product, lines: readonly CartItem[] = []): StockHint {
+  if (!tracksInventory(product)) return { kind: 'none', message: '' };
+  const stock = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+  if (!isProductOrderable(product) || stock <= 0) {
+    return { kind: 'out', message: 'Producto agotado' };
+  }
+
+  const remaining = remainingStockForProduct(product, lines) ?? 0;
+  if (remaining <= 0) {
+    return {
+      kind: 'max',
+      message: `Solo quedan ${stock} ${unitsLabel(stock)} disponibles.`
+    };
+  }
+
+  if (remaining <= 2) {
+    return {
+      kind: 'low',
+      message: remaining === 1 ? 'Última unidad' : `Últimas ${remaining} unidades`
+    };
+  }
+
+  if (remaining <= lowStockThreshold(product)) {
+    return { kind: 'low', message: `Quedan ${remaining} unidades` };
+  }
+
+  return { kind: 'none', message: '' };
+}
+
 export function stockHintForLine(item: CartItem, lines: readonly CartItem[], attemptedOverMax = false): StockHint {
+  if (isLineUnavailable(item)) {
+    return { kind: 'out', message: 'Este producto ya no está disponible.' };
+  }
   if (!tracksInventory(item)) return { kind: 'none', message: '' };
 
   const available = availableStockForLine(item, lines);
@@ -125,7 +186,7 @@ export function formatStockConflictMessage(input: {
 
 export type LiveAddToCartKind = 'ok' | 'sold_out' | 'limited';
 
-export function evaluateLiveAddToCart(product: Product, requested = 1): {
+export function evaluateLiveAddToCart(product: Product, requested = 1, cartLines: readonly CartItem[] = []): {
   allowed: boolean;
   quantity: number;
   product: Product;
@@ -150,8 +211,19 @@ export function evaluateLiveAddToCart(product: Product, requested = 1): {
     };
   }
 
-  if (quantity > stock) {
-    if (stock < minimum) {
+  const remaining = remainingStockForProduct(product, cartLines) ?? 0;
+  if (remaining <= 0) {
+    return {
+      allowed: false,
+      quantity: 0,
+      product,
+      kind: 'limited',
+      message: `Solo quedan ${stock} unidades disponibles.`
+    };
+  }
+
+  if (quantity > remaining) {
+    if (remaining < minimum) {
       return {
         allowed: false,
         quantity: 0,
@@ -162,7 +234,7 @@ export function evaluateLiveAddToCart(product: Product, requested = 1): {
     }
     return {
       allowed: true,
-      quantity: stock,
+      quantity: remaining,
       product,
       kind: 'limited',
       message: `Solo quedan ${stock} unidades disponibles.`

@@ -59,7 +59,7 @@ test('catalog product cards stay compact and two-up from the mobile base', async
 
   assert.match(styles, /\.grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(card, /\.product-image\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/s);
-  assert.match(card, /object-fit:\s*cover/);
+  assert.match(card, /object-fit:\s*contain/);
   assert.match(card, /-webkit-line-clamp:\s*2/);
   assert.match(card, /@media \(hover: hover\) and \(pointer: fine\)/);
   assert.doesNotMatch(styles, /aspect-ratio:\s*16\s*\/\s*10/);

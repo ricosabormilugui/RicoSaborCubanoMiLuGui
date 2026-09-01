@@ -340,8 +340,13 @@ export class AppComponent {
         if (routeMeta) this.seo.setPageMeta(routeMeta);
       }
     });
-    void this.customerAuth.restoreSession();
+    void this.customerAuth.restoreSession().finally(() => { void this.reconcileCartInventory(); });
     void this.productCategories.loadPublicCategories().catch(() => undefined);
+  }
+
+  private async reconcileCartInventory(): Promise<void> {
+    await this.catalog.refreshAvailability();
+    this.cart.syncInventory(this.catalog.products(), { pruneMissing: this.catalog.hasLiveCatalog() });
   }
 
   async submitNewsletter(event?: Event): Promise<void> {

@@ -26,7 +26,7 @@ export async function addSimpleProductWithFreshStock(
   }
 
   const live = await deps.catalog.refreshTrackedProduct(product);
-  const evaluation = evaluateLiveAddToCart(live, minimumQuantity(live));
+  const evaluation = evaluateLiveAddToCart(live, minimumQuantity(live), deps.cart.items());
   if (!evaluation.allowed) {
     deps.notifications.warning('Producto no disponible', evaluation.message, {
       key: 'cart-add-blocked:' + product.id

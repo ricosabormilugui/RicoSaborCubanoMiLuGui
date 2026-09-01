@@ -102,6 +102,7 @@ export class CartService implements OnDestroy {
     const items = this.state();
     const item = items.find((entry) => itemMatches(entry, productId));
     if (!item) return { applied: false, available: null };
+    if (item.unavailable) return { applied: false, available: 0 };
     if (isLineBlockingCheckout(item, items) && (availableStockForLine(item, items) ?? 0) <= 0) {
       return { applied: false, available: 0 };
     }
@@ -132,20 +133,25 @@ export class CartService implements OnDestroy {
     return true;
   }
 
-  syncInventory(products: readonly Product[]): void {
-    if (!products.length) return;
+  syncInventory(products: readonly Product[], options?: { pruneMissing?: boolean }): void {
+    const pruneMissing = options?.pruneMissing === true;
+    if (!products.length && !pruneMissing) return;
     const byId = new Map(products.map((product) => [product.id, product]));
     this.setItems(this.state().map((item) => {
       const product = byId.get(cartBaseId(item));
-      if (!product) return item;
+      if (!product) {
+        return pruneMissing ? { ...item, unavailable: true } : item;
+      }
       const snapshot = inventorySnapshotFromProduct(product);
+      const unavailable = product.available === false || product.published === false;
       return {
         ...item,
         imageUrl: snapshot.imageUrl || item.imageUrl,
         trackStock: snapshot.trackStock,
         stock: snapshot.trackStock ? snapshot.stock : undefined,
         lowStockAlert: snapshot.lowStockAlert,
-        name: String(product.name ?? item.name)
+        name: String(product.name ?? item.name),
+        unavailable
       };
     }));
   }
@@ -166,6 +172,7 @@ export class CartService implements OnDestroy {
   }
 
   canIncrement(item: CartItem): boolean {
+    if (item.unavailable) return false;
     const available = availableStockForLine(item, this.items());
     if (available === null) return item.quantity < UNLIMITED_CART_QUANTITY;
     return available > 0 && item.quantity < available;
@@ -285,7 +292,8 @@ export class CartService implements OnDestroy {
       if (existing) {
         byProductId.set(normalized.productId, {
           ...existing,
-          quantity: Math.min(MAX_RESTORED_QUANTITY, existing.quantity + normalized.quantity)
+          quantity: Math.min(MAX_RESTORED_QUANTITY, existing.quantity + normalized.quantity),
+          unavailable: existing.unavailable === true || normalized.unavailable === true
         });
         continue;
       }
@@ -332,7 +340,8 @@ export class CartService implements OnDestroy {
       customization,
       trackStock: raw.trackStock === true,
       stock: raw.trackStock === true ? Math.max(0, Math.floor(Number(raw.stock ?? 0))) : undefined,
-      lowStockAlert: Number.isFinite(Number(raw.lowStockAlert)) ? Math.max(0, Math.floor(Number(raw.lowStockAlert))) : undefined
+      lowStockAlert: Number.isFinite(Number(raw.lowStockAlert)) ? Math.max(0, Math.floor(Number(raw.lowStockAlert))) : undefined,
+      unavailable: raw.unavailable === true
     };
   }
 

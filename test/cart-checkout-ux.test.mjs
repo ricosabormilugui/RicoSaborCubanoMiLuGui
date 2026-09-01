@@ -279,7 +279,7 @@ test('G-I: stock normal no genera ruido; conflicto bloquea y permite ajustar', (
   assert.match(line, /if \(this\.isSummary\(\)\)/);
   assert.match(line, /kind === 'out'/);
   assert.match(line, /kind === 'conflict'/);
-  assert.match(line, /Solo quedan \$\{available\}/);
+  assert.match(line, /this\.cart\.stockHint\(item\)\.message/);
   assert.match(line, /canAdjust\(\)/);
   assert.match(line, /adjustToAvailable/);
   assert.match(checkout, /submitDisabled\(\)/);

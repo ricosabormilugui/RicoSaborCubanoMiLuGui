@@ -30,6 +30,8 @@ export interface CartItem {
   /** Unidades disponibles del producto base cuando trackStock es true. */
   stock?: number;
   lowStockAlert?: number;
+  /** Producto ausente, despublicado o no disponible en el catálogo vivo. */
+  unavailable?: boolean;
 }
 
 export type DeliveryType = 'delivery' | 'pickup';

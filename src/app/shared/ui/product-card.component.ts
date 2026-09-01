@@ -94,13 +94,13 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       aspect-ratio: 4 / 3;
       overflow: hidden;
       border-radius: 11px 11px 0 0;
-      background: var(--surface-2);
+      background: color-mix(in srgb, var(--brand-cream) 38%, var(--surface-0));
     }
     .product-image img {
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       object-position: center;
     }
     :host(.is-sold-out) .product-image img { opacity: .72; filter: grayscale(.18); }
@@ -236,7 +236,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
         border-color: color-mix(in srgb, var(--accent-green) 32%, var(--border-soft));
         box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-soft) 42%, transparent);
       }
-      :host:hover .product-image img { transform: scale(1.03); }
+      :host:hover .product-image img { transform: none; }
       .product-name:hover { color: var(--accent-green); }
       .cta:hover:not(:disabled) {
         border-color: color-mix(in srgb, var(--accent-red) 55%, var(--border-soft));

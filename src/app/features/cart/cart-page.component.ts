@@ -30,7 +30,7 @@ export class CartPageComponent {
 
   private syncFromCatalog(): void {
     const products = this.catalog.products();
-    if (products.length) this.cart.syncInventory(products);
+    this.cart.syncInventory(products, { pruneMissing: this.catalog.hasLiveCatalog() });
   }
 
   private async refreshInventory(): Promise<void> {

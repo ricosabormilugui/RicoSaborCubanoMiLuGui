@@ -17,7 +17,7 @@ import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
-import { evaluateLiveAddToCart } from '../../core/utils/cart-stock';
+import { evaluateLiveAddToCart, maxAddableQuantity, stockHintForProduct, tracksInventory, UNLIMITED_CART_QUANTITY } from '../../core/utils/cart-stock';
 import {
   buildCartCustomizationSelections,
   calculateCustomizationExtra,
@@ -54,6 +54,7 @@ export class ProductDetailPageComponent {
   readonly detailLoading = signal(true);
   readonly detailError = signal('');
   readonly purchaseAnchor = viewChild<ElementRef<HTMLElement>>('purchaseAnchor');
+  private lastConfiguredProductId = '';
 
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
   readonly isLoadingDetail = computed(() => this.detailLoading());
@@ -73,14 +74,25 @@ export class ProductDetailPageComponent {
     effect(() => this.updateSeo());
     effect(() => {
       const product = this.product();
-      if (!product) return;
-      this.quantity.set(this.minimumQuantity(product));
-      const defaults = Object.fromEntries(
-        this.customizationGroups(product)
-          .filter((group) => group.required && group.options.length === 1)
-          .map((group) => [group.key, [group.options[0]]])
-      );
-      this.selectedCustomization.set(defaults);
+      if (!product) {
+        this.lastConfiguredProductId = '';
+        return;
+      }
+      const switched = product.id !== this.lastConfiguredProductId;
+      this.lastConfiguredProductId = product.id;
+      if (switched) {
+        this.quantity.set(this.minimumQuantity(product));
+        const defaults = Object.fromEntries(
+          this.customizationGroups(product)
+            .filter((group) => group.required && group.options.length === 1)
+            .map((group) => [group.key, [group.options[0]]])
+        );
+        this.selectedCustomization.set(defaults);
+        return;
+      }
+      const current = this.quantity();
+      const minimum = this.minimumQuantity(product);
+      if (current < minimum) this.quantity.set(minimum);
     });
     effect((onCleanup) => {
       const anchor = this.purchaseAnchor()?.nativeElement;
@@ -98,7 +110,42 @@ export class ProductDetailPageComponent {
 
   selectImage(image: string): void { this.selectedImage.set(image); }
   minimumQuantity(product: Product): number { const value = Math.floor(Number(product.minimumQuantity ?? 1)); return Number.isFinite(value) && value > 0 ? value : 1; }
-  setQuantity(value: number | string): void { const parsed = Number(value); const minimum = this.product() ? this.minimumQuantity(this.product()!) : 1; this.quantity.set(Number.isFinite(parsed) && parsed > 0 ? Math.max(minimum, Math.min(99, Math.floor(parsed))) : minimum); }
+  tracksStock(product: Product): boolean { return tracksInventory(product); }
+  maxQuantity(product: Product): number {
+    if (!this.tracksStock(product)) return UNLIMITED_CART_QUANTITY;
+    return maxAddableQuantity(product, this.cart.items());
+  }
+  canDecrease(product: Product): boolean {
+    return this.quantity() > this.minimumQuantity(product);
+  }
+  canIncrease(product: Product): boolean {
+    const max = this.maxQuantity(product);
+    return max > 0 && this.quantity() < max;
+  }
+  canAdd(product: Product): boolean {
+    if (!this.isOrderable(product)) return false;
+    if (!this.tracksStock(product)) return true;
+    return this.maxQuantity(product) > 0;
+  }
+  stockHint(product: Product) {
+    return stockHintForProduct(product, this.cart.items());
+  }
+  setQuantity(value: number | string): void {
+    const parsed = Number(value);
+    const product = this.product();
+    const minimum = product ? this.minimumQuantity(product) : 1;
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      this.quantity.set(minimum);
+      return;
+    }
+    const next = Math.floor(parsed);
+    const max = product ? this.maxQuantity(product) : UNLIMITED_CART_QUANTITY;
+    if (max <= 0) {
+      this.quantity.set(Math.max(minimum, next));
+      return;
+    }
+    this.quantity.set(Math.max(minimum, Math.min(max, next)));
+  }
   adjustQuantity(delta: number): void { this.setQuantity(this.quantity() + delta); }
   productRoute(product: Product): string[] { return getProductRoute(product); }
   categoryLabel(value: string): string { return this.productCategories.labelFor(value) || getProductCategoryLabel(value); }
@@ -197,7 +244,7 @@ export class ProductDetailPageComponent {
 
   showStickyPurchase(): boolean {
     const product = this.product();
-    return Boolean(product && this.isOrderable(product) && !this.purchaseInView());
+    return Boolean(product && this.canAdd(product) && !this.purchaseInView());
   }
 
   addToCart(product: Product, amount = this.quantity()): boolean {
@@ -211,7 +258,7 @@ export class ProductDetailPageComponent {
       return false;
     }
     const quantity = Math.max(this.minimumQuantity(product), Math.floor(amount));
-    const evaluation = evaluateLiveAddToCart(product, quantity);
+    const evaluation = evaluateLiveAddToCart(product, quantity, this.cart.items());
     if (!evaluation.allowed) {
       this.notifications.warning('Producto no disponible', evaluation.message, { key: 'cart-add-blocked:' + product.id });
       return false;

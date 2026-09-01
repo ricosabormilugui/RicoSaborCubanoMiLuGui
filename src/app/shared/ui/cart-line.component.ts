@@ -110,8 +110,9 @@ export type CartLineMode = 'cart' | 'summary';
       width: 62px;
       height: 62px;
       border-radius: 8px;
-      object-fit: cover;
-      background: color-mix(in srgb, var(--surface-1) 55%, transparent);
+      object-fit: contain;
+      object-position: center;
+      background: color-mix(in srgb, var(--brand-cream) 38%, var(--surface-0));
     }
     .body { display: grid; gap: .22rem; min-width: 0; }
     .title-row {
@@ -298,11 +299,7 @@ export class CartLineComponent {
     const item = this.item();
     const kind = this.hintKind();
     if (this.isSummary()) {
-      if (kind === 'out') return 'Producto agotado';
-      if (kind === 'conflict') {
-        const available = this.cart.maxQuantity(item);
-        return `Solo quedan ${available} ${available === 1 ? 'unidad' : 'unidades'}.`;
-      }
+      if (kind === 'out' || kind === 'conflict') return this.cart.stockHint(item).message;
       return '';
     }
     return this.cart.stockHint(item, this.incrementBlocked()).message;

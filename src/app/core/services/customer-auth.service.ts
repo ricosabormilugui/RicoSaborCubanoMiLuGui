@@ -8,6 +8,7 @@ import { CartService } from './cart.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
 import { DeliveryStateService } from './delivery-state.service';
 import { FavoritesService } from './favorites.service';
+import { CatalogService } from './catalog.service';
 import { CouponDraftService } from './coupon.service';
 import { CheckoutDraftService } from './checkout-draft.service';
 import { transferGuestOrderIntent } from '../utils/order-idempotency';
@@ -24,6 +25,7 @@ export class CustomerAuthService {
   private readonly cart = inject(CartService);
   private readonly delivery = inject(DeliveryStateService);
   private readonly favorites = inject(FavoritesService);
+  private readonly catalog = inject(CatalogService);
   private readonly coupon = inject(CouponDraftService);
   private readonly checkoutDraft = inject(CheckoutDraftService);
   private readonly confirm = inject(ConfirmDialogService);
@@ -67,6 +69,15 @@ export class CustomerAuthService {
     this.checkoutDraft.adoptGuestDraft();
     await this.favorites.syncAuthenticatedFavorites();
     transferGuestOrderIntent(profile.userId);
+    await this.reconcileCartInventory();
+  }
+
+  private async reconcileCartInventory(): Promise<void> {
+    if (typeof this.catalog?.refreshAvailability !== 'function' || typeof this.cart?.syncInventory !== 'function') return;
+    await this.catalog.refreshAvailability({ force: true });
+    const products = typeof this.catalog.products === 'function' ? this.catalog.products() : [];
+    const live = typeof this.catalog.hasLiveCatalog === 'function' ? this.catalog.hasLiveCatalog() : false;
+    this.cart.syncInventory(products, { pruneMissing: live });
   }
 
   private readStorage(key: string): string {

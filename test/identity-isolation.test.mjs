@@ -627,6 +627,10 @@ test('CustomerAuthService.login hidrata favoritos del backend y logout no los co
       adoptGuestShipping: () => delivery.adoptGuestShipping(),
       adoptGuestCoupon() { return true; },
       adoptGuestDraft() { return true; },
+      refreshAvailability: async () => {},
+      products: () => [],
+      hasLiveCatalog: () => false,
+      syncInventory() {},
       warning() {}
     }) },
     '../utils/api-client': {

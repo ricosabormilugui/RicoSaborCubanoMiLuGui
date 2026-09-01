@@ -86,7 +86,7 @@
 }
 
 .thumb.is-active { border-color: var(--text-main); box-shadow: 0 0 0 1px var(--surface-0); }
-.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.thumb img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
 
 .kicker {
   display: flex;
