@@ -30,7 +30,7 @@ import { IconComponent } from './icon.component';
       </ng-container>
 
       <ng-template #loggedMenu>
-        <a routerLink="/favoritos" role="menuitem" (click)="close()">Mis favoritos</a>
+        <a *ngIf="!auth.isAdminAccount()" routerLink="/favoritos" role="menuitem" (click)="close()">Mis favoritos</a>
         <a routerLink="/mis-notificaciones" role="menuitem" (click)="close()">Mis notificaciones</a>
         <button type="button" role="menuitem" (click)="goOrders()">Mis pedidos</button>
         <button type="button" role="menuitem" (click)="logout()">Salir</button>

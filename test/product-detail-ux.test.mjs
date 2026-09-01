@@ -39,6 +39,9 @@ test('el detalle rediseñado usa configurador semántico, related cards y sticky
   assert.doesNotMatch(template, /mini-product/);
   assert.doesNotMatch(template, /type="number"/);
   assert.doesNotMatch(source, /swiper|slick|splide|glightbox/i);
+  assert.doesNotMatch(source, /FavoritesService/);
+  assert.doesNotMatch(template, /class="favorite"/);
+  assert.doesNotMatch(template, /lucideHeart/);
   assert.match(styles, /object-fit: contain/);
   assert.match(styles, /\.thumb img \{[^}]*object-fit: contain/s);
   assert.match(styles, /env\(safe-area-inset-bottom/);

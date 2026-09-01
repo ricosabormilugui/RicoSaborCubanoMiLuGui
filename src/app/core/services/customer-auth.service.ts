@@ -139,6 +139,10 @@ export class CustomerAuthService {
     return this.token().length > 0;
   }
 
+  isAdminAccount(): boolean {
+    return this.profile()?.role === 'admin';
+  }
+
   async restoreSession(): Promise<void> {
     const token = this.token();
     const version = this.sessionVersion();

@@ -5,6 +5,7 @@ import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { getProductCategoryLabel } from '../../core/config/product-categories.config';
 import { isProductCustomizable, isProductOrderable, Product } from '../../core/models/product.model';
 import { getProductRoute } from '../../core/models/product-filter';
+import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { FavoritesService } from '../../core/services/favorites.service';
 import { ProductCategoryService } from '../../core/services/product-category.service';
 import { optimizedImageUrl, responsiveImageSrcset } from '../../core/utils/responsive-image';
@@ -35,15 +36,17 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
       @if (badge()) {
         <span class="badge" [class.is-sold]="!orderable()">{{ badge() }}</span>
       }
-      <button
-        class="favorite"
-        type="button"
-        [class.is-on]="favorite()"
-        [attr.aria-pressed]="favorite()"
-        [attr.aria-label]="favorite() ? 'Quitar ' + product().name + ' de favoritos' : 'Guardar ' + product().name + ' en favoritos'"
-        (click)="toggleFavorite($event)">
-        <svg lucideHeart [size]="18" [strokeWidth]="1.6" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
-      </button>
+      @if (showFavoriteAction()) {
+        <button
+          class="favorite"
+          type="button"
+          [class.is-on]="favorite()"
+          [attr.aria-pressed]="favorite()"
+          [attr.aria-label]="favorite() ? 'Quitar ' + product().name + ' de favoritos' : 'Guardar ' + product().name + ' en favoritos'"
+          (click)="toggleFavorite($event)">
+          <svg lucideHeart [size]="18" [strokeWidth]="1.6" [style.fill]="favorite() ? 'currentColor' : 'none'" aria-hidden="true" />
+        </button>
+      }
     </div>
     <div class="body">
       <a class="product-name" [routerLink]="route()">{{ product().name }}</a>
@@ -258,6 +261,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1543353071-873f17a7a08
 export class ProductCardComponent {
   private readonly router = inject(Router);
   private readonly favorites = inject(FavoritesService);
+  private readonly auth = inject(CustomerAuthService);
   private readonly categories = inject(ProductCategoryService);
 
   readonly product = input.required<Product>();
@@ -267,7 +271,8 @@ export class ProductCardComponent {
 
   readonly customizable = computed(() => isProductCustomizable(this.product()));
   readonly orderable = computed(() => isProductOrderable(this.product()));
-  readonly favorite = computed(() => this.favorites.isFavorite(this.product().id));
+  readonly favorite = computed(() => this.showFavoriteAction() && this.favorites.isFavorite(this.product().id));
+  readonly showFavoriteAction = computed(() => !this.auth.isAdminAccount());
   readonly route = computed(() => getProductRoute(this.product()));
   readonly imageUrl = computed(() => optimizedImageUrl(this.product().imageUrl || FALLBACK_IMAGE, 800));
   readonly srcset = computed(() => responsiveImageSrcset(this.product().imageUrl, [360, 540, 720, 900]));
@@ -281,6 +286,7 @@ export class ProductCardComponent {
   toggleFavorite(event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
+    if (!this.showFavoriteAction()) return;
     this.favorites.toggle(this.product().id);
   }
 

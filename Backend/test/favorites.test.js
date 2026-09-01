@@ -221,8 +221,10 @@ test("token admin queda explícitamente rechazado en rutas customer", async () =
     for (const token of [envAdmin, promotedAdmin]) {
       const denied = await call("GET", token);
       assert.equal(denied.status, 403);
-      assert.deepEqual(await denied.json(), { error: "Customer access required" });
-      assert.equal((await call("POST", token, { path: "/X" })).status, 403);
+      assert.deepEqual(await denied.json(), { error: "Los favoritos no están disponibles para cuentas de administración." });
+      const posted = await call("POST", token, { path: "/X" });
+      assert.equal(posted.status, 403);
+      assert.deepEqual(await posted.json(), { error: "Los favoritos no están disponibles para cuentas de administración." });
       assert.equal((await call("DELETE", token, { path: "/keep" })).status, 403);
       assert.equal((await call("PUT", token, { body: { favorites: ["X"] } })).status, 403);
     }

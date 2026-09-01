@@ -1,6 +1,7 @@
 export const MAX_FAVORITES = 200;
 export const MAX_FAVORITE_ID_LENGTH = 128;
 export const FAVORITES_LIMIT_MESSAGE = `Has alcanzado el límite de ${MAX_FAVORITES} favoritos.`;
+export const ADMIN_FAVORITES_UNAVAILABLE_MESSAGE = "Los favoritos no están disponibles para cuentas de administración.";
 
 export function parseFavoriteId(value) {
   if (value != null && typeof value !== "string" && typeof value !== "number") {

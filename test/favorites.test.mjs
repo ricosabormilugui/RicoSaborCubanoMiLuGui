@@ -18,9 +18,12 @@ test('la ruta /favoritos es lazy, protegida y reutiliza FavoritesService', async
 
   assert.match(routes, /path: 'favoritos'/);
   assert.match(routes, /loadComponent: \(\) => import\('\.\/features\/account\/favorites-page\.component'\)/);
-  assert.match(routes, /path: 'favoritos'[\s\S]{0,280}canActivate: \[customerGuard\]/);
+  assert.match(routes, /path: 'favoritos'[\s\S]{0,320}canActivate: \[customerGuard, blockAdminFavoritesGuard\]/);
   assert.match(routes, /privateSeo\('Mis favoritos'/);
   assert.match(guard, /queryParams: \{ returnUrl: state\.url \}/);
+  assert.match(guard, /blockAdminFavoritesGuard/);
+  assert.match(guard, /isAdminAccount\(\)/);
+  assert.match(guard, /createUrlTree\(\['\/productos'\]\)/);
   assert.match(login, /safe-return-url/);
   assert.match(register, /safe-return-url/);
   assert.match(page, /FavoritesService/);
@@ -35,6 +38,10 @@ test('la ruta /favoritos es lazy, protegida y reutiliza FavoritesService', async
   assert.match(service, /isCustomerAccessToken/);
   assert.match(service, /payload\.role !== 'customer'/);
   assert.match(service, /Inicia sesión para guardar productos en favoritos/);
+  assert.match(service, /ADMIN_FAVORITES_UNAVAILABLE_MESSAGE/);
+  assert.match(service, /isAdminAccessToken/);
+  assert.match(service, /clearVisibleFavorites/);
+  assert.match(auth, /isAdminAccount\(\)/);
   assert.doesNotMatch(service, /catchError\(\(\)\s*=>\s*\[\]\)/);
   assert.match(service, /FAVORITES_LIMIT_MESSAGE/);
   assert.doesNotMatch(service, /adoptGuestFavorites/);
@@ -65,6 +72,8 @@ test('Mis favoritos reutiliza app-product-card, grid del catálogo y estado vac�
   assert.match(catalogStyles, /\.grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(card, /selector: 'app-product-card'/);
   assert.match(card, /this\.favorites\.toggle\(this\.product\(\)\.id\)/);
+  assert.match(card, /showFavoriteAction\(\)/);
+  assert.match(card, /auth\.isAdminAccount\(\)/);
 });
 
 test('el acceso a favoritos queda en el menú autenticado', async () => {
@@ -78,6 +87,7 @@ test('el acceso a favoritos queda en el menú autenticado', async () => {
   assert.doesNotMatch(app, /userMenuOpen/);
   assert.match(menu, /routerLink="\/favoritos"/);
   assert.match(menu, /Mis favoritos/);
+  assert.match(menu, /!auth\.isAdminAccount\(\)/);
   assert.match(menu, /auth\.isAuthenticated\(\)/);
   assert.match(menu, /auth\.logout\(\)/);
   assert.doesNotMatch(app, /routerLink="\/favoritos"/);

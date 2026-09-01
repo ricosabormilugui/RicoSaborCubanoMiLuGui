@@ -1,6 +1,6 @@
 import { Injectable, Injector, OnDestroy, computed, linkedSignal } from '@angular/core';
 import { Router } from '@angular/router';
-import { FAVORITES_LIMIT_MESSAGE, MAX_FAVORITES, uniqueFavoriteIds } from '../config/favorites.config';
+import { FAVORITES_LIMIT_MESSAGE, MAX_FAVORITES, uniqueFavoriteIds, ADMIN_FAVORITES_UNAVAILABLE_MESSAGE } from '../config/favorites.config';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { ActiveIdentityService, GUEST_IDENTITY, StorageIdentity, getStorageKey } from './active-identity.service';
 import { ApiRequestError, requestJson } from '../utils/api-client';
@@ -26,6 +26,11 @@ function decodeJwtPayload(token: string): { role?: unknown; exp?: unknown } | nu
   }
 }
 
+function isAdminAccessToken(token: string): boolean {
+  const payload = decodeJwtPayload(String(token ?? '').trim());
+  return payload?.role === 'admin';
+}
+
 function isCustomerAccessToken(token: string): boolean {
   const raw = String(token ?? '').trim();
   if (!raw) return false;
@@ -49,6 +54,7 @@ export class FavoritesService implements OnDestroy {
   };
 
   private token = '';
+  private adminBlocked = false;
   private onAuthExpired?: () => void;
   private remoteAdapter: FavoritesRemote | null = null;
   private syncGeneration = 0;
@@ -78,10 +84,16 @@ export class FavoritesService implements OnDestroy {
   bindSession(token: string, onAuthExpired?: () => void): void {
     this.discardGuestFavorites();
     const raw = String(token ?? '').trim();
+    this.adminBlocked = isAdminAccessToken(raw);
     this.token = isCustomerAccessToken(raw) ? raw : '';
     this.onAuthExpired = this.token ? onAuthExpired : undefined;
     this.syncGeneration += 1;
     this.persistGeneration += 1;
+    if (this.adminBlocked) this.clearVisibleFavorites();
+  }
+
+  isAvailable(): boolean {
+    return !this.adminBlocked;
   }
 
   isFavorite(productId: string): boolean {
@@ -91,6 +103,10 @@ export class FavoritesService implements OnDestroy {
   toggle(productId: string): boolean {
     const id = String(productId ?? '').trim();
     if (!id) return false;
+    if (this.adminBlocked) {
+      this.notify('warning', 'Favoritos', ADMIN_FAVORITES_UNAVAILABLE_MESSAGE, 'favorites-admin');
+      return false;
+    }
     if (!this.canUseRemote()) {
       this.requireAuthentication();
       return false;
@@ -163,7 +179,12 @@ export class FavoritesService implements OnDestroy {
   }
 
   private canUseRemote(): boolean {
-    return this.identity.identity()?.type === 'user' && this.token.length > 0;
+    return !this.adminBlocked && this.identity.identity()?.type === 'user' && this.token.length > 0;
+  }
+
+  private clearVisibleFavorites(): void {
+    this.storedIds.set([]);
+    this.writeCurrent([]);
   }
 
   private isCurrentGeneration(generation: number): boolean {
@@ -304,6 +325,7 @@ export class FavoritesService implements OnDestroy {
   }
 
   private readCurrent(): string[] {
+    if (this.adminBlocked) return [];
     const identity = this.identity.identity();
     if (identity?.type !== 'user') return [];
     const key = this.identity.storageKey('favorites');
@@ -311,6 +333,7 @@ export class FavoritesService implements OnDestroy {
   }
 
   private writeCurrent(ids: string[]): boolean {
+    if (this.adminBlocked && ids.length) return false;
     const identity = this.identity.identity();
     if (identity?.type !== 'user') return false;
     const key = this.identity.storageKey('favorites');

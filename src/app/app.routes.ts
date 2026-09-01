@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
-import { customerGuard } from './core/guards/customer.guard';
+import { blockAdminFavoritesGuard, customerGuard } from './core/guards/customer.guard';
 import { SeoMetaInput } from './core/services/seo.service';
 import { BRAND_CONFIG } from './core/config/brand.config';
 
@@ -122,7 +122,7 @@ export const appRoutes: Routes = [
   {
     path: 'favoritos',
     loadComponent: () => import('./features/account/favorites-page.component').then((m) => m.FavoritesPageComponent),
-    canActivate: [customerGuard],
+    canActivate: [customerGuard, blockAdminFavoritesGuard],
     data: { seo: privateSeo('Mis favoritos', 'Consulta los productos que has guardado para volver a pedirlos.', '/favoritos') }
   },
   {

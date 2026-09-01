@@ -24,6 +24,7 @@ test('el menú de cuenta es único y se reutiliza en desktop y mobile', async ()
   assert.match(menu, /Iniciar sesión/);
   assert.match(menu, /Registro/);
   assert.match(menu, /Mis favoritos/);
+  assert.match(menu, /\*ngIf="!auth\.isAdminAccount\(\)"/);
   assert.match(menu, /Mis notificaciones/);
   assert.match(menu, /Mis pedidos/);
   assert.match(menu, />Salir</);

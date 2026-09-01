@@ -7,3 +7,9 @@ export const customerGuard: CanActivateFn = (_route, state) => {
   if (auth.isAuthenticated()) return true;
   return inject(Router).createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };
+
+export const blockAdminFavoritesGuard: CanActivateFn = () => {
+  const auth = inject(CustomerAuthService);
+  if (auth.isAdminAccount()) return inject(Router).createUrlTree(['/productos']);
+  return true;
+};
