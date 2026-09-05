@@ -173,9 +173,83 @@
           <div class="subsection-heading"><div><h4>Información del producto</h4><p>Describe de forma breve qué recibirá el cliente.</p></div></div>
           <div class="field-grid two-columns">
             <label class="field full-width"><span>Descripción</span><textarea [(ngModel)]="form.description" name="description" placeholder="Describe el sabor, tamaño y uso recomendado"></textarea></label>
-            <label class="field"><span>Ingredientes</span><textarea [(ngModel)]="ingredientsText" name="ingredientsText" placeholder="Un ingrediente por línea"></textarea></label>
             <label class="field"><span>Reseñas</span><textarea [(ngModel)]="reviewsText" name="reviewsText" placeholder="Autor | valoración | comentario | fecha opcional"></textarea><small>Una reseña por línea.</small></label>
           </div>
+        </section>
+
+        <section class="form-subsection" aria-labelledby="food-info-title">
+          <div class="subsection-heading">
+            <div>
+              <h4 id="food-info-title">Ingredientes y alérgenos</h4>
+              <p>Información alimentaria estructurada para la ficha del producto.</p>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Ingredientes</span>
+            <textarea
+              [(ngModel)]="ingredientsText"
+              name="ingredientsText"
+              placeholder="Ej.: harina de trigo, azúcar, huevo, leche, mantequilla..."></textarea>
+            <small>Introduce la composición del producto. Los alérgenos se seleccionan por separado.</small>
+          </label>
+
+          <div class="allergen-group">
+            <div class="subsection-heading">
+              <div>
+                <h4 id="contains-title">Contiene</h4>
+                <p>Selecciona los alérgenos presentes en el producto.</p>
+              </div>
+            </div>
+            <div class="allergen-picker" role="group" aria-labelledby="contains-title">
+              <label
+                class="allergen-chip"
+                *ngFor="let allergen of allergenCatalog"
+                [class.is-selected]="isContainsSelected(allergen.id)">
+                <input
+                  type="checkbox"
+                  [name]="'contains-' + allergen.id"
+                  [checked]="isContainsSelected(allergen.id)"
+                  (change)="toggleContains(allergen.id)" />
+                <app-allergen-icon [name]="allergen.id" [size]="18" />
+                <span>{{ allergen.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="allergen-group">
+            <div class="subsection-heading">
+              <div>
+                <h4 id="may-contain-title">Puede contener</h4>
+                <p>Utilízalo para posibles trazas o presencia potencial que deba declararse.</p>
+              </div>
+            </div>
+            <div class="allergen-picker" role="group" aria-labelledby="may-contain-title">
+              <label
+                class="allergen-chip"
+                *ngFor="let allergen of allergenCatalog"
+                [class.is-selected]="isMayContainSelected(allergen.id)"
+                [class.is-disabled]="isContainsSelected(allergen.id)">
+                <input
+                  type="checkbox"
+                  [name]="'may-contain-' + allergen.id"
+                  [checked]="isMayContainSelected(allergen.id)"
+                  [disabled]="isContainsSelected(allergen.id)"
+                  (change)="toggleMayContain(allergen.id)" />
+                <app-allergen-icon [name]="allergen.id" [size]="18" />
+                <span>{{ allergen.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <label class="field">
+            <span>Nota sobre alérgenos</span>
+            <textarea
+              [(ngModel)]="allergenNotesText"
+              name="allergenNotesText"
+              placeholder="Ej.: Los alérgenos pueden variar según el relleno o cobertura seleccionados."></textarea>
+            <small>Opcional. Útil en productos personalizables.</small>
+          </label>
         </section>
 
         <section class="form-subsection image-section">
@@ -246,6 +320,7 @@
           <article class="review-item"><div class="review-icon" aria-hidden="true">Aa</div><div><small>Producto</small><strong>{{ form.name || 'Sin nombre' }}</strong><span>{{ categoryLabel(form.category) || 'Sin categoría' }}</span></div><button type="button" (click)="editReviewStep(1)">Editar</button></article>
           <article class="review-item"><div class="review-icon" aria-hidden="true">€</div><div><small>Precio y venta</small><strong>{{ form.price | currency:'EUR' }}</strong><span>Mínimo {{ form.minimumQuantity }} · {{ form.unitLabel || 'Sin formato indicado' }}</span></div><button type="button" (click)="editReviewStep(1)">Editar</button></article>
           <article class="review-item"><div class="review-icon" aria-hidden="true">▧</div><div><small>Presentación</small><strong>{{ imagePreviewUrls().length }} {{ imagePreviewUrls().length === 1 ? 'imagen' : 'imágenes' }}</strong><span>{{ form.description ? 'Descripción completada' : 'Sin descripción' }}</span></div><button type="button" (click)="editReviewStep(2)">Editar</button></article>
+          <article class="review-item"><div class="review-icon" aria-hidden="true">+</div><div><small>Ingredientes y alérgenos</small><strong>{{ foodInformationSummary() }}</strong><span>Se mostrará en la ficha del producto.</span></div><button type="button" (click)="editReviewStep(2)">Editar</button></article>
           <article class="review-item"><div class="review-icon" aria-hidden="true">#</div><div><small>Stock y estado</small><strong>{{ form.trackStock ? form.stock + ' unidades' : 'Sin control de stock' }}</strong><span>{{ form.published ? 'Publicado' : 'No publicado' }} · {{ form.available ? 'Disponible' : 'No disponible' }}</span></div><button type="button" (click)="editReviewStep(3)">Editar</button></article>
           <article class="review-item"><div class="review-icon" aria-hidden="true">✦</div><div><small>Personalización</small><strong>{{ hasCustomizationData() ? customizationOptionCount() + ' opciones configuradas' : 'No disponible' }}</strong><span>{{ hasCustomizationData() ? 'El cliente podrá elegir variantes.' : 'Producto sin opciones adicionales.' }}</span></div><button type="button" (click)="editReviewStep(4)">Editar</button></article>
         </div>

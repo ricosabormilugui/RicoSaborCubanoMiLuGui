@@ -6,7 +6,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductApiRecord, ProductCustomizationGroupKey, ProductCustomizationGroupSettings } from '../../core/models/product.model';
 import { matchesProductSearch } from '../../core/models/product-filter';
+import { ALLERGEN_CATALOG, AllergenId, emptyFoodInformation, getAllergenLabel, normalizeFoodInformation } from '../../core/config/allergens.config';
 import { PRODUCT_CREATION_PRESETS } from '../../core/config/product-creation-presets.config';
+import { AllergenIconComponent } from '../../shared/ui/allergen-icon.component';
 import { DEFAULT_PRODUCT_CATEGORY, getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { ProductCategoryRecord } from '../../core/models/product-category.model';
 import { AdminAuthService } from '../../core/services/admin-auth.service';
@@ -22,7 +24,7 @@ import { BRAND_CONFIG } from '../../core/config/brand.config';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AllergenIconComponent],
   templateUrl: './admin-products-page.component.html',
   styleUrls: ['./admin-products-page.component.css']
 })
@@ -36,6 +38,7 @@ export class AdminProductsPageComponent {
   readonly categoryFilter = signal('');
   imagesText = '';
   ingredientsText = '';
+  allergenNotesText = '';
   reviewsText = '';
   customizationThemesText = '';
   customizationColorsText = '';
@@ -48,6 +51,7 @@ export class AdminProductsPageComponent {
   selectedPresetId = '';
 
   readonly productPresets = PRODUCT_CREATION_PRESETS;
+  readonly allergenCatalog = ALLERGEN_CATALOG;
 
   readonly loading = signal(false);
   readonly savingProduct = signal(false);
@@ -102,7 +106,8 @@ export class AdminProductsPageComponent {
     lowStockAlert: 5,
     minimumQuantity: 1,
     unitLabel: '',
-    order: 0
+    order: 0,
+    foodInformation: emptyFoodInformation()
   };
 
   constructor(
@@ -362,6 +367,53 @@ export class AdminProductsPageComponent {
     this.customizationEditorOpen.set(true);
   }
 
+  isContainsSelected(id: AllergenId): boolean {
+    return (this.form.foodInformation?.allergens.contains ?? []).includes(id);
+  }
+
+  isMayContainSelected(id: AllergenId): boolean {
+    return (this.form.foodInformation?.allergens.mayContain ?? []).includes(id);
+  }
+
+  toggleContains(id: AllergenId): void {
+    const foodInformation = this.ensureFoodInformation();
+    const selected = foodInformation.allergens.contains.includes(id);
+    foodInformation.allergens.contains = selected
+      ? foodInformation.allergens.contains.filter((item) => item !== id)
+      : [...foodInformation.allergens.contains, id];
+    if (!selected) {
+      foodInformation.allergens.mayContain = foodInformation.allergens.mayContain.filter((item) => item !== id);
+    }
+  }
+
+  toggleMayContain(id: AllergenId): void {
+    const foodInformation = this.ensureFoodInformation();
+    if (foodInformation.allergens.contains.includes(id)) return;
+    const selected = foodInformation.allergens.mayContain.includes(id);
+    foodInformation.allergens.mayContain = selected
+      ? foodInformation.allergens.mayContain.filter((item) => item !== id)
+      : [...foodInformation.allergens.mayContain, id];
+  }
+
+  foodInformationSummary(): string {
+    const contains = this.form.foodInformation?.allergens.contains ?? [];
+    const mayContain = this.form.foodInformation?.allergens.mayContain ?? [];
+    const parts: string[] = [];
+    if (this.ingredientsText.trim()) parts.push('Ingredientes indicados');
+    if (contains.length) parts.push(contains.map((id) => getAllergenLabel(id)).join(', '));
+    if (mayContain.length) parts.push(`Puede contener: ${mayContain.map((id) => getAllergenLabel(id)).join(', ')}`);
+    if (this.allergenNotesText.trim()) parts.push('Nota añadida');
+    return parts.join(' · ') || 'Sin información alimentaria';
+  }
+
+  private ensureFoodInformation() {
+    this.form.foodInformation ??= emptyFoodInformation();
+    this.form.foodInformation.allergens ??= { contains: [], mayContain: [] };
+    this.form.foodInformation.allergens.contains ??= [];
+    this.form.foodInformation.allergens.mayContain ??= [];
+    return this.form.foodInformation;
+  }
+
   private buildProductPayload(product: ProductApiRecord): AdminProductPayload {
     return {
       name: product.name,
@@ -371,6 +423,7 @@ export class AdminProductsPageComponent {
       imageUrl: product.imageUrl ?? '',
       images: product.images ?? [],
       ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+      ...(product.foodInformation ? { foodInformation: normalizeFoodInformation(product.foodInformation) } : {}),
       reviews: product.reviews ?? [],
       customizationOptions: product.customizationOptions ?? {},
       available: product.available ?? true,
@@ -390,6 +443,14 @@ export class AdminProductsPageComponent {
       category: normalizeCategorySlug(this.form.category) || DEFAULT_PRODUCT_CATEGORY,
       images: this.parseLines(this.imagesText || this.form.imageUrl),
       ingredients: this.parseLines(this.ingredientsText),
+      foodInformation: {
+        ingredients: this.ingredientsText.trim(),
+        allergens: {
+          contains: [...(this.form.foodInformation?.allergens.contains ?? [])],
+          mayContain: [...(this.form.foodInformation?.allergens.mayContain ?? [])]
+        },
+        allergenNotes: this.allergenNotesText.trim()
+      },
       reviews: this.parseReviews(this.reviewsText),
       customizationOptions: {
         themes: this.parseOptions(this.customizationThemesText),
@@ -434,6 +495,7 @@ export class AdminProductsPageComponent {
       imageUrl: product.imageUrl ?? '',
       images: product.images ?? [],
       ingredients: Array.isArray(product.ingredients) ? product.ingredients : [],
+      foodInformation: normalizeFoodInformation(product.foodInformation),
       reviews: product.reviews ?? [],
       customizationOptions: product.customizationOptions ?? {},
       available: product.available ?? true,
@@ -446,7 +508,9 @@ export class AdminProductsPageComponent {
       order: Number(product.order ?? 0)
     };
     this.imagesText = this.stringifyLines(product.images ?? [product.imageUrl].filter(Boolean));
-    this.ingredientsText = this.stringifyLines(Array.isArray(product.ingredients) ? product.ingredients : []);
+    const foodInformation = normalizeFoodInformation(product.foodInformation);
+    this.ingredientsText = foodInformation.ingredients || this.stringifyLines(Array.isArray(product.ingredients) ? product.ingredients : []);
+    this.allergenNotesText = foodInformation.allergenNotes;
     this.reviewsText = (product.reviews ?? []).map((review) => `${review.author} | ${review.rating} | ${review.comment}${review.date ? ` | ${review.date}` : ''}`).join('\n');
     this.customizationThemesText = this.stringifyOptions(product.customizationOptions?.themes);
     this.customizationColorsText = this.stringifyOptions(product.customizationOptions?.colors);
@@ -479,10 +543,12 @@ export class AdminProductsPageComponent {
       lowStockAlert: 5,
       minimumQuantity: 1,
       unitLabel: '',
-      order: 0
+      order: 0,
+      foodInformation: emptyFoodInformation()
     };
     this.imagesText = '';
     this.ingredientsText = '';
+    this.allergenNotesText = '';
     this.reviewsText = '';
     this.customizationThemesText = '';
     this.customizationColorsText = '';

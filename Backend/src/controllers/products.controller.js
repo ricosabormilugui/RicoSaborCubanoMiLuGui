@@ -10,6 +10,7 @@ import {
   updateProduct
 } from "../repositories/products.repository.js";
 import { normalizeCategorySlug } from "../config/product-categories.config.js";
+import { normalizeFoodInformation } from "../config/allergens.config.js";
 import { normalizeProductCustomizationOptions } from "../services/product-customization.service.js";
 import { categoryExists } from "../repositories/categories.repository.js";
 
@@ -44,6 +45,11 @@ function buildPayload(body = {}, { partial = false } = {}) {
   if (!partial || body.imageUrl !== undefined) payload.imageUrl = String(body.imageUrl ?? "").trim();
   if (!partial || body.images !== undefined) payload.images = normalizeImages(body.images, payload.imageUrl);
   if (!partial || body.ingredients !== undefined) payload.ingredients = normalizeIngredients(body.ingredients);
+  if (!partial || body.foodInformation !== undefined) {
+    const foodInformation = normalizeFoodInformation(body.foodInformation);
+    payload.foodInformation = foodInformation.value;
+    payload.foodInformationError = foodInformation.error ?? (foodInformation.unknown.length ? "allergen ids are invalid" : null);
+  }
   if (!partial || body.reviews !== undefined) payload.reviews = normalizeReviews(body.reviews);
   if (!partial || body.customizationOptions !== undefined) payload.customizationOptions = normalizeProductCustomizationOptions(body.customizationOptions);
   if (!partial || body.published !== undefined) payload.published = Boolean(body.published);
@@ -87,7 +93,16 @@ function validateProduct(payload, { partial = false } = {}) {
     return "minimumQuantity must be an integer >= 1";
   }
 
+  if (payload.foodInformationError) {
+    return payload.foodInformationError;
+  }
+
   return null;
+}
+
+function persistableProductPayload(payload) {
+  const { foodInformationError, ...persistable } = payload;
+  return persistable;
 }
 
 export async function getProducts(_req, res) {
@@ -148,7 +163,7 @@ export async function createProductForAdmin(req, res) {
       return res.status(400).json({ error: "La categoría seleccionada no existe." });
     }
 
-    const product = await createProduct(payload);
+    const product = await createProduct(persistableProductPayload(payload));
     return res.status(201).json({ product });
   } catch (error) {
     return res.status(500).json({ error: error.message ?? "Unexpected error" });
@@ -164,7 +179,7 @@ export async function updateProductForAdmin(req, res) {
       return res.status(400).json({ error: "La categoría seleccionada no existe." });
     }
 
-    const product = await updateProduct(req.params.id, payload);
+    const product = await updateProduct(req.params.id, persistableProductPayload(payload));
     if (!product) return res.status(404).json({ error: "Product not found" });
 
     return res.status(200).json({ product });

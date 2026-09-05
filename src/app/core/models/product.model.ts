@@ -1,4 +1,7 @@
+import type { ProductFoodInformation } from '../config/allergens.config';
+
 export type ProductCategory = 'combos' | 'platos' | 'tartas' | 'dulces-gourmet' | 'bebidas' | 'extras' | string;
+export type { AllergenId, ProductAllergens, ProductFoodInformation } from '../config/allergens.config';
 
 export interface ProductReview {
   author: string;
@@ -44,6 +47,7 @@ export interface Product {
   imageUrl: string;
   images?: string[];
   ingredients?: string[];
+  foodInformation?: ProductFoodInformation;
   reviews?: ProductReview[];
   customizationOptions?: ProductCustomizationOptions;
   slug?: string;
@@ -70,6 +74,7 @@ export interface ProductApiRecord {
   imageUrl?: string;
   images?: string[];
   ingredients?: string[] | string;
+  foodInformation?: ProductFoodInformation;
   reviews?: ProductReview[];
   customizationOptions?: ProductCustomizationOptions;
   slug?: string;

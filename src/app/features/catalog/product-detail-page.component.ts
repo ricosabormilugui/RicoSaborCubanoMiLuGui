@@ -7,6 +7,8 @@ import { CartAnimationService } from '../../core/services/cart-animation.service
 import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product, ProductCustomizationGroupKey, ProductCustomizationOption } from '../../core/models/product.model';
+import { AllergenDefinition, hasFoodInformation, resolveAllergens } from '../../core/config/allergens.config';
+import { AllergenIconComponent } from '../../shared/ui/allergen-icon.component';
 import { getProductRoute } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { ProductCategoryService } from '../../core/services/product-category.service';
@@ -34,7 +36,7 @@ import {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, AddToCartButtonComponent, ProductCardComponent],
+  imports: [CommonModule, RouterLink, AddToCartButtonComponent, ProductCardComponent, AllergenIconComponent],
   templateUrl: './product-detail-page.component.html',
   styleUrls: ['./product-detail-page.component.css', '../../shared/ui/product-collection.css']
 })
@@ -166,6 +168,13 @@ export class ProductDetailPageComponent {
   trackGroup(_index: number, group: ProductCustomizationGroup): string { return group.key; }
   trackOption(_index: number, option: ProductCustomizationOption): string { return String(option.id ?? option.name).trim().toLowerCase(); }
   productIngredients(product: Product): string[] { return Array.isArray(product.ingredients) ? product.ingredients.filter(Boolean) : []; }
+  foodIngredients(product: Product): string { return String(product.foodInformation?.ingredients ?? '').trim(); }
+  allergenNotes(product: Product): string { return String(product.foodInformation?.allergenNotes ?? '').trim(); }
+  containedAllergens(product: Product): AllergenDefinition[] { return resolveAllergens(product.foodInformation?.allergens.contains); }
+  mayContainAllergens(product: Product): AllergenDefinition[] { return resolveAllergens(product.foodInformation?.allergens.mayContain); }
+  hasProductFoodInformation(product: Product): boolean { return hasFoodInformation(product.foodInformation); }
+  showLegacyIngredients(product: Product): boolean { return !this.foodIngredients(product) && this.productIngredients(product).length > 0; }
+  trackAllergen(_index: number, allergen: AllergenDefinition): string { return allergen.id; }
   productReviews(product: Product) { return Array.isArray(product.reviews) ? product.reviews : []; }
   averageRating(product: Product): number { const reviews = this.productReviews(product); return reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating ?? 0), 0) / reviews.length : 0; }
   stars(rating: number): string { const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0)))); return '★★★★★'.slice(0, value) + '☆☆☆☆☆'.slice(value); }
@@ -247,7 +256,7 @@ export class ProductDetailPageComponent {
   }
 
   showDetails(product: Product): boolean {
-    return this.hasExtendedDescription(product) || this.productIngredients(product).length > 0 || this.productReviews(product).length > 0;
+    return this.hasExtendedDescription(product) || this.showLegacyIngredients(product) || this.productReviews(product).length > 0;
   }
 
   showStickyPurchase(): boolean {

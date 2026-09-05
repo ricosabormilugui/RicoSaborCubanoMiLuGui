@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { emptyFoodInformation } from "../config/allergens.config.js";
 import { ensureIndexes, getCollection } from "../lib/mongo.js";
 import { allocateUniqueProductSlug, normalizeProductSlug } from "../utils/product-slug.js";
 
@@ -126,6 +127,7 @@ export async function createProduct(payload) {
     imageUrl: payload.imageUrl ?? "",
     images: payload.images ?? [],
     ingredients: payload.ingredients ?? [],
+    foodInformation: payload.foodInformation ?? emptyFoodInformation(),
     reviews: payload.reviews ?? [],
     customizationOptions: payload.customizationOptions ?? {},
     published: payload.published ?? true,
@@ -168,6 +170,7 @@ export async function updateProduct(id, payload) {
     ...(payload.imageUrl !== undefined ? { imageUrl: payload.imageUrl } : {}),
     ...(payload.images !== undefined ? { images: payload.images } : {}),
     ...(payload.ingredients !== undefined ? { ingredients: payload.ingredients } : {}),
+    ...(payload.foodInformation !== undefined ? { foodInformation: payload.foodInformation } : {}),
     ...(payload.reviews !== undefined ? { reviews: payload.reviews } : {}),
     ...(payload.customizationOptions !== undefined ? { customizationOptions: payload.customizationOptions } : {}),
     ...(payload.published !== undefined ? { published: payload.published } : {}),

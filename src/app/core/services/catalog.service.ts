@@ -2,6 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { Product, ProductApiRecord, ProductReview } from '../models/product.model';
 import { normalizeCustomizationOptions } from '../utils/customization-pricing';
+import { normalizeFoodInformation } from '../config/allergens.config';
 import { requestJson } from '../utils/api-client';
 import { getUserFriendlyError } from '../utils/user-friendly-error';
 
@@ -54,6 +55,7 @@ export function toProduct(item: ProductApiRecord): Product {
     imageUrl: item.imageUrl ?? '',
     images: normalizeImages(item),
     ingredients: normalizeIngredients(item.ingredients),
+    foodInformation: normalizeFoodInformation(item.foodInformation),
     reviews: normalizeReviews(item.reviews),
     customizationOptions: normalizeCustomizationOptions(item.customizationOptions),
     slug: item.slug ?? '',
@@ -84,6 +86,7 @@ function toCachedProduct(item: Partial<Product>): Product | null {
     imageUrl: item.imageUrl ?? '',
     images: normalizeImages(item),
     ingredients: normalizeIngredients(item.ingredients),
+    foodInformation: normalizeFoodInformation(item.foodInformation),
     reviews: normalizeReviews(item.reviews),
     customizationOptions: normalizeCustomizationOptions(item.customizationOptions),
     slug: item.slug ?? '',
