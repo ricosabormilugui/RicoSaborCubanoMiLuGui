@@ -28,6 +28,9 @@ test('el catálogo frontend de alérgenos es la fuente de verdad de MIXSABOR', a
     assert.match(source, new RegExp(`id: '${id}'`));
   }
   assert.match(source, /label: 'Frutos de cáscara'/);
+  assert.match(source, /label: 'Lácteos'/);
+  assert.match(source, /color: '#8B5CF6'/);
+  assert.match(source, /color: '#6F4A45'/);
   assert.doesNotMatch(source, /Frutos secos/);
   assert.match(source, /export function normalizeFoodInformation/);
   assert.match(source, /export function hasFoodInformation/);
@@ -62,13 +65,18 @@ test('el detalle muestra alérgenos compactos y oculta el bloque vacío', async 
 
   assert.match(source, /hasProductFoodInformation/);
   assert.match(source, /showLegacyIngredients/);
-  assert.match(template, /Ingredientes y alérgenos/);
-  assert.match(template, /\*ngIf="hasProductFoodInformation\(product\(\)!\)"/);
+  assert.match(source, /hasProductFoodInformation\(product\)/);
+  assert.match(template, /Detalles del producto/);
+  assert.match(template, /class="details-copy"/);
+  assert.doesNotMatch(template, /id="food-info-title"/);
+  assert.match(template, />Alérgenos</);
   assert.match(template, /Puede contener trazas de/);
   assert.match(template, /class="allergen-list"/);
   assert.match(template, /class="food-note"/);
+  assert.match(template, /--allergen-color/);
   assert.match(styles, /flex-wrap:\s*wrap/);
   assert.match(styles, /overflow-wrap:\s*anywhere/);
+  assert.match(styles, /--allergen-color/);
   assert.doesNotMatch(icons, /emoji|🥜|🌾|🥚/i);
   for (const id of expectedIds) {
     assert.match(icons, new RegExp(`@case \\('${id}'\\)`));

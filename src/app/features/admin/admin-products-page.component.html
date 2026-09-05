@@ -205,13 +205,16 @@
               <label
                 class="allergen-chip"
                 *ngFor="let allergen of allergenCatalog"
-                [class.is-selected]="isContainsSelected(allergen.id)">
+                [class.is-selected]="isContainsSelected(allergen.id)"
+                [style.--allergen-color]="allergen.color">
                 <input
                   type="checkbox"
                   [name]="'contains-' + allergen.id"
                   [checked]="isContainsSelected(allergen.id)"
                   (change)="toggleContains(allergen.id)" />
-                <app-allergen-icon [name]="allergen.id" [size]="18" />
+                <span class="allergen-chip-mark" aria-hidden="true">
+                  <app-allergen-icon [name]="allergen.icon" [size]="14" />
+                </span>
                 <span>{{ allergen.label }}</span>
               </label>
             </div>
@@ -229,14 +232,17 @@
                 class="allergen-chip"
                 *ngFor="let allergen of allergenCatalog"
                 [class.is-selected]="isMayContainSelected(allergen.id)"
-                [class.is-disabled]="isContainsSelected(allergen.id)">
+                [class.is-disabled]="isContainsSelected(allergen.id)"
+                [style.--allergen-color]="allergen.color">
                 <input
                   type="checkbox"
                   [name]="'may-contain-' + allergen.id"
                   [checked]="isMayContainSelected(allergen.id)"
                   [disabled]="isContainsSelected(allergen.id)"
                   (change)="toggleMayContain(allergen.id)" />
-                <app-allergen-icon [name]="allergen.id" [size]="18" />
+                <span class="allergen-chip-mark" aria-hidden="true">
+                  <app-allergen-icon [name]="allergen.icon" [size]="14" />
+                </span>
                 <span>{{ allergen.label }}</span>
               </label>
             </div>

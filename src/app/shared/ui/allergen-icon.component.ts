@@ -12,7 +12,7 @@ import { AllergenId } from '../../core/config/allergens.config';
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.6"
+      stroke-width="1.85"
       stroke-linecap="round"
       stroke-linejoin="round"
       aria-hidden="true">
@@ -28,12 +28,17 @@ import { AllergenId } from '../../core/config/allergens.config';
           <path d="M12 5.2c.2-1.6 1.1-2.8 2.2-3.4-2 .3-3.3 1.8-3 3.6" />
         }
         @case ('crustaceans') {
-          <path d="M16.2 6.2c2.4.2 3.8 2 3.8 4.3 0 5.2-4.6 9.7-11.2 9.7-2.5 0-4.2-.9-5.2-2.2" />
-          <path d="M8.2 16.8c1.4-1.1 2.2-2.6 2.2-4.4 0-2.6-1.7-4.4-4-4.8" />
-          <path d="M10.6 7.8c.6-2 2.2-3.4 4.4-3.6" />
-          <path d="M18.4 5.2 20 3.6" />
-          <path d="M16.6 4.6 17.4 2.8" />
-          <circle cx="17.4" cy="8.4" r=".7" fill="currentColor" stroke="none" />
+          <ellipse cx="12" cy="13.2" rx="3.6" ry="3.1" />
+          <path d="M8.6 11.2C6.2 9.4 4.2 9.2 3.4 10.6c1.5.3 2.7 1.1 3.4 2.2" />
+          <path d="M15.4 11.2c2.4-1.8 4.4-2 5.2-.6-1.5.3-2.7 1.1-3.4 2.2" />
+          <path d="M9.2 16.4 7.4 20" />
+          <path d="M11.2 17.2 10.4 21" />
+          <path d="M14.8 16.4 16.6 20" />
+          <path d="M12.8 17.2 13.6 21" />
+          <path d="M9.6 10.2 8 7.2" />
+          <path d="M14.4 10.2 16 7.2" />
+          <circle cx="10.6" cy="12.4" r=".55" fill="currentColor" stroke="none" />
+          <circle cx="13.4" cy="12.4" r=".55" fill="currentColor" stroke="none" />
         }
         @case ('eggs') {
           <path d="M12 21c4.1 0 7-3.3 7-7.4C19 8.4 15.6 3 12 3S5 8.4 5 13.6C5 17.7 7.9 21 12 21z" />
@@ -70,13 +75,13 @@ import { AllergenId } from '../../core/config/allergens.config';
         @case ('sulphites') {
           <text
             x="12"
-            y="14.5"
+            y="15"
             text-anchor="middle"
             fill="currentColor"
             stroke="none"
-            font-size="7.2"
-            font-weight="700"
-            font-family="inherit">SO₂</text>
+            font-size="8"
+            font-weight="800"
+            font-family="ui-sans-serif, system-ui, sans-serif">SO₂</text>
         }
         @case ('sesame') {
           <ellipse cx="8.2" cy="9.2" rx="1.55" ry="2.35" transform="rotate(-28 8.2 9.2)" />
@@ -86,11 +91,9 @@ import { AllergenId } from '../../core/config/allergens.config';
           <ellipse cx="14.8" cy="16.6" rx="1.4" ry="2.1" transform="rotate(-26 14.8 16.6)" />
         }
         @case ('molluscs') {
-          <path d="M12 20.5c5.2 0 8-4.1 8-8.6C20 6.4 16.2 3.6 12 3.6S4 6.4 4 11.9c0 4.5 2.8 8.6 8 8.6z" />
-          <path d="M12 20.5c-1.6-3.2-2.1-6.8-2.1-10.4" />
-          <path d="M12 20.5c1.6-3.2 2.1-6.8 2.1-10.4" />
-          <path d="M12 20.5c-3.2-2.6-5.7-5.7-6.6-9.2" />
-          <path d="M12 20.5c3.2-2.6 5.7-5.7 6.6-9.2" />
+          <path d="M5.2 14.6c0-4.4 3-8.8 6.8-8.8 1.6 0 2.6 1.1 2.6 2.6 0 3.6-2.4 7-6.2 8.4-2 .8-3.2-.4-3.2-2.2z" />
+          <path d="M8.8 8.6c2.2 1.4 3.8 3.8 4.2 6.4" />
+          <path d="M12.4 8.8c2.8.2 6.4 2.6 6.4 6.6 0 2.6-1.8 4.2-4.2 4.2-2.6 0-4.4-2.4-5.2-5" />
         }
         @case ('soy') {
           <path d="M4.8 14.2c1.8-5.2 6-9.2 11.4-10.2 1.4 4.6.6 9.6-3.4 13.2-4.4 1.1-8-.6-8-3z" />

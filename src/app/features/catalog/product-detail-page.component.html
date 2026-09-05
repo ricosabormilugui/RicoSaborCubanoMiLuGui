@@ -156,47 +156,16 @@
         </div>
       </article>
 
-      <section class="food-info" *ngIf="hasProductFoodInformation(product()!)" aria-labelledby="food-info-title">
-        <h2 id="food-info-title">Ingredientes y alérgenos</h2>
-
-        <article class="food-block" *ngIf="foodIngredients(product()!)">
-          <h3>Ingredientes</h3>
-          <p class="food-copy">{{ foodIngredients(product()!) }}</p>
-        </article>
-
-        <article class="food-block" *ngIf="containedAllergens(product()!).length">
-          <h3>Alérgenos</h3>
-          <ul class="allergen-list">
-            <li *ngFor="let allergen of containedAllergens(product()!); trackBy: trackAllergen">
-              <span class="allergen-glyph">
-                <app-allergen-icon [name]="allergen.id" [size]="20" />
-              </span>
-              <span class="allergen-name">{{ allergen.label }}</span>
-            </li>
-          </ul>
-        </article>
-
-        <article class="food-block is-secondary" *ngIf="mayContainAllergens(product()!).length">
-          <h3>Puede contener trazas de</h3>
-          <ul class="allergen-list is-trace">
-            <li *ngFor="let allergen of mayContainAllergens(product()!); trackBy: trackAllergen">
-              <span class="allergen-glyph">
-                <app-allergen-icon [name]="allergen.id" [size]="18" />
-              </span>
-              <span class="allergen-name">{{ allergen.label }}</span>
-            </li>
-          </ul>
-        </article>
-
-        <p class="food-note" *ngIf="allergenNotes(product()!)">{{ allergenNotes(product()!) }}</p>
-      </section>
-
       <section class="details" *ngIf="showDetails(product()!)">
         <h2>Detalles del producto</h2>
-        <div class="details-grid" *ngIf="hasExtendedDescription(product()!) || showLegacyIngredients(product()!)">
+        <div class="details-copy" *ngIf="hasExtendedDescription(product()!) || hasProductFoodInformation(product()!) || showLegacyIngredients(product()!)">
           <article *ngIf="hasExtendedDescription(product()!)">
             <h3>Descripción</h3>
             <p>{{ product()!.description }}</p>
+          </article>
+          <article *ngIf="foodIngredients(product()!)">
+            <h3>Ingredientes</h3>
+            <p class="food-copy">{{ foodIngredients(product()!) }}</p>
           </article>
           <article *ngIf="showLegacyIngredients(product()!)">
             <h3>Ingredientes</h3>
@@ -204,6 +173,29 @@
               <li *ngFor="let ingredient of productIngredients(product()!)">{{ ingredient }}</li>
             </ul>
           </article>
+          <article class="food-block" *ngIf="containedAllergens(product()!).length">
+            <h3>Alérgenos</h3>
+            <ul class="allergen-list">
+              <li *ngFor="let allergen of containedAllergens(product()!); trackBy: trackAllergen" [style.--allergen-color]="allergen.color">
+                <span class="allergen-glyph" aria-hidden="true">
+                  <app-allergen-icon [name]="allergen.icon" [size]="16" />
+                </span>
+                <span class="allergen-name">{{ allergen.label }}</span>
+              </li>
+            </ul>
+          </article>
+          <article class="food-block is-secondary" *ngIf="mayContainAllergens(product()!).length">
+            <h3>Puede contener trazas de</h3>
+            <ul class="allergen-list is-trace">
+              <li *ngFor="let allergen of mayContainAllergens(product()!); trackBy: trackAllergen" [style.--allergen-color]="allergen.color">
+                <span class="allergen-glyph" aria-hidden="true">
+                  <app-allergen-icon [name]="allergen.icon" [size]="14" />
+                </span>
+                <span class="allergen-name">{{ allergen.label }}</span>
+              </li>
+            </ul>
+          </article>
+          <p class="food-note" *ngIf="allergenNotes(product()!)">{{ allergenNotes(product()!) }}</p>
         </div>
         <article class="reviews" *ngIf="productReviews(product()!).length">
           <div class="reviews-head">

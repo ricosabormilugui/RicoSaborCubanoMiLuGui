@@ -256,7 +256,10 @@ export class ProductDetailPageComponent {
   }
 
   showDetails(product: Product): boolean {
-    return this.hasExtendedDescription(product) || this.showLegacyIngredients(product) || this.productReviews(product).length > 0;
+    return this.hasExtendedDescription(product)
+      || this.hasProductFoodInformation(product)
+      || this.showLegacyIngredients(product)
+      || this.productReviews(product).length > 0;
   }
 
   showStickyPurchase(): boolean {

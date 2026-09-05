@@ -20,23 +20,25 @@ export type AllergenId = typeof ALLERGEN_IDS[number];
 export interface AllergenDefinition {
   id: AllergenId;
   label: string;
+  icon: AllergenId;
+  color: string;
 }
 
 export const ALLERGEN_CATALOG: readonly AllergenDefinition[] = [
-  { id: 'gluten', label: 'Gluten' },
-  { id: 'crustaceans', label: 'Crustáceos' },
-  { id: 'eggs', label: 'Huevos' },
-  { id: 'fish', label: 'Pescado' },
-  { id: 'peanuts', label: 'Cacahuetes' },
-  { id: 'milk', label: 'Leche' },
-  { id: 'celery', label: 'Apio' },
-  { id: 'mustard', label: 'Mostaza' },
-  { id: 'sulphites', label: 'Sulfitos' },
-  { id: 'sesame', label: 'Sésamo' },
-  { id: 'molluscs', label: 'Moluscos' },
-  { id: 'soy', label: 'Soja' },
-  { id: 'nuts', label: 'Frutos de cáscara' },
-  { id: 'lupin', label: 'Altramuces' }
+  { id: 'gluten', label: 'Gluten', icon: 'gluten', color: '#C7BE4B' },
+  { id: 'crustaceans', label: 'Crustáceos', icon: 'crustaceans', color: '#F39A4B' },
+  { id: 'eggs', label: 'Huevos', icon: 'eggs', color: '#F1D85A' },
+  { id: 'fish', label: 'Pescado', icon: 'fish', color: '#39AEF4' },
+  { id: 'peanuts', label: 'Cacahuetes', icon: 'peanuts', color: '#A88686' },
+  { id: 'milk', label: 'Lácteos', icon: 'milk', color: '#8B5CF6' },
+  { id: 'celery', label: 'Apio', icon: 'celery', color: '#14C85A' },
+  { id: 'mustard', label: 'Mostaza', icon: 'mustard', color: '#C7B116' },
+  { id: 'sulphites', label: 'Sulfitos', icon: 'sulphites', color: '#0D63C9' },
+  { id: 'sesame', label: 'Sésamo', icon: 'sesame', color: '#6E5D00' },
+  { id: 'molluscs', label: 'Moluscos', icon: 'molluscs', color: '#56D9E8' },
+  { id: 'soy', label: 'Soja', icon: 'soy', color: '#7ED957' },
+  { id: 'nuts', label: 'Frutos de cáscara', icon: 'nuts', color: '#6F4A45' },
+  { id: 'lupin', label: 'Altramuces', icon: 'lupin', color: '#15AFC3' }
 ] as const;
 
 export interface ProductAllergens {

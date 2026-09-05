@@ -163,7 +163,6 @@ h1 {
 
 .configurator,
 .details,
-.food-info,
 .related,
 .summary {
   display: grid;
@@ -175,7 +174,6 @@ h1 {
 
 .config-head h2,
 .details > h2,
-.food-info > h2,
 .related-head h2,
 .summary h2 {
   margin: 0;
@@ -336,19 +334,18 @@ h1 {
 .buy-cta { flex: 1 1 12rem; min-width: 0; }
 .field-error { margin: 0; color: var(--error-text); font-size: .88rem; font-weight: 750; }
 
-.details-grid { display: grid; gap: 1.1rem; }
-.details h3, .reviews-head h3, .food-info h3 { margin: 0 0 .4rem; color: var(--text-main); font-size: .95rem; }
+.details-copy { display: grid; gap: 1.1rem; min-width: 0; }
+.details h3, .reviews-head h3 { margin: 0 0 .4rem; color: var(--text-main); font-size: .95rem; }
 .details ul { margin: 0; padding-left: 1.1rem; }
-.food-info { gap: 1.05rem; }
-.food-block { display: grid; gap: .7rem; min-width: 0; }
+.food-block { display: grid; gap: .65rem; min-width: 0; }
 .food-copy { margin: 0; max-width: 62ch; color: var(--text-soft); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
-.allergen-list { display: flex; flex-wrap: wrap; gap: .7rem 1rem; min-width: 0; margin: 0; padding: 0; list-style: none; }
-.allergen-list li { display: grid; justify-items: center; gap: .35rem; min-width: 0; max-width: 6.4rem; }
-.allergen-glyph { display: grid; width: 2.7rem; height: 2.7rem; place-items: center; border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--brand-cream) 22%, var(--surface-1)); color: var(--text-main); }
-.allergen-name { color: var(--text-main); font-size: .68rem; font-weight: 750; letter-spacing: .02em; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
-.allergen-list.is-trace li { max-width: none; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start; gap: .45rem; }
-.allergen-list.is-trace .allergen-glyph { width: 2.1rem; height: 2.1rem; }
-.allergen-list.is-trace .allergen-name { font-size: .78rem; font-weight: 650; color: var(--text-soft); text-align: left; }
+.allergen-list { display: flex; flex-wrap: wrap; gap: .55rem .85rem; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.allergen-list li { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; max-width: 100%; }
+.allergen-glyph { display: grid; width: 2.2rem; height: 2.2rem; flex: 0 0 2.2rem; place-items: center; border-radius: 50%; background: var(--allergen-color, var(--surface-2)); color: #fff; }
+.allergen-glyph app-allergen-icon { filter: drop-shadow(0 0 0.6px rgb(0 0 0 / .28)); }
+.allergen-name { color: var(--text-main); font-size: .8rem; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.allergen-list.is-trace .allergen-glyph { width: 1.85rem; height: 1.85rem; flex-basis: 1.85rem; opacity: .92; }
+.allergen-list.is-trace .allergen-name { color: var(--text-soft); font-size: .76rem; font-weight: 650; }
 .food-block.is-secondary h3 { color: var(--text-soft); font-size: .82rem; font-weight: 700; }
 .food-note { margin: 0; max-width: 62ch; color: var(--text-soft); font-size: .88rem; font-style: italic; line-height: 1.6; overflow-wrap: anywhere; }
 .reviews-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
@@ -428,7 +425,6 @@ h1 {
   }
   .media-col { position: sticky; top: 5.5rem; }
   h1 { font-size: clamp(1.9rem, 2.4vw, 2.55rem); }
-  .details-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
   .buy-row { max-width: 28rem; }
 }
 
