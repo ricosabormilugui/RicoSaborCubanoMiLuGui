@@ -130,3 +130,7 @@ export function resolveAllergens(ids: readonly string[] | undefined): AllergenDe
 export function getAllergenLabel(id: string): string {
   return ALLERGEN_BY_ID.get(id as AllergenId)?.label ?? id;
 }
+
+export function getAllergenColor(id: string): string {
+  return ALLERGEN_BY_ID.get(id as AllergenId)?.color ?? '#888888';
+}

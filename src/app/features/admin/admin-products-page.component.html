@@ -212,9 +212,7 @@
                   [name]="'contains-' + allergen.id"
                   [checked]="isContainsSelected(allergen.id)"
                   (change)="toggleContains(allergen.id)" />
-                <span class="allergen-chip-mark" aria-hidden="true">
-                  <app-allergen-icon [name]="allergen.icon" [size]="14" />
-                </span>
+                <app-allergen-icon [name]="allergen.icon" [size]="28" />
                 <span>{{ allergen.label }}</span>
               </label>
             </div>
@@ -240,9 +238,7 @@
                   [checked]="isMayContainSelected(allergen.id)"
                   [disabled]="isContainsSelected(allergen.id)"
                   (change)="toggleMayContain(allergen.id)" />
-                <span class="allergen-chip-mark" aria-hidden="true">
-                  <app-allergen-icon [name]="allergen.icon" [size]="14" />
-                </span>
+                <app-allergen-icon [name]="allergen.icon" [size]="28" />
                 <span>{{ allergen.label }}</span>
               </label>
             </div>

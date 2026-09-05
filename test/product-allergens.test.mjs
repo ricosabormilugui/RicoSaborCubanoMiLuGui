@@ -32,6 +32,7 @@ test('el catálogo frontend de alérgenos es la fuente de verdad de MIXSABOR', a
   assert.match(source, /color: '#8B5CF6'/);
   assert.match(source, /color: '#6F4A45'/);
   assert.doesNotMatch(source, /Frutos secos/);
+  assert.match(source, /export function getAllergenColor/);
   assert.match(source, /export function normalizeFoodInformation/);
   assert.match(source, /export function hasFoodInformation/);
 });
@@ -73,10 +74,12 @@ test('el detalle muestra alérgenos compactos y oculta el bloque vacío', async 
   assert.match(template, /Puede contener trazas de/);
   assert.match(template, /class="allergen-list"/);
   assert.match(template, /class="food-note"/);
-  assert.match(template, /--allergen-color/);
+  assert.match(template, /app-allergen-icon/);
+  assert.match(template, /\[size\]="36"/);
   assert.match(styles, /flex-wrap:\s*wrap/);
   assert.match(styles, /overflow-wrap:\s*anywhere/);
-  assert.match(styles, /--allergen-color/);
+  assert.match(icons, /class="disc"/);
+  assert.match(icons, /getAllergenColor/);
   assert.doesNotMatch(icons, /emoji|🥜|🌾|🥚/i);
   for (const id of expectedIds) {
     assert.match(icons, new RegExp(`@case \\('${id}'\\)`));
