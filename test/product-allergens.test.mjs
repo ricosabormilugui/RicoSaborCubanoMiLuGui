@@ -26,6 +26,7 @@ test('el catálogo frontend de alérgenos es la fuente de verdad de MIXSABOR', a
 
   for (const id of expectedIds) {
     assert.match(source, new RegExp(`id: '${id}'`));
+    assert.match(source, new RegExp(`iconPath: 'assets/allergens/${id}\\.png'`));
   }
   assert.match(source, /label: 'Frutos de cáscara'/);
   assert.match(source, /label: 'Lácteos'/);
@@ -33,6 +34,7 @@ test('el catálogo frontend de alérgenos es la fuente de verdad de MIXSABOR', a
   assert.match(source, /color: '#6F4A45'/);
   assert.doesNotMatch(source, /Frutos secos/);
   assert.match(source, /export function getAllergenColor/);
+  assert.match(source, /export function getAllergenIconPath/);
   assert.match(source, /export function normalizeFoodInformation/);
   assert.match(source, /export function hasFoodInformation/);
 });
@@ -78,10 +80,9 @@ test('el detalle muestra alérgenos compactos y oculta el bloque vacío', async 
   assert.match(template, /\[size\]="36"/);
   assert.match(styles, /flex-wrap:\s*wrap/);
   assert.match(styles, /overflow-wrap:\s*anywhere/);
-  assert.match(icons, /class="disc"/);
-  assert.match(icons, /getAllergenColor/);
+  assert.match(icons, /class="allergen-icon-image"/);
+  assert.match(icons, /<img/);
+  assert.match(icons, /getAllergenIconPath/);
+  assert.doesNotMatch(icons, /<svg|class="disc"|currentColor|mask:|filter:/);
   assert.doesNotMatch(icons, /emoji|🥜|🌾|🥚/i);
-  for (const id of expectedIds) {
-    assert.match(icons, new RegExp(`@case \\('${id}'\\)`));
-  }
 });

@@ -21,24 +21,25 @@ export interface AllergenDefinition {
   id: AllergenId;
   label: string;
   icon: AllergenId;
+  iconPath: string;
   color: string;
 }
 
 export const ALLERGEN_CATALOG: readonly AllergenDefinition[] = [
-  { id: 'gluten', label: 'Gluten', icon: 'gluten', color: '#C7BE4B' },
-  { id: 'crustaceans', label: 'Crustáceos', icon: 'crustaceans', color: '#F39A4B' },
-  { id: 'eggs', label: 'Huevos', icon: 'eggs', color: '#F1D85A' },
-  { id: 'fish', label: 'Pescado', icon: 'fish', color: '#39AEF4' },
-  { id: 'peanuts', label: 'Cacahuetes', icon: 'peanuts', color: '#A88686' },
-  { id: 'milk', label: 'Lácteos', icon: 'milk', color: '#8B5CF6' },
-  { id: 'celery', label: 'Apio', icon: 'celery', color: '#14C85A' },
-  { id: 'mustard', label: 'Mostaza', icon: 'mustard', color: '#C7B116' },
-  { id: 'sulphites', label: 'Sulfitos', icon: 'sulphites', color: '#0D63C9' },
-  { id: 'sesame', label: 'Sésamo', icon: 'sesame', color: '#6E5D00' },
-  { id: 'molluscs', label: 'Moluscos', icon: 'molluscs', color: '#56D9E8' },
-  { id: 'soy', label: 'Soja', icon: 'soy', color: '#7ED957' },
-  { id: 'nuts', label: 'Frutos de cáscara', icon: 'nuts', color: '#6F4A45' },
-  { id: 'lupin', label: 'Altramuces', icon: 'lupin', color: '#15AFC3' }
+  { id: 'gluten', label: 'Gluten', icon: 'gluten', iconPath: 'assets/allergens/gluten.png', color: '#C7BE4B' },
+  { id: 'crustaceans', label: 'Crustáceos', icon: 'crustaceans', iconPath: 'assets/allergens/crustaceans.png', color: '#F39A4B' },
+  { id: 'eggs', label: 'Huevos', icon: 'eggs', iconPath: 'assets/allergens/eggs.png', color: '#F1D85A' },
+  { id: 'fish', label: 'Pescado', icon: 'fish', iconPath: 'assets/allergens/fish.png', color: '#39AEF4' },
+  { id: 'peanuts', label: 'Cacahuetes', icon: 'peanuts', iconPath: 'assets/allergens/peanuts.png', color: '#A88686' },
+  { id: 'milk', label: 'Lácteos', icon: 'milk', iconPath: 'assets/allergens/milk.png', color: '#8B5CF6' },
+  { id: 'celery', label: 'Apio', icon: 'celery', iconPath: 'assets/allergens/celery.png', color: '#14C85A' },
+  { id: 'mustard', label: 'Mostaza', icon: 'mustard', iconPath: 'assets/allergens/mustard.png', color: '#C7B116' },
+  { id: 'sulphites', label: 'Sulfitos', icon: 'sulphites', iconPath: 'assets/allergens/sulphites.png', color: '#0D63C9' },
+  { id: 'sesame', label: 'Sésamo', icon: 'sesame', iconPath: 'assets/allergens/sesame.png', color: '#6E5D00' },
+  { id: 'molluscs', label: 'Moluscos', icon: 'molluscs', iconPath: 'assets/allergens/molluscs.png', color: '#56D9E8' },
+  { id: 'soy', label: 'Soja', icon: 'soy', iconPath: 'assets/allergens/soy.png', color: '#7ED957' },
+  { id: 'nuts', label: 'Frutos de cáscara', icon: 'nuts', iconPath: 'assets/allergens/nuts.png', color: '#6F4A45' },
+  { id: 'lupin', label: 'Altramuces', icon: 'lupin', iconPath: 'assets/allergens/lupin.png', color: '#15AFC3' }
 ] as const;
 
 export interface ProductAllergens {
@@ -133,4 +134,8 @@ export function getAllergenLabel(id: string): string {
 
 export function getAllergenColor(id: string): string {
   return ALLERGEN_BY_ID.get(id as AllergenId)?.color ?? '#888888';
+}
+
+export function getAllergenIconPath(id: string): string {
+  return ALLERGEN_BY_ID.get(id as AllergenId)?.iconPath ?? '';
 }
