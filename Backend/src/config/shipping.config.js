@@ -19,7 +19,7 @@ export const DELIVERY_RULES = {
 };
 
 export const SHIPPING_ZONES = [
-  { id: "alcorcon", name: "Alcorcón", postalCodes: ["28921", "28922", "28923", "28924", "28925"], cost: 2.9, minimumOrder: 12, freeShippingFrom: 40, description: "Zona local. Reparto cercano desde Alcorcón." },
+  { id: "alcorcon", name: "Alcorcón", postalCodes: ["28921", "28922", "28923", "28924", "28925"], cost: 5.0, minimumOrder: 20, freeShippingFrom: 40, description: "Zona local. Reparto cercano desde Alcorcón." },
   { id: "sur-oeste-cercano", name: "Sur-oeste cercano", postalCodes: ["28931", "28932", "28933", "28934", "28935", "28911", "28912", "28913", "28914", "28915"], cost: 4.9, minimumOrder: 18, freeShippingFrom: 55, description: "Municipios cercanos con reparto viable desde Alcorcón." },
   { id: "zona-sur-madrid", name: "Zona sur de Madrid", postalCodes: ["28901", "28902", "28903", "28904", "28905", "28906", "28907", "28941", "28942", "28943", "28944", "28945", "28946", "28947"], cost: 5.9, minimumOrder: 25, freeShippingFrom: 70, description: "Reparto en zona sur con coste medio por desplazamiento." },
   { id: "parla-pinto", name: "Parla / Pinto", postalCodes: ["28981", "28982", "28320"], cost: 6.9, minimumOrder: 30, freeShippingFrom: 85, description: "Zona sur ampliada con reparto bajo planificación." },
