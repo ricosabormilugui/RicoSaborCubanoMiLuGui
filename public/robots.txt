@@ -1,8 +1,13 @@
 User-agent: *
 Allow: /
+Allow: /api/products
+Allow: /api/products/
+Allow: /api/categories
+Allow: /api/categories/
+Allow: /api/home
+Disallow: /api/
 Disallow: /admin
 Disallow: /admin/
-Disallow: /api/
 Disallow: /checkout
 Disallow: /carrito
 Disallow: /mis-pedidos

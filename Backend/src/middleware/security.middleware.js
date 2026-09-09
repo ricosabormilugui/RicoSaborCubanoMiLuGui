@@ -12,6 +12,10 @@ export function securityHeaders({ environment = process.env.NODE_ENV ?? "develop
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    const path = String(req.path ?? "");
+    if (path.startsWith("/api") && !path.endsWith("sitemap.xml")) {
+      res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    }
     const secure = req.secure || req.get("x-forwarded-proto") === "https";
     if (environment === "production" && secure) res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();

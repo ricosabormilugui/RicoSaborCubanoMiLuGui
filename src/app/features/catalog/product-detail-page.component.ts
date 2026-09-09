@@ -15,6 +15,13 @@ import { ProductCategoryService } from '../../core/services/product-category.ser
 import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
 import { BRAND_CONFIG } from '../../core/config/brand.config';
 import { SeoService } from '../../core/services/seo.service';
+import {
+  isProductOrderable,
+  productPathFromIdentifier,
+  resolveProductCanonicalPath,
+  resolveProductRobots,
+  resolveProductSeoPhase
+} from '../../core/seo/seo-page-rules';
 import { ApiRequestError } from '../../core/utils/api-client';
 import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
@@ -61,6 +68,7 @@ export class ProductDetailPageComponent {
   readonly relatedProducts = signal<Product[]>([]);
   readonly detailLoading = signal(true);
   readonly detailError = signal('');
+  readonly detailStatus = signal<number | null>(null);
   readonly purchaseAnchor = viewChild<ElementRef<HTMLElement>>('purchaseAnchor');
   private readonly heroImage = viewChild<ElementRef<HTMLImageElement>>('heroImage');
   private readonly detailAddCta = viewChild('detailAddCta', { read: ElementRef });
@@ -72,6 +80,11 @@ export class ProductDetailPageComponent {
   constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router) {
     this.route.paramMap.subscribe((params) => {
       const identifier = params.get('slug') ?? '';
+      this.detailLoading.set(true);
+      this.detailError.set('');
+      this.detailStatus.set(null);
+      this.product.set(null);
+      this.relatedProducts.set([]);
       this.productParam.set(identifier);
       this.quantity.set(1);
       this.selectedImage.set('');
@@ -338,14 +351,10 @@ export class ProductDetailPageComponent {
   }
 
   isOrderable(product: Product): boolean {
-    return product.available !== false && (!product.trackStock || Number(product.stock ?? 0) > 0);
+    return isProductOrderable(product);
   }
 
   private async loadProduct(identifier: string): Promise<void> {
-    this.detailLoading.set(true);
-    this.detailError.set('');
-    this.product.set(null);
-    this.relatedProducts.set([]);
     try {
       const result = await this.catalog.loadProductByIdentifier(identifier);
       if (identifier !== this.productParam()) return;
@@ -354,7 +363,9 @@ export class ProductDetailPageComponent {
       this.catalog.upsertProduct(result.product);
     } catch (error) {
       if (identifier !== this.productParam()) return;
-      if (!(error instanceof ApiRequestError) || error.status !== 404) {
+      const status = error instanceof ApiRequestError ? error.status : 0;
+      this.detailStatus.set(status);
+      if (status !== 404) {
         this.detailError.set(getUserFriendlyError(error, 'No se pudo cargar el producto.'));
       }
     } finally {
@@ -363,22 +374,96 @@ export class ProductDetailPageComponent {
   }
 
   private updateSeo(): void {
-    if (this.detailLoading()) return;
+    const identifier = this.productParam();
     const product = this.product();
-    if (!product) { this.seo.setPageMeta({ title: 'Producto no encontrado', description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`, path: '/producto/no-encontrado', canonicalPath: '/productos', robots: 'noindex,follow' }); this.seo.removeJsonLd('product'); this.seo.removeJsonLd('breadcrumb'); return; }
-    const route = this.productRoute(product).join('/').replace('//', '/');
+    const phase = resolveProductSeoPhase({
+      identifier,
+      loading: this.detailLoading(),
+      product,
+      httpStatus: this.detailStatus(),
+      loadError: this.detailError()
+    });
+    const canonicalPath = resolveProductCanonicalPath({ identifier, product }) || productPathFromIdentifier(identifier);
+    const robots = resolveProductRobots(phase);
+
+    if (!canonicalPath || phase === 'not-found' || phase === 'unavailable') {
+      this.seo.setPageMeta({
+        title: 'Producto no encontrado',
+        description: `No encontramos el producto solicitado en el catálogo de ${BRAND_CONFIG.name}.`,
+        path: canonicalPath || '/producto/no-encontrado',
+        canonicalPath: canonicalPath || '/producto/no-encontrado',
+        robots
+      });
+      this.seo.removeJsonLd('product');
+      this.seo.removeJsonLd('breadcrumb');
+      return;
+    }
+
+    if (phase !== 'ready' || !product) {
+      this.seo.setPageMeta({
+        title: 'Producto',
+        description: `Consulta este producto del catálogo de ${BRAND_CONFIG.name}.`,
+        path: canonicalPath,
+        canonicalPath,
+        robots: 'index,follow'
+      });
+      this.seo.removeJsonLd('product');
+      this.seo.removeJsonLd('breadcrumb');
+      return;
+    }
+
     const categoryLabel = this.categoryLabel(product.category);
     const description = product.description || `${product.name} de ${BRAND_CONFIG.name}. Producto casero disponible para pedido manual con entrega local o recogida.`;
     const images = this.productImages(product);
     const image = images[0] || SEO_SITE_CONFIG.defaultImage;
     const orderable = this.isOrderable(product);
-    this.seo.setPageMeta({ title: `${product.name} · ${categoryLabel}`, description, path: route, canonicalPath: route, image, type: 'product', price: Number(product.price ?? 0), currency: 'EUR', availability: orderable ? 'in stock' : 'out of stock' });
-    this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([{ name: 'Inicio', path: '/' }, { name: 'Productos', path: '/productos' }, { name: categoryLabel, path: `/categoria/${encodeURIComponent(normalizeCategorySlug(product.category))}` }, { name: product.name, path: route }]));
+    const productUrl = this.seo.canonicalUrl(canonicalPath);
+    this.seo.setPageMeta({
+      title: `${product.name} · ${categoryLabel}`,
+      description,
+      path: canonicalPath,
+      canonicalPath,
+      image,
+      type: 'product',
+      robots: 'index,follow',
+      price: Number(product.price ?? 0),
+      currency: 'EUR',
+      availability: orderable ? 'in stock' : 'out of stock'
+    });
+    this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([
+      { name: 'Inicio', path: '/' },
+      { name: 'Productos', path: '/productos' },
+      { name: categoryLabel, path: `/categoria/${encodeURIComponent(normalizeCategorySlug(product.category))}` },
+      { name: product.name, path: canonicalPath }
+    ]));
     const reviews = this.productReviews(product);
-    const schema: Record<string, unknown> = { '@context': 'https://schema.org', '@type': 'Product', name: product.name, description, image: images.length ? images.map((item) => this.seo.absoluteUrl(item)) : [this.seo.absoluteUrl(image)], category: categoryLabel, url: this.seo.absoluteUrl(route), offers: { '@type': 'Offer', price: Number(product.price ?? 0).toFixed(2), priceCurrency: 'EUR', availability: orderable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', url: this.seo.absoluteUrl(route), seller: { '@type': 'Organization', name: SEO_SITE_CONFIG.siteName } } };
+    const schema: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description,
+      image: images.length ? images.map((item) => this.seo.absoluteUrl(item)) : [this.seo.absoluteUrl(image)],
+      category: categoryLabel,
+      url: productUrl,
+      brand: { '@type': 'Brand', name: SEO_SITE_CONFIG.siteName },
+      offers: {
+        '@type': 'Offer',
+        price: Number(product.price ?? 0).toFixed(2),
+        priceCurrency: 'EUR',
+        availability: orderable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        url: productUrl,
+        seller: { '@type': 'Organization', name: SEO_SITE_CONFIG.siteName }
+      }
+    };
     if (reviews.length) {
       schema['aggregateRating'] = { '@type': 'AggregateRating', ratingValue: this.averageRating(product).toFixed(1), reviewCount: reviews.length };
-      schema['review'] = reviews.map((review) => ({ '@type': 'Review', author: { '@type': 'Person', name: review.author }, reviewRating: { '@type': 'Rating', ratingValue: review.rating, bestRating: 5, worstRating: 1 }, reviewBody: review.comment, ...(review.date ? { datePublished: review.date } : {}) }));
+      schema['review'] = reviews.map((review) => ({
+        '@type': 'Review',
+        author: { '@type': 'Person', name: review.author },
+        reviewRating: { '@type': 'Rating', ratingValue: review.rating, bestRating: 5, worstRating: 1 },
+        reviewBody: review.comment,
+        ...(review.date ? { datePublished: review.date } : {})
+      }));
     }
     this.seo.setJsonLd('product', schema);
   }

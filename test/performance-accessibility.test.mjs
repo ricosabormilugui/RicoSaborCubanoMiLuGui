@@ -14,7 +14,7 @@ test('Home y Catálogo se cargan por rutas lazy sin entrar en main', () => {
   const routes = read('src/app/app.routes.ts');
   assert.doesNotMatch(routes, /import \{ (?:HomePageComponent|CatalogPageComponent) \}/);
   assert.match(routes, /path: '', loadComponent: \(\) => import\('\.\/features\/home\/home-page\.component'\)/);
-  assert.match(routes, /path: 'productos', loadComponent: \(\) => import\('\.\/features\/catalog\/catalog-page\.component'\)/);
+  assert.match(routes, /path: 'productos',\s*loadComponent: \(\) => import\('\.\/features\/catalog\/catalog-page\.component'\)/);
 });
 
 test('el shell no carga Forms ni Angular Animations para controles nativos simples', () => {

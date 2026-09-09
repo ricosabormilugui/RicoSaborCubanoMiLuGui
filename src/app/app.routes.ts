@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
 import { blockAdminFavoritesGuard, customerGuard } from './core/guards/customer.guard';
+import { catalogSeoResolver } from './core/seo/catalog-seo.resolver';
+import { productSeoResolver } from './core/seo/product-seo.resolver';
 import { SeoMetaInput } from './core/services/seo.service';
 import { BRAND_CONFIG } from './core/config/brand.config';
 
@@ -13,11 +15,20 @@ const privateSeo = (title: string, description: string, canonicalPath: string): 
 
 export const appRoutes: Routes = [
   { path: '', loadComponent: () => import('./features/home/home-page.component').then((m) => m.HomePageComponent) },
-  { path: 'productos', loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent) },
-  { path: 'categoria/:category', loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent) },
+  {
+    path: 'productos',
+    loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent),
+    resolve: { catalogSeo: catalogSeoResolver }
+  },
+  {
+    path: 'categoria/:category',
+    loadComponent: () => import('./features/catalog/catalog-page.component').then((m) => m.CatalogPageComponent),
+    resolve: { catalogSeo: catalogSeoResolver }
+  },
   {
     path: 'producto/:slug',
-    loadComponent: () => import('./features/catalog/product-detail-page.component').then((m) => m.ProductDetailPageComponent)
+    loadComponent: () => import('./features/catalog/product-detail-page.component').then((m) => m.ProductDetailPageComponent),
+    resolve: { productSeo: productSeoResolver }
   },
   {
     path: 'carrito',
@@ -32,7 +43,7 @@ export const appRoutes: Routes = [
   {
     path: 'contacto',
     loadComponent: () => import('./features/contact/contact-page.component').then((m) => m.ContactPageComponent),
-    data: { seo: { title: 'Contacto', description: `Contacta con ${BRAND_CONFIG.name} para consultar productos, tartas, encargos, entregas o recogidas.`, canonicalPath: '/contacto' } }
+    data: { seo: { title: 'Contacto', description: `Contacta con ${BRAND_CONFIG.name} para consultar productos, tartas, encargos, entregas o recogidas.`, canonicalPath: '/contacto', robots: 'index,follow' } }
   },
   { path: 'legal', redirectTo: 'legal/aviso-legal', pathMatch: 'full' },
   {

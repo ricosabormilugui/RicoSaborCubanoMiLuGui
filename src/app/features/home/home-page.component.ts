@@ -129,6 +129,7 @@ export class HomePageComponent {
       description: `Encarga en ${this.brand.name} tartas personalizadas, comida cubana tradicional, platos españoles caseros y propuestas para cumpleaños, eventos y celebraciones.`,
       path: '/',
       canonicalPath: '/',
+      robots: 'index,follow',
       type: 'website'
     });
 

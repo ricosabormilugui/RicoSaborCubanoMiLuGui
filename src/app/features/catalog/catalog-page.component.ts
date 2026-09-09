@@ -9,6 +9,7 @@ import { isProductCustomizable, Product } from '../../core/models/product.model'
 import { filterProducts, getProductRoute, selectBestSellers } from '../../core/models/product-filter';
 import { getProductCategoryLabel, normalizeCategorySlug } from '../../core/config/product-categories.config';
 import { SeoService } from '../../core/services/seo.service';
+import { resolveCatalogSeo } from '../../core/seo/seo-page-rules';
 import { AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { ProductCategoryService } from '../../core/services/product-category.service';
@@ -212,30 +213,33 @@ export class CatalogPageComponent implements OnDestroy {
   }
 
   private updateSeo(): void {
-    if (this.routeCategory() && !this.productCategories.publicLoadFinished()) return;
-    const category = this.category();
-    const categoryLabel = category ? this.categoryLabel(category) : '';
-    const path = category ? `/categoria/${encodeURIComponent(category)}` : '/productos';
-    const title = category
+    const resolved = resolveCatalogSeo({
+      routeCategory: this.routeCategory(),
+      invalidCategory: this.invalidCategory(),
+      emptyCategory: this.emptyCategory(),
+      categoriesReady: this.productCategories.publicLoadFinished()
+    });
+    const categoryLabel = resolved.path.startsWith('/categoria/') ? this.categoryLabel(this.routeCategory()) : '';
+    const title = categoryLabel
       ? `${categoryLabel} del catálogo`
       : 'Productos, tartas y comida casera por encargo';
-    const description = category
+    const description = categoryLabel
       ? `Compra ${categoryLabel.toLowerCase()} de ${BRAND_CONFIG.name} con pedido manual, entrega local o recogida y confirmación por el equipo.`
       : `Explora el catálogo completo de ${BRAND_CONFIG.name}: tartas, platos cubanos y españoles, dulces y encargos con entrega o recogida.`;
 
     this.seo.setPageMeta({
       title,
       description,
-      path,
+      path: resolved.path,
       type: 'website',
-      robots: this.invalidCategory() || this.emptyCategory() ? 'noindex,follow' : 'index,follow',
-      canonicalPath: this.invalidCategory() ? '/productos' : path
+      robots: resolved.robots,
+      canonicalPath: resolved.canonicalPath
     });
 
     this.seo.setJsonLd('breadcrumb', this.seo.buildBreadcrumbSchema([
       { name: 'Inicio', path: '/' },
       { name: 'Productos', path: '/productos' },
-      ...(category && !this.invalidCategory() ? [{ name: categoryLabel, path }] : [])
+      ...(categoryLabel && resolved.path.startsWith('/categoria/') && !this.invalidCategory() ? [{ name: categoryLabel, path: resolved.path }] : [])
     ]));
     this.seo.removeJsonLd('product');
   }

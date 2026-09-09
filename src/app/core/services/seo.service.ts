@@ -26,7 +26,7 @@ export class SeoService {
 
   setPageMeta(input: SeoMetaInput): string {
     const fullTitle = this.withSuffix(input.title);
-    const canonical = this.absoluteUrl(input.canonicalPath ?? input.path ?? '/');
+    const canonical = this.canonicalUrl(input.canonicalPath ?? input.path ?? '/');
     const image = this.absoluteUrl(input.image || this.site.defaultImage);
     const type = input.type ?? 'website';
 
@@ -130,18 +130,42 @@ export class SeoService {
     };
   }
 
+  canonicalUrl(pathOrUrl: string): string {
+    return this.rewritePublicUrl(pathOrUrl, { canonical: true });
+  }
+
   absoluteUrl(pathOrUrl: string): string {
+    return this.rewritePublicUrl(pathOrUrl, { canonical: false });
+  }
+
+  private rewritePublicUrl(pathOrUrl: string, { canonical }: { canonical: boolean }): string {
     const base = this.resolveBaseUrl();
-    if (/^https?:\/\//i.test(pathOrUrl)) {
-      const url = new URL(pathOrUrl);
-      if (url.hostname === 'ricosaborcubano.netlify.app') {
-        return `${base}${url.pathname}${url.search}`;
-      }
-      return pathOrUrl;
+    const site = new URL(`${base}/`);
+    const raw = String(pathOrUrl ?? '').trim() || '/';
+
+    let url: URL;
+    try {
+      url = /^https?:\/\//i.test(raw) ? new URL(raw) : new URL(raw.startsWith('/') ? raw : `/${raw}`, site);
+    } catch {
+      return canonical ? `${base}/` : `${base}/`;
     }
 
-    const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
-    return `${base}${path}`;
+    const hostname = url.hostname.toLowerCase();
+    const isNetlifyHost = hostname === 'netlify.app' || hostname.endsWith('.netlify.app');
+    const isSiteHost = hostname === site.hostname.toLowerCase();
+
+    if (canonical || isNetlifyHost || isSiteHost || !/^https?:\/\//i.test(raw)) {
+      url.protocol = site.protocol;
+      url.host = site.host;
+      if (canonical) {
+        url.search = '';
+        url.hash = '';
+      }
+      if (url.pathname === '/' || url.pathname === '') return `${base}/`;
+      return `${base}${url.pathname}`.replace(/\/$/, '');
+    }
+
+    return raw;
   }
 
   private resolveBaseUrl(): string {

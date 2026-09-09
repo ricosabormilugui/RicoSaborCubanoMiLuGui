@@ -26,6 +26,7 @@ test("health confirma que el proceso está vivo y devuelve requestId", async () 
     assert.equal(response.status, 200);
     assert.equal(body.status, "ok");
     assert.equal(response.headers.get("x-request-id"), "test-request-123");
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
     assert.equal(body.database, undefined);
   });
 });

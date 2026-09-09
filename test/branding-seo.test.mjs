@@ -76,7 +76,9 @@ test('caso 7: canonical usa la URL configurada y actualiza el link único', () =
   assert.match(seo, /link\.setAttribute\('href', href\)/);
   assert.equal(site.productionSiteUrl, 'https://mixsabor.milugui.com');
   assert.doesNotMatch(seo, /location\?\.origin|window\.location|document\.location.*origin/);
-  assert.match(seo, /url\.hostname === 'ricosaborcubano\.netlify\.app'/);
+  assert.match(seo, /hostname\.endsWith\('\.netlify\.app'\)/);
+  assert.match(seo, /canonicalUrl\(/);
+  assert.match(seo, /url\.search = ''/);
 });
 
 test('caso 8: structured data usa MIXSABOR y su slogan', () => {
@@ -117,6 +119,9 @@ test('Open Graph, Twitter Cards, sitemap dinámico y robots están presentes', (
   assert.match(sitemap, /"\/productos"/);
   assert.doesNotMatch(sitemap, /"\/(admin|login|registro|checkout|carrito|mis-pedidos|favoritos)"/);
   assert.match(netlify, /from = "\/sitemap\.xml"/);
+  assert.match(netlify, /X-Robots-Tag = "noindex, nofollow"/);
+  assert.match(robots, /Allow: \/api\/products/);
+  assert.match(robots, /Allow: \/api\/categories/);
   assert.match(robots, /Disallow: \/api\//);
   assert.match(robots, /Sitemap: https:\/\/mixsabor\.milugui\.com\/sitemap\.xml/);
 });
@@ -138,6 +143,8 @@ test('la ficha usa endpoint directo, canonical por slug y JSON-LD sin Mongo ID c
   assert.match(catalog, /`\$\{this\.endpoint\}\/\$\{encodeURIComponent\(identifier\)\}`/);
   assert.doesNotMatch(detail, /loadProducts\(\)/);
   assert.doesNotMatch(detail, /sku:\s*product\.id/);
+  assert.match(detail, /brand: \{ '@type': 'Brand'/);
+  assert.match(detail, /canonicalUrl\(canonicalPath\)/);
   assert.match(detail, /aggregateRating/);
   assert.match(detail, /schema\.org\/OutOfStock/);
 });
@@ -146,8 +153,8 @@ test('las categorías desconocidas y vacías quedan noindex', () => {
   const catalog = read('src/app/features/catalog/catalog-page.component.ts');
   assert.match(catalog, /invalidCategory/);
   assert.match(catalog, /emptyCategory/);
-  assert.match(catalog, /'noindex,follow'/);
-  assert.match(catalog, /canonicalPath: this\.invalidCategory\(\) \? '\/productos' : path/);
+  assert.match(catalog, /resolveCatalogSeo/);
+  assert.match(read('src/app/core/seo/seo-page-rules.ts'), /robots: 'noindex,follow'/);
 });
 
 test('Netlify redirige el hostname de infraestructura conservando el path', () => {
