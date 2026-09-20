@@ -1,7 +1,7 @@
 import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
 import { CartAnimationService } from '../../core/services/cart-animation.service';
 import { CatalogService } from '../../core/services/catalog.service';
@@ -23,7 +23,6 @@ import {
   resolveProductSeoPhase
 } from '../../core/seo/seo-page-rules';
 import { ApiRequestError } from '../../core/utils/api-client';
-import { Router } from '@angular/router';
 import { AddToCartButtonComponent, AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
 import { ProductCardComponent } from '../../shared/ui/product-card.component';
 import { BEST_SELLERS_EYEBROW, BEST_SELLERS_TITLE, COMPACT_PRODUCT_SIZES } from '../../core/config/best-sellers.config';
@@ -77,7 +76,7 @@ export class ProductDetailPageComponent {
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
   readonly isLoadingDetail = computed(() => this.detailLoading());
 
-  constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router) {
+  constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router, private readonly location: Location) {
     this.route.paramMap.subscribe((params) => {
       const identifier = params.get('slug') ?? '';
       this.detailLoading.set(true);
@@ -129,6 +128,14 @@ export class ProductDetailPageComponent {
       observer.observe(anchor);
       onCleanup(() => observer.disconnect());
     });
+  }
+
+  backToProducts(): void {
+    if (this.router.lastSuccessfulNavigation?.previousNavigation) {
+      this.location.back();
+      return;
+    }
+    void this.router.navigateByUrl('/productos');
   }
 
   selectImage(image: string): void { this.selectedImage.set(image); }

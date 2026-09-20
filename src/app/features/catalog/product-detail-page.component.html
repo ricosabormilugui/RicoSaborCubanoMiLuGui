@@ -1,5 +1,5 @@
 <section class="detail-page" [class.has-sticky]="showStickyPurchase()" [attr.aria-busy]="isLoadingDetail()">
-  <a class="back-link" routerLink="/productos">← Volver a productos</a>
+  <button class="back-link" type="button" (click)="backToProducts()">← Volver a productos</button>
 
   <div class="detail-skeleton" *ngIf="isLoadingDetail(); else productState" aria-label="Cargando producto">
     <div class="hero-frame skeleton-block"></div>

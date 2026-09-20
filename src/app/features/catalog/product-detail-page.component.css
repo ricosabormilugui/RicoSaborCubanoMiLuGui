@@ -17,10 +17,15 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--text-soft);
+  font-family: inherit;
   font-size: .88rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .back-link:hover { color: var(--text-main); }
