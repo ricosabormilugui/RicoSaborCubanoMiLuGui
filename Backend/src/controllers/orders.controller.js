@@ -17,7 +17,9 @@ import {
 } from "../repositories/orders.repository.js";
 import { findProductById, OrderStockError } from "../repositories/products.repository.js";
 import { findCustomerForCoupon } from "../repositories/customers.repository.js";
-import { DELIVERY_RULES, calculateShippingQuote, normalizePostalCode } from "../config/shipping.config.js";
+import { DELIVERY_RULES, normalizePostalCode } from "../config/shipping.config.js";
+import { calculateShippingQuote } from "../services/shipping.service.js";
+import { RoutingProviderError } from "../services/openrouteservice.provider.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
 import { validateOrderFulfillment } from "../services/order-rules.service.js";
 import { calculateCanonicalOrderItems, OrderPricingError } from "../services/order-pricing.service.js";
@@ -153,20 +155,26 @@ function calculateItemsSubtotal(items = []) {
   );
 }
 
-function normalizeShipping(payload, delivery) {
+async function normalizeShipping(payload, delivery, quoteService = calculateShippingQuote) {
   const subtotal = calculateItemsSubtotal(payload?.items);
-  const quote = calculateShippingQuote(delivery.type, delivery.postalCode, subtotal);
+  const quote = await quoteService({
+    deliveryType: delivery.type,
+    address: payload?.delivery?.address,
+    postalCode: delivery.postalCode,
+    subtotal
+  });
 
   return {
     quote,
     details: {
-      zoneId: quote.zoneId,
-      zoneName: quote.zoneName,
-      postalCode: quote.postalCode,
-      cost: Number(quote.cost.toFixed(2)),
+      zoneId: quote.zone,
+      zoneName: quote.zone,
+      postalCode: delivery.postalCode,
+      distanceKm: quote.distanceKm,
+      deliveryAddress: quote.deliveryAddress,
+      cost: Number(Number(quote.deliveryFee ?? 0).toFixed(2)),
       minimumOrder: quote.minimumOrder,
-      freeShippingFrom: quote.freeShippingFrom,
-      freeShippingApplied: quote.freeShippingApplied
+      freeShippingApplied: quote.deliveryFee === 0
     }
   };
 }
@@ -351,7 +359,7 @@ function buildCreateOrderResponse(order, { notifications, warnings = [], replay 
   };
 }
 
-async function createOrderWithinTransaction({ payload, auth, idempotencyKey, requestFingerprint, session }) {
+async function createOrderWithinTransaction({ payload, auth, idempotencyKey, requestFingerprint, session, quoteService }) {
   const orderIdentity = buildOrderIdentity(payload, auth);
   const customerEmailNormalized = normalizeCustomerEmail(payload, auth);
   const normalizedDelivery = normalizeDelivery(payload);
@@ -379,9 +387,9 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
   }
 
   const canonicalPayload = { ...payload, items: canonicalItems };
-  const normalizedShipping = normalizeShipping(canonicalPayload, normalizedDelivery);
+  const normalizedShipping = await normalizeShipping(canonicalPayload, normalizedDelivery, quoteService);
   if (!normalizedShipping.quote.available) {
-    throw new OrderCreationBusinessError(normalizedShipping.quote.message);
+    throw new OrderCreationBusinessError(normalizedShipping.quote.message, 400, { code: normalizedShipping.quote.reason });
   }
   if (requiresAdvancePayment && normalizedPayment.method === "cash" && !DELIVERY_RULES.cashAllowedForAdvancePaymentOrders) {
     throw new OrderCreationBusinessError("Este pedido requiere pago anticipado y no permite pago en efectivo.");
@@ -420,7 +428,8 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
       date: normalizedDelivery.date,
       slot: normalizedDelivery.slot,
       type: normalizedDelivery.type,
-      postalCode: normalizedShipping.details.postalCode
+      postalCode: normalizedShipping.details.postalCode,
+      address: normalizedShipping.details.deliveryAddress ?? payload?.delivery?.address
     },
     payment: normalizedPayment,
     paymentMethod: normalizedPayment.method,
@@ -469,7 +478,7 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
   });
 }
 
-export async function createOrder(req, res) {
+export async function createOrder(req, res, { quoteService = calculateShippingQuote } = {}) {
   const payload = req.body;
   if (!payload?.customer?.fullName || !payload?.customer?.phone || !payload?.items?.length) {
     return res.status(400).json({ error: "Invalid order payload" });
@@ -504,7 +513,8 @@ export async function createOrder(req, res) {
         auth: req.auth,
         idempotencyKey,
         requestFingerprint,
-        session
+        session,
+        quoteService
       })
     });
 
@@ -558,6 +568,9 @@ export async function createOrder(req, res) {
         replay: false
       });
       return res.status(409).json({ message: error.message, code: error.code });
+    }
+    if (error instanceof RoutingProviderError) {
+      return res.status(error.status).json({ message: error.message, code: error.code });
     }
     if (error instanceof OrderPricingError || error instanceof OrderStockError || error instanceof CouponConsumptionError || error instanceof OrderCreationBusinessError) {
       const status = Number(error.status ?? (error instanceof OrderStockError ? 409 : 400));

@@ -177,7 +177,9 @@
               <input formControlName="reference" placeholder="Portal, timbre, indicaciones" />
             </label>
           }
-          <p class="shipping-quote" [class.blocked]="shippingQuoteBlocked()">{{ shippingQuoteMessage() }}</p>
+          <p class="shipping-quote" [class.blocked]="shippingQuoteBlocked()" aria-live="polite">
+            {{ shippingQuoteMessage() }}
+          </p>
           <label class="notes-field">
             Notas del pedido
             <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>
@@ -259,7 +261,7 @@
         </div>
         <div class="summary-line">
           <span>Entrega</span>
-          <strong>{{ shippingQuote().cost | currency:'EUR' }}</strong>
+          <strong>{{ shippingQuote().deliveryFee | currency:'EUR' }}</strong>
         </div>
         @if (couponDiscountPreview() > 0) {
           <div class="summary-line discount">

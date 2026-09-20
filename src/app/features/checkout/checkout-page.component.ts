@@ -5,7 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
-import { CheckoutFormData, PaymentMethod } from '../../core/models/order.model';
+import { CheckoutFormData, DeliveryQuote, PaymentMethod } from '../../core/models/order.model';
 import { getPaymentInstructions, getPaymentMethodLabel, OrderService } from '../../core/services/order.service';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -14,13 +14,12 @@ import { ActiveIdentityService } from '../../core/services/active-identity.servi
 import { CatalogService } from '../../core/services/catalog.service';
 import { CouponDraftService } from '../../core/services/coupon.service';
 import { CheckoutDraftService } from '../../core/services/checkout-draft.service';
+import { ShippingQuoteService } from '../../core/services/shipping-quote.service';
 import { PAYMENT_METHOD_META } from '../../core/config/payment.config';
 import { PaymentSettingsService } from '../../core/services/payment-settings.service';
 import { PublicPaymentSettings } from '../../core/models/payment-settings.model';
 import {
   DELIVERY_RULES,
-  ShippingQuote,
-  calculateShippingQuote,
   explainUnavailableDate,
   formatPaymentDeadlineTime,
   getMaximumFulfillmentDate,
@@ -60,9 +59,20 @@ export class CheckoutPageComponent {
   readonly completedPaymentMethod = signal<PaymentMethod | null>(null);
   readonly paymentExpiresAt = signal('');
   readonly stockSubmitError = signal('');
+  readonly shippingQuoteLoading = signal(false);
+  readonly shippingQuoteState = signal<DeliveryQuote>({
+    available: false,
+    deliveryType: 'delivery',
+    deliveryFee: 0,
+    subtotal: 0,
+    message: 'Indica la dirección completa para calcular la entrega.'
+  });
   readonly paymentMethods = PAYMENT_METHOD_META;
   readonly deliveryRules = DELIVERY_RULES;
   private hydrating = false;
+  private shippingQuoteTimer?: ReturnType<typeof globalThis.setTimeout>;
+  private shippingQuoteRequest = 0;
+  private lastShippingQuoteKey = '';
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -92,7 +102,8 @@ export class CheckoutPageComponent {
     private readonly paymentSettings: PaymentSettingsService,
     private readonly catalog: CatalogService,
     public readonly coupon: CouponDraftService,
-    private readonly checkoutDraft: CheckoutDraftService
+    private readonly checkoutDraft: CheckoutDraftService,
+    private readonly shippingQuotes: ShippingQuoteService
   ) {
     effect(() => {
       this.identity.session();
@@ -117,9 +128,11 @@ export class CheckoutPageComponent {
         this.reconcilePaymentMethod();
       }
       this.persistCheckoutState();
+      this.scheduleShippingQuote();
     });
     void this.loadPaymentSettings();
     void this.refreshInventory();
+    this.scheduleShippingQuote();
   }
 
   async refreshInventory(): Promise<void> {
@@ -141,6 +154,7 @@ export class CheckoutPageComponent {
       || !this.cart.items().length
       || this.paymentSettingsLoading()
       || !this.availablePaymentMethods().length
+      || this.shippingQuoteLoading()
       || this.hasBlockingStock();
   }
 
@@ -174,6 +188,7 @@ export class CheckoutPageComponent {
     this.updateAddressValidation(this.form.controls.deliveryType.value);
     this.reconcileDeliverySlot();
     this.hydrating = false;
+    this.scheduleShippingQuote();
   }
 
   private persistCheckoutState(): void {
@@ -252,12 +267,8 @@ export class CheckoutPageComponent {
     return getPaymentInstructions(method, orderId);
   }
 
-  shippingQuote(): ShippingQuote {
-    return calculateShippingQuote(
-      this.form.controls.deliveryType.value,
-      this.form.controls.postalCode.value,
-      this.cart.subtotal()
-    );
+  shippingQuote(): DeliveryQuote {
+    return this.shippingQuoteState();
   }
 
   hasCompletePostalCode(): boolean {
@@ -265,19 +276,70 @@ export class CheckoutPageComponent {
   }
 
   shippingQuoteMessage(): string {
-    const quote = this.shippingQuote();
-    if (this.form.controls.deliveryType.value !== 'delivery' || this.hasCompletePostalCode()) {
-      return quote.message;
-    }
-    if (this.isInvalid('postalCode')) return quote.message;
-    return 'Indica el código postal para calcular el envío.';
+    return this.shippingQuoteLoading() ? 'Calculando distancia por carretera…' : this.shippingQuote().message;
   }
 
   shippingQuoteBlocked(): boolean {
     const quote = this.shippingQuote();
     if (this.form.controls.deliveryType.value !== 'delivery') return !quote.available;
-    if (!this.hasCompletePostalCode()) return this.isInvalid('postalCode');
+    if (!this.hasCompletePostalCode() || this.form.controls.address.value.trim().length < 5) return false;
     return !quote.available;
+  }
+
+  private scheduleShippingQuote(): void {
+    if (this.hydrating || this.orderId()) return;
+    if (this.shippingQuoteTimer) globalThis.clearTimeout(this.shippingQuoteTimer);
+
+    const deliveryType = this.form.controls.deliveryType.value;
+    const address = this.form.controls.address.value.trim();
+    const postalCode = normalizePostalCode(this.form.controls.postalCode.value);
+    const subtotal = Number(this.cart.subtotal().toFixed(2));
+    const key = `${deliveryType}|${address.toLowerCase()}|${postalCode}|${subtotal}`;
+    if (key === this.lastShippingQuoteKey) return;
+    const request = ++this.shippingQuoteRequest;
+    this.lastShippingQuoteKey = '';
+
+    if (deliveryType === 'delivery' && (address.length < 5 || postalCode.length !== 5)) {
+      this.shippingQuoteLoading.set(false);
+      this.shippingQuoteState.set({
+        available: false,
+        deliveryType,
+        deliveryFee: 0,
+        subtotal,
+        message: 'Indica la dirección completa para calcular la entrega.'
+      });
+      return;
+    }
+
+    this.shippingQuoteLoading.set(true);
+    this.shippingQuoteTimer = globalThis.setTimeout(() => void this.loadShippingQuote(request, key, {
+      deliveryType,
+      address,
+      postalCode,
+      subtotal
+    }), 400);
+  }
+
+  private async loadShippingQuote(request: number, key: string, input: { deliveryType: 'delivery' | 'pickup'; address: string; postalCode: string; subtotal: number }): Promise<void> {
+    try {
+      const quote = await this.shippingQuotes.quote(input);
+      if (request !== this.shippingQuoteRequest) return;
+      this.lastShippingQuoteKey = key;
+      this.shippingQuoteState.set(quote);
+    } catch (error) {
+      if (request !== this.shippingQuoteRequest) return;
+      this.lastShippingQuoteKey = key;
+      this.shippingQuoteState.set({
+        available: false,
+        deliveryType: input.deliveryType,
+        reason: 'ROUTING_UNAVAILABLE',
+        deliveryFee: 0,
+        subtotal: input.subtotal,
+        message: getUserFriendlyError(error, 'No se pudo calcular la distancia de entrega. Inténtalo de nuevo.')
+      });
+    } finally {
+      if (request === this.shippingQuoteRequest) this.shippingQuoteLoading.set(false);
+    }
   }
 
   paymentReservationHours(): number {
@@ -297,7 +359,7 @@ export class CheckoutPageComponent {
   }
 
   orderTotal(): number {
-    return Number((this.cart.subtotal() - this.couponDiscountPreview() + this.shippingQuote().cost).toFixed(2));
+    return Number((this.cart.subtotal() - this.couponDiscountPreview() + this.shippingQuote().deliveryFee).toFixed(2));
   }
 
   requiresAdvancePayment(): boolean {
@@ -559,7 +621,7 @@ export class CheckoutPageComponent {
     const historySession = this.notifications.historySession();
     const checkoutSession = this.identity.session();
     try {
-      const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData);
+      const payload = this.orderService.createPayload(this.form.getRawValue() as CheckoutFormData, this.shippingQuote());
       payload.requiresAdvancePayment = this.requiresAdvancePayment();
       const result = await this.orderService.submitOrder(payload);
       if (!this.identity.isCurrent(checkoutSession)) return;

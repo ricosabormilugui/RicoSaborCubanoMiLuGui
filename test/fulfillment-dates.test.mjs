@@ -20,7 +20,6 @@ function loadShipping() {
 const shipping = await loadShipping();
 const {
   DELIVERY_RULES,
-  calculateShippingQuote,
   getMinimumFulfillmentDate,
   getSlotsForDeliveryType,
   getValidSlotsForDate,
@@ -153,13 +152,11 @@ test('A-H: franja vacía y transiciones no acceden a startTime', () => {
   assert.doesNotMatch(checkout, /\.startTime/);
 });
 
-test('28922 es un CP válido y no deja el mensaje de 5 dígitos', () => {
-  const quote = calculateShippingQuote('delivery', '28922', 40);
-  assert.equal(quote.available, true);
-  assert.doesNotMatch(quote.message, /5 dígitos/);
+test('checkout conserva el CP y delega el cálculo de entrega al backend', () => {
   const checkout = readFileSync(new URL('src/app/features/checkout/checkout-page.component.html', rootUrl), 'utf8')
     + readFileSync(new URL('src/app/features/checkout/checkout-page.component.ts', rootUrl), 'utf8');
   assert.match(checkout, /placeholder="Ej\. 28922"/);
   assert.match(checkout, /hasCompletePostalCode\(\)/);
   assert.match(checkout, /shippingQuoteMessage\(\)/);
+  assert.doesNotMatch(checkout, /calculateShippingQuote/);
 });

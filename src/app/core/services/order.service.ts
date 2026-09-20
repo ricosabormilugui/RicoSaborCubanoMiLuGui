@@ -1,12 +1,11 @@
 import { Injectable, effect, untracked } from '@angular/core';
-import { CheckoutFormData, OrderPayload, PaymentMethod } from '../models/order.model';
+import { CheckoutFormData, DeliveryQuote, OrderPayload, PaymentMethod } from '../models/order.model';
 import { resolveApiBaseUrl } from '../config/api.config';
 import { getCheckoutPaymentInstructions, getPaymentMethodLabel } from '../config/payment.config';
 import { CartService } from './cart.service';
 import { CustomerAuthService } from './customer-auth.service';
 import { DeliveryStateService } from './delivery-state.service';
 import { ActiveIdentityService } from './active-identity.service';
-import { calculateShippingQuote } from '../config/shipping.config';
 import { requestJson } from '../utils/api-client';
 import { OrderIdempotencyIntent } from '../utils/order-idempotency';
 
@@ -43,7 +42,7 @@ export class OrderService {
     });
   }
 
-  createPayload(data: CheckoutFormData): OrderPayload {
+  createPayload(data: CheckoutFormData, quote: DeliveryQuote): OrderPayload {
     const subtotal = Number(this.cartService.subtotal().toFixed(2));
     const profileEmail = this.customerAuth.profile()?.email;
 
@@ -53,7 +52,7 @@ export class OrderService {
       type: data.deliveryType
     });
 
-    const shipping = this.buildShipping(data, subtotal);
+    const shipping = this.buildShipping(data, quote);
 
     return {
       customer: {
@@ -107,17 +106,16 @@ export class OrderService {
     return code || null;
   }
 
-  private buildShipping(data: CheckoutFormData, subtotal: number): OrderPayload['shipping'] {
-    const quote = calculateShippingQuote(data.deliveryType, data.postalCode, subtotal);
-
+  private buildShipping(data: CheckoutFormData, quote: DeliveryQuote): OrderPayload['shipping'] {
     return {
-      zoneId: quote.zoneId,
-      zoneName: quote.zoneName,
-      postalCode: quote.postalCode,
-      cost: Number(quote.cost.toFixed(2)),
+      zoneId: quote.zone,
+      zoneName: quote.zone,
+      postalCode: data.postalCode,
+      cost: Number(quote.deliveryFee.toFixed(2)),
       minimumOrder: quote.minimumOrder,
-      freeShippingFrom: quote.freeShippingFrom,
-      freeShippingApplied: quote.freeShippingApplied
+      freeShippingApplied: quote.deliveryFee === 0,
+      distanceKm: quote.distanceKm,
+      deliveryAddress: quote.deliveryAddress
     };
   }
 

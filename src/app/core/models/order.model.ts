@@ -46,6 +46,24 @@ export interface ShippingDetails {
   minimumOrder?: number;
   freeShippingFrom?: number;
   freeShippingApplied: boolean;
+  distanceKm?: number;
+  deliveryAddress?: string;
+}
+
+export type DeliveryQuoteReason = 'INVALID_ADDRESS' | 'ADDRESS_NOT_FOUND' | 'ROUTING_UNAVAILABLE' | 'MINIMUM_ORDER_NOT_REACHED' | 'OUTSIDE_DELIVERY_AREA';
+
+export interface DeliveryQuote {
+  available: boolean;
+  deliveryType: DeliveryType;
+  reason?: DeliveryQuoteReason;
+  distanceKm?: number;
+  deliveryFee: number;
+  minimumOrder?: number;
+  subtotal: number;
+  amountMissingForMinimum?: number;
+  zone?: string;
+  deliveryAddress?: string;
+  message: string;
 }
 
 export interface CheckoutFormData {

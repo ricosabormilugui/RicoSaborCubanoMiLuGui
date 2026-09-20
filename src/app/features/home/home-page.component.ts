@@ -7,7 +7,7 @@ import { CatalogService } from '../../core/services/catalog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { isProductCustomizable, Product } from '../../core/models/product.model';
 import { getProductRoute, selectBestSellers } from '../../core/models/product-filter';
-import { DELIVERY_RULES, SHIPPING_ZONES } from '../../core/config/shipping.config';
+import { DELIVERY_RULES } from '../../core/config/shipping.config';
 import { HomeContentService } from '../../core/services/home-content.service';
 import { SeoService } from '../../core/services/seo.service';
 import { AddToCartAction } from '../../shared/ui/add-to-cart-button.component';
@@ -36,7 +36,6 @@ export class HomePageComponent {
 
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
   readonly brand = BRAND_CONFIG;
-  readonly localZone = SHIPPING_ZONES[0];
   readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
   readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
   readonly marqueeItems = ['Casero', 'Sabor cubano', 'Por encargo', 'Hecho con cariño'];
