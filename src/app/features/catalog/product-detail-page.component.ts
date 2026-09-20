@@ -40,6 +40,8 @@ import {
   ProductCustomizationSelectionState
 } from '../../core/utils/customization-pricing';
 
+const GALLERY_SWIPE_THRESHOLD_PX = 48;
+
 @Component({
   standalone: true,
   imports: [CommonModule, RouterLink, AddToCartButtonComponent, ProductCardComponent, AllergenIconComponent],
@@ -72,8 +74,14 @@ export class ProductDetailPageComponent {
   private readonly heroImage = viewChild<ElementRef<HTMLImageElement>>('heroImage');
   private readonly detailAddCta = viewChild('detailAddCta', { read: ElementRef });
   private lastConfiguredProductId = '';
+  private galleryPointerStart: { x: number; y: number } | null = null;
 
   readonly currentImages = computed(() => this.product() ? this.productImages(this.product()!) : []);
+  readonly activeImageIndex = computed(() => {
+    const selectedIndex = this.currentImages().indexOf(this.selectedImage());
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  });
+  readonly activeImage = computed(() => this.currentImages()[this.activeImageIndex()] ?? '');
   readonly isLoadingDetail = computed(() => this.detailLoading());
 
   constructor(public readonly cart: CartService, private readonly catalog: CatalogService, private readonly notifications: NotificationService, private readonly route: ActivatedRoute, private readonly seo: SeoService, private readonly router: Router, private readonly location: Location) {
@@ -138,7 +146,39 @@ export class ProductDetailPageComponent {
     void this.router.navigateByUrl('/productos');
   }
 
-  selectImage(image: string): void { this.selectedImage.set(image); }
+  selectImage(image: string): void {
+    if (this.currentImages().includes(image)) this.selectedImage.set(image);
+  }
+
+  previousImage(): void { this.selectImageAt(this.activeImageIndex() - 1); }
+  nextImage(): void { this.selectImageAt(this.activeImageIndex() + 1); }
+
+  onGalleryPointerDown(event: PointerEvent): void {
+    if (event.isPrimary === false || event.pointerType === 'mouse' || this.currentImages().length < 2) return;
+    this.galleryPointerStart = { x: event.clientX, y: event.clientY };
+  }
+
+  onGalleryPointerUp(event: PointerEvent): void {
+    const start = this.galleryPointerStart;
+    this.galleryPointerStart = null;
+    if (!start) return;
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) < GALLERY_SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    if (deltaX < 0) this.nextImage();
+    else this.previousImage();
+  }
+
+  onGalleryPointerCancel(): void { this.galleryPointerStart = null; }
+
+  private selectImageAt(index: number): void {
+    const images = this.currentImages();
+    if (images.length < 2) return;
+    const normalizedIndex = (index + images.length) % images.length;
+    this.selectedImage.set(images[normalizedIndex]);
+  }
+
   minimumQuantity(product: Product): number { const value = Math.floor(Number(product.minimumQuantity ?? 1)); return Number.isFinite(value) && value > 0 ? value : 1; }
   tracksStock(product: Product): boolean { return tracksInventory(product); }
   maxQuantity(product: Product): number {

@@ -16,26 +16,49 @@
     <ng-container *ngIf="product(); else notFound">
       <article class="product-stage">
         <div class="media-col">
-          <div class="hero-frame">
+          <div
+            class="hero-frame"
+            style="position: relative; touch-action: pan-y"
+            (pointerdown)="onGalleryPointerDown($event)"
+            (pointerup)="onGalleryPointerUp($event)"
+            (pointercancel)="onGalleryPointerCancel()">
             <img
               #heroImage
               class="hero-image"
-              [src]="imageUrl(selectedImage() || currentImages()[0] || fallbackImage, 1200)"
-              [attr.srcset]="imageSrcset(selectedImage() || currentImages()[0], [540, 720, 900, 1200])"
+              [src]="imageUrl(activeImage() || fallbackImage, 1200)"
+              [attr.srcset]="imageSrcset(activeImage(), [540, 720, 900, 1200])"
               sizes="(min-width: 1024px) 580px, 100vw"
               [alt]="productImageAlt(product()!)"
               width="900"
               height="900"
               decoding="async"
               fetchpriority="high" />
+            <button
+              class="gallery-arrow is-previous"
+              style="position: absolute; top: 50%; left: .65rem; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: #111; font-size: 2rem; line-height: 1; cursor: pointer; transform: translateY(-50%)"
+              type="button"
+              *ngIf="currentImages().length > 1"
+              aria-label="Imagen anterior"
+              (click)="previousImage()">
+              <span aria-hidden="true">‹</span>
+            </button>
+            <button
+              class="gallery-arrow is-next"
+              style="position: absolute; top: 50%; right: .65rem; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: #111; font-size: 2rem; line-height: 1; cursor: pointer; transform: translateY(-50%)"
+              type="button"
+              *ngIf="currentImages().length > 1"
+              aria-label="Imagen siguiente"
+              (click)="nextImage()">
+              <span aria-hidden="true">›</span>
+            </button>
           </div>
           <div class="thumbs" *ngIf="currentImages().length > 1" role="group" aria-label="Galería de imágenes">
             <button
               class="thumb"
               type="button"
               *ngFor="let image of currentImages(); trackBy: trackImage"
-              [class.is-active]="(selectedImage() || currentImages()[0]) === image"
-              [attr.aria-pressed]="(selectedImage() || currentImages()[0]) === image"
+              [class.is-active]="activeImage() === image"
+              [attr.aria-pressed]="activeImage() === image"
               [attr.aria-label]="'Ver imagen de ' + product()!.name"
               (click)="selectImage(image)">
               <img

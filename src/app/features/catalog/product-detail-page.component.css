@@ -63,7 +63,15 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
-  transition: opacity .18s ease, transform .2s ease;
+  transition: opacity .18s ease;
+}
+
+.gallery-arrow { opacity: 0; pointer-events: none; }
+
+.hero-frame:is(:hover, :focus-within) .gallery-arrow,
+.gallery-arrow:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .thumbs {
@@ -408,7 +416,6 @@ h1 {
 @media (hover: hover) and (pointer: fine) {
   .option:hover { transform: translateY(-1px); }
   .thumb:hover { border-color: color-mix(in srgb, var(--text-main) 40%, transparent); }
-  .hero-frame:hover .hero-image { transform: scale(1.025); }
 }
 
 @media (min-width: 768px) {
@@ -433,5 +440,4 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-image, .option, .price-value { transition: none; }
-  .hero-frame:hover .hero-image { transform: none; }
 }

@@ -223,6 +223,49 @@ test('I-M: cards y detalle usan contain, aspect-ratio y fondo token', () => {
   assert.doesNotMatch(detailCss, /object-fit: cover/);
 });
 
+test('galería navega circularmente y el swipe horizontal respeta el gesto vertical', () => {
+  const page = pageFor(product('gallery'));
+  const images = ['/one.jpg', '/two.jpg', '/three.jpg'];
+  const detailTemplate = read('src/app/features/catalog/product-detail-page.component.html');
+  const detailCss = read('src/app/features/catalog/product-detail-page.component.css');
+  page.selectedImage = angular.signal('');
+  page.currentImages = () => images;
+  page.activeImageIndex = () => Math.max(0, images.indexOf(page.selectedImage()));
+
+  page.nextImage();
+  assert.equal(page.selectedImage(), '/two.jpg');
+  page.nextImage();
+  page.nextImage();
+  assert.equal(page.selectedImage(), '/one.jpg');
+  page.previousImage();
+  assert.equal(page.selectedImage(), '/three.jpg');
+
+  page.onGalleryPointerDown({ isPrimary: true, pointerType: 'touch', clientX: 100, clientY: 100 });
+  page.onGalleryPointerUp({ clientX: 40, clientY: 108 });
+  assert.equal(page.selectedImage(), '/one.jpg');
+
+  page.onGalleryPointerDown({ isPrimary: true, pointerType: 'touch', clientX: 100, clientY: 100 });
+  page.onGalleryPointerUp({ clientX: 160, clientY: 105 });
+  assert.equal(page.selectedImage(), '/three.jpg');
+
+  page.onGalleryPointerDown({ isPrimary: true, pointerType: 'touch', clientX: 100, clientY: 100 });
+  page.onGalleryPointerUp({ clientX: 130, clientY: 180 });
+  assert.equal(page.selectedImage(), '/three.jpg');
+
+  page.currentImages = () => ['/only.jpg'];
+  page.selectedImage.set('/only.jpg');
+  page.nextImage();
+  page.previousImage();
+  assert.equal(page.selectedImage(), '/only.jpg');
+
+  assert.match(detailTemplate, /aria-label="Imagen anterior"/);
+  assert.match(detailTemplate, /aria-label="Imagen siguiente"/);
+  assert.match(detailTemplate, /\*ngIf="currentImages\(\)\.length > 1"/);
+  assert.match(detailTemplate, /touch-action:\s*pan-y/);
+  assert.match(detailCss, /\.hero-frame:is\(:hover, :focus-within\) \.gallery-arrow/);
+  assert.match(detailCss, /\.gallery-arrow:focus-visible/);
+});
+
 test('N: carrito guardado stock 3 → actual 0 → conflicto agotado', () => {
   const service = cart();
   service.add(product('beer', { trackStock: true, stock: 3, name: 'Cerveza Palma Cristal' }), [], 2);
