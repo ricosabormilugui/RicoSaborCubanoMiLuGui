@@ -7,6 +7,7 @@ import {
   RoutingProviderError
 } from "../src/services/openrouteservice.provider.js";
 import { buildDeliveryAddress, buildDeliveryGeocodeQuery } from "../src/services/shipping.service.js";
+import { createShippingQuoteController } from "../src/controllers/shipping.controller.js";
 
 const previousKey = process.env.OPENROUTESERVICE_API_KEY;
 test.before(() => { process.env.OPENROUTESERVICE_API_KEY = "test-key"; });
@@ -19,10 +20,10 @@ function response(body) {
   return { ok: true, async json() { return body; } };
 }
 
-function feature({ label, locality = "Alcorcón", postalCode = "28922", country = "España", street = "Calle Liverpool", houseNumber = "6", coordinates = [-3.827, 40.349], confidence = 0.9, layer = "address" }) {
+function feature({ label, name, locality, localadmin = "Alcorcón", county, region = "Madrid", postalCode, country = "Spain", countryA = "ESP", street = "Calle Liverpool", houseNumber, coordinates = [-3.827, 40.349], confidence = 0.9, layer = "address" }) {
   return {
     geometry: { coordinates },
-    properties: { label, locality, postalcode: postalCode, country, street, housenumber: houseNumber, confidence, layer }
+    properties: { label, name, locality, localadmin, county, region, postalcode: postalCode, country, country_a: countryA, street, housenumber: houseNumber, confidence, layer }
   };
 }
 
@@ -37,11 +38,11 @@ test("regresión Calle Liverpool: selecciona el candidato coherente y enruta [lo
     if (parsedUrl.pathname.includes("/geocode/search")) {
       const query = parsedUrl.searchParams.get("text");
       if (query.includes("Miguel de Cervantes")) {
-        return response({ features: [feature({ label: "Paseo Miguel de Cervantes, 2, 28922 Alcorcón, Madrid, España", street: "Paseo Miguel de Cervantes", houseNumber: "2", coordinates: [-3.828, 40.35] })] });
+        return response({ features: [feature({ label: "Paseo Miguel de Cervantes, 2, 28922 Alcorcón, Madrid, España", street: "Paseo Miguel de Cervantes", houseNumber: "2", postalCode: "28922", coordinates: [-3.828, 40.35] })] });
       }
       return response({ features: [
-        feature({ label: "Liverpool, Reino Unido", locality: "Liverpool", postalCode: "L1", country: "Reino Unido", coordinates: [-2.98, 53.4], confidence: 0.99 }),
-        feature({ label: "Calle Liverpool, 6, 28922 Alcorcón, Madrid, España", coordinates: [-3.827, 40.349], confidence: 0.85 })
+        feature({ label: "Liverpool, Reino Unido", locality: "Liverpool", localadmin: "Liverpool", postalCode: "L1", country: "Reino Unido", countryA: "GBR", coordinates: [-2.98, 53.4], confidence: 0.99 }),
+        feature({ label: "Calle Liverpool, 6, 28922 Alcorcón, Madrid, España", postalCode: "28922", houseNumber: "6", coordinates: [-3.827, 40.349], confidence: 0.85 })
       ] });
     }
     return response({ features: [{ properties: { summary: { distance: 1_250 } } }] });
@@ -64,7 +65,7 @@ test("regresión Calle Liverpool: selecciona el candidato coherente y enruta [lo
     label: "Calle Liverpool, 6, 28922 Alcorcón, Madrid, España",
     locality: "Alcorcón",
     postalCode: "28922",
-    country: "España",
+    country: "Spain",
     longitude: -3.827,
     latitude: 40.349
   });
@@ -73,7 +74,7 @@ test("regresión Calle Liverpool: selecciona el candidato coherente y enruta [lo
 
 test("una dirección válida completa devuelve sus coordenadas", async () => {
   const coordinates = await geocodeAddress(liverpoolQuery, {
-    fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, 6, 28922 Alcorcón, Madrid, España" })] })
+    fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, 6, 28922 Alcorcón, Madrid, España", postalCode: "28922", houseNumber: "6" })] })
   });
   assert.deepEqual(coordinates, [-3.827, 40.349]);
 });
@@ -83,7 +84,6 @@ test("una dirección sin número acepta un resultado de calle coherente", async 
   const coordinates = await geocodeAddress(query, {
     fetchImpl: async () => response({ features: [feature({
       label: "Calle Liverpool, 28922 Alcorcón, Madrid, España",
-      houseNumber: "",
       layer: "street"
     })] })
   });
@@ -94,8 +94,8 @@ test("una dirección ambigua sin candidato claramente mejor devuelve ADDRESS_NOT
   const query = buildDeliveryGeocodeQuery({ address: "Calle Liverpool", postalCode: "28922" });
   await assert.rejects(
     () => geocodeAddress(query, { fetchImpl: async () => response({ features: [
-      feature({ label: "Calle Liverpool, 28922 Alcorcón, Madrid, España", houseNumber: "", layer: "street", coordinates: [-3.827, 40.349] }),
-      feature({ label: "Calle Liverpool, 28922 Alcorcón, Madrid, España", houseNumber: "", layer: "street", coordinates: [-3.82, 40.34] })
+      feature({ label: "Calle Liverpool, Alcorcón, Madrid, España", localadmin: "Alcorcón", layer: "street", coordinates: [-3.827, 40.349] }),
+      feature({ label: "Calle Liverpool, Alcorcón, Madrid, España", localadmin: "Alcorcón Norte", layer: "street", coordinates: [-3.82, 40.34] })
     ] }) }),
     (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
   );
@@ -104,6 +104,43 @@ test("una dirección ambigua sin candidato claramente mejor devuelve ADDRESS_NOT
 test("un resultado con CP incompatible devuelve ADDRESS_NOT_FOUND", async () => {
   await assert.rejects(
     () => geocodeAddress(liverpoolQuery, { fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, 6, Madrid", postalCode: "28001" })] }) }),
+    (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
+  );
+});
+
+test("Avenida de Atenas acepta la estructura real de ORS sin CP, número ni locality", async () => {
+  const query = buildDeliveryGeocodeQuery({ address: "Avenida de Atenas 1", postalCode: "28922" });
+  const candidates = [
+    feature({ label: "Avenida de Atenas, Alcorcón, MD, Spain", name: "Avenida de Atenas", street: "Avenida de Atenas", layer: "street", confidence: 0.8, coordinates: [-3.841179, 40.348704] }),
+    feature({ label: "Avenida de Atenas, Alcorcón, MD, Spain", name: "Avenida de Atenas", street: "Avenida de Atenas", locality: "Alcorcón", layer: "street", confidence: 0.8, coordinates: [-3.837454, 40.345819] })
+  ];
+  const coordinates = await geocodeAddress(query, { fetchImpl: async () => response({ features: candidates }) });
+  assert.deepEqual(coordinates, [-3.841179, 40.348704]);
+});
+
+test("calle abreviada, localadmin y Comunidad de Madrid aportan evidencia equivalente", async () => {
+  const query = buildDeliveryGeocodeQuery({ address: "Avenida de Atenas 1", postalCode: "28922" });
+  const coordinates = await geocodeAddress(query, { fetchImpl: async () => response({ features: [feature({
+    label: "Av. de Atenas, Alcorcón, Community of Madrid, Spain",
+    name: "Av. de Atenas",
+    street: "Av. de Atenas",
+    region: "Comunidad de Madrid",
+    layer: "street",
+    confidence: 0.8
+  })] }) });
+  assert.deepEqual(coordinates, [-3.827, 40.349]);
+});
+
+test("un número explícitamente distinto no coincide", async () => {
+  await assert.rejects(
+    () => geocodeAddress(liverpoolQuery, { fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, 8, 28922 Alcorcón, Madrid, España", postalCode: "28922", houseNumber: "8" })] }) }),
+    (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
+  );
+});
+
+test("un candidato de otra ciudad no supera el matching", async () => {
+  await assert.rejects(
+    () => geocodeAddress(liverpoolQuery, { fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, Móstoles, Madrid, España", locality: "Móstoles", localadmin: "Móstoles", street: "Calle Liverpool" })] }) }),
     (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
   );
 });
@@ -138,4 +175,16 @@ test("Directions conserva el orden [longitude, latitude]", async () => {
   });
   assert.deepEqual(body.coordinates, [[-3.828, 40.35], [-3.827, 40.349]]);
   assert.equal(distance, 0.9);
+});
+
+test("el controller conserva 422 y reason ADDRESS_NOT_FOUND", async () => {
+  const controller = createShippingQuoteController({ quoteService: async () => { throw new RoutingProviderError("ADDRESS_NOT_FOUND", "Dirección no confirmada.", 422); } });
+  const responseState = { statusCode: 200, body: null };
+  const res = {
+    status(code) { responseState.statusCode = code; return this; },
+    json(body) { responseState.body = body; return this; }
+  };
+  await controller({ body: {} }, res);
+  assert.equal(responseState.statusCode, 422);
+  assert.equal(responseState.body.reason, "ADDRESS_NOT_FOUND");
 });

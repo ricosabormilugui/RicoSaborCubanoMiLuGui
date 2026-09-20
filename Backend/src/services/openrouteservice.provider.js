@@ -35,7 +35,8 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/\b(calle|c\.?|avenida|av\.?|paseo|plaza|carretera)\b/g, " ")
+    .replace(/\b(calle|c|avenida|av|paseo|plaza|carretera)\b/g, " ")
+    .replace(/\b(de|del|la|las|el|los)\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
@@ -68,10 +69,14 @@ function candidateMetadata(feature) {
   const coordinates = feature?.geometry?.coordinates;
   return {
     label: String(properties.label ?? ""),
+    name: String(properties.name ?? ""),
     locality: String(properties.locality ?? properties.localadmin ?? ""),
+    localadmin: String(properties.localadmin ?? ""),
+    county: String(properties.county ?? ""),
     region: String(properties.region ?? properties.county ?? ""),
     postalCode: String(properties.postalcode ?? "").replace(/\s/g, ""),
     country: String(properties.country ?? properties.country_a ?? ""),
+    countryA: String(properties.country_a ?? ""),
     street: String(properties.street ?? properties.name ?? ""),
     houseNumber: String(properties.housenumber ?? ""),
     layer: String(properties.layer ?? ""),
@@ -83,30 +88,44 @@ function candidateMetadata(feature) {
 
 function scoreCandidate(candidate, query) {
   if (!Number.isFinite(candidate.longitude) || !Number.isFinite(candidate.latitude)) return null;
-  const country = normalizeCountry(candidate.country);
+  const country = normalizeCountry(candidate.countryA || candidate.country);
   const countryLabel = normalizeText(candidate.label);
   if (query.country && !["espana", "spain", "es", "esp"].includes(country) && !countryLabel.includes("espana") && !countryLabel.includes("spain")) return null;
-  if (query.postalCode && candidate.postalCode !== query.postalCode) return null;
+  if (query.postalCode && candidate.postalCode && candidate.postalCode !== query.postalCode) return null;
 
   const requestedStreet = normalizeText(query.street);
-  if (requestedStreet && !normalizeText([candidate.street, candidate.label].join(" ")).includes(requestedStreet)) return null;
+  const candidateStreet = normalizeText([candidate.street, candidate.name, candidate.label].join(" "));
+  const candidateStreetName = normalizeText(candidate.street || candidate.name);
+  if (requestedStreet && !candidateStreet.includes(requestedStreet) && !(candidateStreetName && requestedStreet.includes(candidateStreetName))) return null;
   const requestedLocality = normalizeText(query.locality);
-  if (requestedLocality && !normalizeText([candidate.locality, candidate.label].join(" ")).includes(requestedLocality)) return null;
+  const candidateLocality = normalizeText([candidate.locality, candidate.localadmin, candidate.county, candidate.label].join(" "));
+  if (requestedLocality && !candidateLocality.includes(requestedLocality)) return null;
   const requestedRegion = normalizeText(query.region);
-  if (requestedRegion && !normalizeText([candidate.region, candidate.label].join(" ")).includes(requestedRegion)) return null;
+  const regionMatches = !requestedRegion || normalizeText([candidate.region, candidate.label].join(" ")).includes(requestedRegion);
 
   const requestedHouseNumber = normalizeText(query.houseNumber);
   const candidateHouseNumber = normalizeText(candidate.houseNumber);
   if (requestedHouseNumber && candidateHouseNumber && candidateHouseNumber !== requestedHouseNumber) return null;
-  if (requestedHouseNumber && !candidateHouseNumber && !normalizeText(candidate.label).split(" ").includes(requestedHouseNumber)) return null;
+  const numberAppearsInLabel = requestedHouseNumber && normalizeText([candidate.name, candidate.label].join(" ")).split(" ").includes(requestedHouseNumber);
 
   let score = candidate.confidence;
-  if (query.postalCode) score += 4;
-  if (requestedLocality) score += 3;
-  if (requestedStreet) score += 3;
-  if (requestedHouseNumber) score += 3;
+  score += 2;
+  if (query.postalCode && candidate.postalCode === query.postalCode) score += 5;
+  if (requestedLocality && candidateLocality.includes(requestedLocality)) score += 5;
+  if (requestedStreet) score += 5;
+  if (requestedHouseNumber && (candidateHouseNumber === requestedHouseNumber || numberAppearsInLabel)) score += 4;
+  if (regionMatches) score += 1;
   if (candidate.layer === "address") score += 1;
   return score;
+}
+
+function candidateIdentity(candidate) {
+  return [
+    normalizeText(candidate.street || candidate.name),
+    normalizeText(candidate.locality || candidate.localadmin || candidate.county),
+    candidate.postalCode,
+    normalizeCountry(candidate.countryA || candidate.country)
+  ].join("|");
 }
 
 function selectGeocodeCandidate(features, query) {
@@ -115,11 +134,10 @@ function selectGeocodeCandidate(features, query) {
     .map((entry) => ({ ...entry, score: scoreCandidate(entry.candidate, query) }))
     .filter((entry) => entry.score !== null)
     .sort((left, right) => right.score - left.score);
-  if (!matches.length) return null;
+  if (!matches.length || matches[0].score < 10) return null;
   const [best, second] = matches;
-  if (second && second.score === best.score) {
-    const samePoint = best.candidate.longitude === second.candidate.longitude && best.candidate.latitude === second.candidate.latitude;
-    if (!samePoint) return null;
+  if (second && best.score - second.score < 1) {
+    if (candidateIdentity(best.candidate) !== candidateIdentity(second.candidate)) return null;
   }
   return best.candidate;
 }
@@ -141,7 +159,14 @@ export async function geocodeAddress(input, { fetchImpl = fetch, onDiagnostic } 
   url.searchParams.set("size", String(GEOCODER_RESULT_LIMIT));
   onDiagnostic?.({ stage: "geocode.request", query: query.text });
 
+  const startedAt = Date.now();
   const data = await requestJson(url, {}, fetchImpl);
+  onDiagnostic?.({
+    stage: "geocode.candidates",
+    query: query.text,
+    elapsedMs: Date.now() - startedAt,
+    candidates: (Array.isArray(data?.features) ? data.features : []).map(candidateMetadata)
+  });
   const selected = selectGeocodeCandidate(data?.features, query);
   if (!selected) {
     onDiagnostic?.({ stage: "geocode.rejected", query: query.text, candidateCount: Array.isArray(data?.features) ? data.features.length : 0 });
@@ -164,6 +189,7 @@ export async function geocodeAddress(input, { fetchImpl = fetch, onDiagnostic } 
 
 export async function requestDrivingDistanceKm(origin, destination, { fetchImpl = fetch, onDiagnostic } = {}) {
   onDiagnostic?.({ stage: "route.request", origin, destination });
+  const startedAt = Date.now();
   const data = await requestJson(`${ORS_BASE_URL}/v2/directions/driving-car/geojson`, {
     method: "POST",
     headers: { Authorization: apiKey(), "Content-Type": "application/json" },
@@ -174,7 +200,7 @@ export async function requestDrivingDistanceKm(origin, destination, { fetchImpl 
     throw new RoutingProviderError("ROUTING_UNAVAILABLE", "No se pudo calcular una ruta por carretera para la dirección indicada.");
   }
   const distanceKm = meters / 1000;
-  onDiagnostic?.({ stage: "route.result", distanceKm });
+  onDiagnostic?.({ stage: "route.result", distanceKm, elapsedMs: Date.now() - startedAt });
   return distanceKm;
 }
 

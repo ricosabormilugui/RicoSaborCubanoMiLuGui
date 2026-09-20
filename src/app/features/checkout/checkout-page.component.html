@@ -261,7 +261,11 @@
         </div>
         <div class="summary-line">
           <span>Entrega</span>
-          <strong>{{ shippingQuote().deliveryFee | currency:'EUR' }}</strong>
+          @if (shippingQuote().available) {
+            <strong>{{ shippingQuote().deliveryFee === 0 ? 'GRATIS' : (shippingQuote().deliveryFee | currency:'EUR') }}</strong>
+          } @else {
+            <strong>—</strong>
+          }
         </div>
         @if (couponDiscountPreview() > 0) {
           <div class="summary-line discount">
@@ -271,7 +275,11 @@
         }
         <div class="summary-total">
           <span>Total</span>
-          <strong>{{ orderTotal() | currency:'EUR' }}</strong>
+          @if (orderTotal() !== null) {
+            <strong>{{ orderTotal() | currency:'EUR' }}</strong>
+          } @else {
+            <strong>Pendiente de calcular</strong>
+          }
         </div>
         <button
           class="btn btn-primary submit-btn"

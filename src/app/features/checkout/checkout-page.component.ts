@@ -155,6 +155,7 @@ export class CheckoutPageComponent {
       || this.paymentSettingsLoading()
       || !this.availablePaymentMethods().length
       || this.shippingQuoteLoading()
+      || !this.shippingQuote().available
       || this.hasBlockingStock();
   }
 
@@ -358,7 +359,8 @@ export class CheckoutPageComponent {
     return this.coupon.discount(this.cart.subtotal());
   }
 
-  orderTotal(): number {
+  orderTotal(): number | null {
+    if (!this.shippingQuote().available) return null;
     return Number((this.cart.subtotal() - this.couponDiscountPreview() + this.shippingQuote().deliveryFee).toFixed(2));
   }
 
