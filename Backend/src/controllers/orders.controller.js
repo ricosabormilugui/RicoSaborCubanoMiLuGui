@@ -174,6 +174,7 @@ async function normalizeShipping(payload, delivery, quoteService = calculateShip
       deliveryAddress: quote.deliveryAddress,
       cost: Number(Number(quote.deliveryFee ?? 0).toFixed(2)),
       minimumOrder: quote.minimumOrder,
+      freeShippingFrom: quote.freeShippingThreshold,
       freeShippingApplied: quote.deliveryFee === 0
     }
   };

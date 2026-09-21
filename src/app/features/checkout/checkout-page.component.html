@@ -180,6 +180,16 @@
           <p class="shipping-quote" [class.blocked]="shippingQuoteBlocked()" aria-live="polite">
             {{ shippingQuoteMessage() }}
           </p>
+          @if (form.controls.deliveryType.value === 'delivery' && shippingQuote().available) {
+            <p class="shipping-quote">Entrega a domicilio · {{ shippingQuote().distanceKm | number:'1.1-1' }} km</p>
+            <p class="shipping-quote">
+              @if ((shippingQuote().amountMissingForFreeShipping ?? 0) > 0) {
+                Te faltan {{ shippingQuote().amountMissingForFreeShipping | currency:'EUR' }} para conseguir envío gratis.
+              } @else {
+                Has conseguido envío GRATIS para esta entrega.
+              }
+            </p>
+          }
           <label class="notes-field">
             Notas del pedido
             <textarea formControlName="notes" placeholder="Alergias, preferencias, instrucciones de entrega..."></textarea>

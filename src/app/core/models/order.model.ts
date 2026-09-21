@@ -58,9 +58,12 @@ export interface DeliveryQuote {
   reason?: DeliveryQuoteReason;
   distanceKm?: number;
   deliveryFee: number;
+  baseDeliveryFee?: number;
   minimumOrder?: number;
   subtotal: number;
   amountMissingForMinimum?: number;
+  freeShippingThreshold?: number;
+  amountMissingForFreeShipping?: number;
   zone?: string;
   deliveryAddress?: string;
   message: string;

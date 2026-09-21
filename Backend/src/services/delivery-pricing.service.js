@@ -1,4 +1,4 @@
-import { DELIVERY_DISTANCE_TIERS, MAX_DELIVERY_DISTANCE_KM } from "../config/delivery-pricing.config.js";
+import { DELIVERY_DISTANCE_TIERS, DELIVERY_MINIMUM_ORDER, MAX_DELIVERY_DISTANCE_KM } from "../config/delivery-pricing.config.js";
 
 const money = (value) => Number(Number(value).toFixed(2));
 
@@ -15,6 +15,7 @@ export function calculateDeliveryPricing(distanceKm, subtotal) {
       available: false,
       reason: "OUTSIDE_DELIVERY_AREA",
       distanceKm: money(normalizedDistance),
+      minimumOrder: DELIVERY_MINIMUM_ORDER,
       subtotal: normalizedSubtotal,
       message: "Esta dirección está fuera de nuestra zona de entrega estándar. Contacta con MIXSABOR para consultar disponibilidad."
     };
@@ -23,30 +24,36 @@ export function calculateDeliveryPricing(distanceKm, subtotal) {
   const tier = DELIVERY_DISTANCE_TIERS.find((candidate) => normalizedDistance <= candidate.maxKm);
   if (!tier) throw new TypeError("No delivery tier found for distance");
 
-  const amountMissingForMinimum = money(Math.max(0, tier.minimumOrder - normalizedSubtotal));
+  const amountMissingForMinimum = money(Math.max(0, DELIVERY_MINIMUM_ORDER - normalizedSubtotal));
   if (amountMissingForMinimum > 0) {
     return {
       available: false,
       reason: "MINIMUM_ORDER_NOT_REACHED",
       distanceKm: money(normalizedDistance),
-      minimumOrder: tier.minimumOrder,
+      minimumOrder: DELIVERY_MINIMUM_ORDER,
       subtotal: normalizedSubtotal,
       amountMissingForMinimum,
       zone: tier.zone,
-      message: `Pedido mínimo para esta dirección: ${tier.minimumOrder.toFixed(2)} €. Te faltan ${amountMissingForMinimum.toFixed(2)} € para habilitar la entrega.`
+      message: `Pedido mínimo para entrega a domicilio: ${DELIVERY_MINIMUM_ORDER.toFixed(2)} €. Te faltan ${amountMissingForMinimum.toFixed(2)} € para habilitar la entrega.`
     };
   }
 
-  const discount = tier.feeBreaks?.find((candidate) => normalizedSubtotal >= candidate.minSubtotal);
-  const deliveryFee = money(discount?.fee ?? tier.deliveryFee);
+  const deliveryFee = money(tier.discounts.reduce(
+    (fee, discount) => normalizedSubtotal >= discount.subtotal ? discount.fee : fee,
+    tier.baseFee
+  ));
+  const freeShippingThreshold = tier.discounts.at(-1).subtotal;
   return {
     available: true,
     distanceKm: money(normalizedDistance),
+    baseDeliveryFee: tier.baseFee,
     deliveryFee,
-    minimumOrder: tier.minimumOrder,
+    minimumOrder: DELIVERY_MINIMUM_ORDER,
     subtotal: normalizedSubtotal,
     amountMissingForMinimum: 0,
+    freeShippingThreshold,
+    amountMissingForFreeShipping: money(Math.max(0, freeShippingThreshold - normalizedSubtotal)),
     zone: tier.zone,
-    message: `Entrega a domicilio · ${money(normalizedDistance).toLocaleString("es-ES")} km · ${deliveryFee.toFixed(2)} €`
+    message: "Entrega disponible para esta dirección."
   };
 }
