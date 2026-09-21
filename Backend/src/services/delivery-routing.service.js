@@ -13,7 +13,7 @@ async function resolveLocation(query, {
   try {
     return await orsGeocode(query, { onDiagnostic });
   } catch (error) {
-    if (!(error instanceof RoutingProviderError) || error.code !== "ADDRESS_NOT_FOUND") throw error;
+    if (!(error instanceof RoutingProviderError)) throw error;
     onDiagnostic?.({ stage: "geocode.fallback", from: "openrouteservice", to: "nominatim" });
     try {
       return await nominatimGeocode(query, { onDiagnostic });

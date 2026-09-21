@@ -88,6 +88,7 @@ function candidateMetadata(feature) {
 
 function scoreCandidate(candidate, query) {
   if (!Number.isFinite(candidate.longitude) || !Number.isFinite(candidate.latitude)) return null;
+  if (!["address", "street", "venue"].includes(candidate.layer)) return null;
   const country = normalizeCountry(candidate.countryA || candidate.country);
   const countryLabel = normalizeText(candidate.label);
   if (query.country && !["espana", "spain", "es", "esp"].includes(country) && !countryLabel.includes("espana") && !countryLabel.includes("spain")) return null;
@@ -142,14 +143,14 @@ function selectGeocodeCandidate(features, query) {
   return best.candidate;
 }
 
-export async function geocodeAddress(input, { fetchImpl = fetch, onDiagnostic } = {}) {
+export async function geocodeLocation(input, { fetchImpl = fetch, onDiagnostic } = {}) {
   const query = normalizeGeocodeQuery(input);
   if (!query.text) throw new RoutingProviderError("ADDRESS_NOT_FOUND", "No se pudo localizar la dirección indicada.", 422);
   const cacheKey = queryCacheKey(query);
   const cached = geocodeCache.get(cacheKey);
   if (fetchImpl === fetch && cached && cached.expiresAt > Date.now()) {
     onDiagnostic?.({ stage: "geocode.cache_hit", query: query.text, ...cached.metadata });
-    return cached.coordinates;
+    return cached.value;
   }
 
   const url = new URL(`${ORS_BASE_URL}/geocode/search`);
@@ -174,6 +175,7 @@ export async function geocodeAddress(input, { fetchImpl = fetch, onDiagnostic } 
   }
 
   const coordinates = [selected.longitude, selected.latitude];
+  const value = { coordinates, provider: "openrouteservice", precision: selected.layer === "street" ? "street" : "address" };
   const metadata = {
     label: selected.label,
     locality: selected.locality,
@@ -183,8 +185,12 @@ export async function geocodeAddress(input, { fetchImpl = fetch, onDiagnostic } 
     latitude: selected.latitude
   };
   onDiagnostic?.({ stage: "geocode.selected", query: query.text, ...metadata });
-  if (fetchImpl === fetch) geocodeCache.set(cacheKey, { coordinates, metadata, expiresAt: Date.now() + CACHE_TTL_MS });
-  return coordinates;
+  if (fetchImpl === fetch) geocodeCache.set(cacheKey, { value, metadata, expiresAt: Date.now() + CACHE_TTL_MS });
+  return value;
+}
+
+export async function geocodeAddress(input, options) {
+  return (await geocodeLocation(input, options)).coordinates;
 }
 
 export async function requestDrivingDistanceKm(origin, destination, { fetchImpl = fetch, onDiagnostic } = {}) {

@@ -30,7 +30,7 @@ function candidateFromResult(result) {
   const address = result?.address ?? {};
   const longitude = Number(result?.lon);
   const latitude = Number(result?.lat);
-  const street = String(address.road ?? address.pedestrian ?? address.residential ?? result?.name ?? "");
+  const street = String(address.road ?? address.pedestrian ?? address.residential ?? "");
   const houseNumber = String(address.house_number ?? "");
   const locality = String(address.city ?? address.town ?? address.municipality ?? address.village ?? address.county ?? "");
   return {
@@ -63,6 +63,7 @@ function scoreCandidate(candidate, query) {
 
   const requestedLocality = normalizeText(query.locality);
   const localityEvidence = normalizeText([candidate.locality, candidate.displayName].join(" "));
+  if (requestedLocality && candidate.locality && !normalizeText(candidate.locality).includes(requestedLocality)) return null;
   if (requestedLocality && !localityEvidence.includes(requestedLocality)) return null;
 
   const requestedNumber = normalizeText(query.houseNumber);
@@ -94,11 +95,11 @@ export function createNominatimProvider({
 } = {}) {
   const cache = new Map();
   let queue = Promise.resolve();
-  let lastRequestStartedAt = 0;
+  let lastRequestStartedAt = null;
 
   async function scheduleRequest(task) {
     const scheduled = queue.then(async () => {
-      const delay = Math.max(0, MIN_REQUEST_INTERVAL_MS - (now() - lastRequestStartedAt));
+      const delay = lastRequestStartedAt === null ? 0 : Math.max(0, MIN_REQUEST_INTERVAL_MS - (now() - lastRequestStartedAt));
       if (delay > 0) await wait(delay);
       lastRequestStartedAt = now();
       return task();

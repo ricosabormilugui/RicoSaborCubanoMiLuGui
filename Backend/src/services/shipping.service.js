@@ -1,6 +1,6 @@
 import { DELIVERY_ORIGIN_ADDRESS } from "../config/delivery-pricing.config.js";
 import { calculateDeliveryPricing } from "./delivery-pricing.service.js";
-import { getDrivingDistanceKm } from "./openrouteservice.provider.js";
+import { getDeliveryDistanceKm } from "./delivery-routing.service.js";
 
 export function buildDeliveryAddress({ address, postalCode } = {}) {
   const street = String(address ?? "").trim();
@@ -33,7 +33,7 @@ export function buildDeliveryGeocodeQuery({ address, postalCode } = {}) {
 }
 
 export async function calculateShippingQuote({ deliveryType = "delivery", address, postalCode, subtotal }, {
-  distanceProvider = getDrivingDistanceKm
+  distanceProvider = getDeliveryDistanceKm
 } = {}) {
   const normalizedSubtotal = Number(Number(subtotal ?? 0).toFixed(2));
   if (deliveryType === "pickup") {
