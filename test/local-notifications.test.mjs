@@ -193,14 +193,18 @@ test('NotificationService guarda opt-in en la identidad activa y descarta sesió
   h.auth.switch(null);service.success('Pedido invitado',undefined,{saveToHistory:true,history:{accountEquivalent:true}});await new Promise(resolve=>setImmediate(resolve));assert.equal(h.local.items().length,2);
 });
 
-test('integraciones seleccionadas: carrito y pedido; campana y ruta también admiten invitados',()=>{
+test('carrito conserva feedback temporal sin llenar el historial; campana y ruta admiten invitados',()=>{
   const read=path=>readFileSync(resolve(root,path),'utf8');
-  assert.match(read('src/app/core/utils/live-add-to-cart.ts'), /saveToHistory: true/);
+  const quickAdd=read('src/app/core/utils/live-add-to-cart.ts');
+  assert.match(quickAdd,/notifications\.success\('Producto añadido al carrito'/);assert.doesNotMatch(quickAdd,/saveToHistory/);
   for (const path of ['home/home-page.component.ts', 'catalog/catalog-page.component.ts']) {
     assert.match(read('src/app/features/' + path), /addSimpleProductWithFreshStock/);
   }
-  assert.match(read('src/app/features/catalog/product-detail-page.component.ts'), /saveToHistory: true/);
-  assert.match(read('src/app/features/cart/cart-page.component.ts'), /saveToHistory: true/);
+  const detail=read('src/app/features/catalog/product-detail-page.component.ts');
+  assert.match(detail,/notifications\.success\('Producto añadido al carrito'/);assert.doesNotMatch(detail,/Producto añadido al carrito[^\n]+saveToHistory/);
+  const cartPage=read('src/app/features/cart/cart-page.component.ts');const removed=cartPage.slice(cartPage.indexOf('onRemoved('));
+  assert.match(removed,/notifications\.info\('Producto eliminado del carrito'/);assert.doesNotMatch(removed,/saveToHistory/);
+  const cartService=read('src/app/core/services/cart.service.ts');assert.doesNotMatch(cartService,/NotificationService|saveToHistory/);
   const app=read('src/app/app.component.ts');assert.match(app,/@defer \(on immediate\) \{ <app-notification-bell \/> \}/);
   assert.doesNotMatch(app,/@if \(customerAuth.isAuthenticated\(\)\)\s*\{\s*@defer/);
   assert.doesNotMatch(read('src/app/app.routes.ts'), /path: 'mis-notificaciones'[\s\S]{0,350}canActivate/);

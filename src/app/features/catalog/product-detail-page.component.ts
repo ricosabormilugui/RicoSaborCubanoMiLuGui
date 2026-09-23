@@ -349,7 +349,7 @@ export class ProductDetailPageComponent {
     const customization = buildCartCustomizationSelections(evaluation.product, this.selectedCustomization());
     this.cart.add(evaluation.product, customization, evaluation.quantity);
     const suffix = evaluation.quantity > 1 ? ` (${evaluation.quantity} uds.)` : '';
-    this.notifications.success('Producto añadido al carrito', `${evaluation.product.name}${suffix}`, { key: 'cart-add:' + product.id, saveToHistory: true, history: { action: { label: 'Ver carrito', url: '/carrito' } }, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
+    this.notifications.success('Producto añadido al carrito', `${evaluation.product.name}${suffix}`, { key: 'cart-add:' + product.id, action: { label: 'Ver carrito', handler: () => this.router.navigateByUrl('/carrito') } });
     return true;
   }
 

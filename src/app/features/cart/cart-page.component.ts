@@ -78,9 +78,7 @@ export class CartPageComponent {
 
   onRemoved(item: CartItem): void {
     this.notifications.info('Producto eliminado del carrito', item.name, {
-      key: 'cart-remove:' + item.productId,
-      saveToHistory: true,
-      history: { action: { label: 'Ver carrito', url: '/carrito' } }
+      key: 'cart-remove:' + item.productId
     });
   }
 }

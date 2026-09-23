@@ -44,8 +44,6 @@ export async function addSimpleProductWithFreshStock(
   const suffix = evaluation.quantity > 1 ? ` (${evaluation.quantity} uds. mínimas)` : '';
   deps.notifications.success('Producto añadido al carrito', `${evaluation.product.name}${suffix}`, {
     key: 'cart-add:' + product.id,
-    saveToHistory: true,
-    history: { action: { label: 'Ver carrito', url: '/carrito' } },
     action: { label: 'Ver carrito', handler: () => deps.router.navigateByUrl('/carrito') }
   });
   return true;

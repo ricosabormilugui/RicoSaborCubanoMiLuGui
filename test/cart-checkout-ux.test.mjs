@@ -157,6 +157,8 @@ test('H-J: eliminar, personalización preservada y total reactivo', () => {
   service.increment(service.items()[0].productId);
   assert.equal(service.items()[0].quantity, 2);
   assert.equal(service.items()[0].customization[0].value, 'Vainilla');
+  service.clear();
+  assert.equal(service.items().length, 0);
 });
 
 test('K-N: checkout resume el mismo CartService y el payload usa la quantity actual', () => {
