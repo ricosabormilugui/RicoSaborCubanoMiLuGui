@@ -15,6 +15,8 @@ function matches(doc, query) {
   return Object.entries(query).every(([key, value]) => {
     if (key === '$or') return value.some(clause => matches(doc, clause));
     if (value?.$lt !== undefined) return String(doc[key]) < String(value.$lt);
+    if (value?.$lte !== undefined) return String(doc[key]) <= String(value.$lte);
+    if (value?.$ne !== undefined) return doc[key] !== value.$ne;
     return String(doc[key]) === String(value);
   });
 }
@@ -59,14 +61,14 @@ test('API real con JWT: lista, contador, IDOR, lectura, lectura masiva y borrado
   const base = `http://127.0.0.1:${server.address().port}/api/notifications`;
   const token = signToken({ sub: 'A', role: 'customer' });
   const call = (path = '', method = 'GET', auth = token, body) => fetch(base + path, { method, headers: { ...(auth ? { Authorization: `Bearer ${auth}` } : {}), 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  for (const [path,method] of [['','GET'],['/unread-count','GET'],['/read-all','PATCH'],[`/${aId}/read`,'PATCH'],[`/${aId}`,'DELETE']]) assert.equal((await call(path,method,null)).status,401);
+  for (const [path,method] of [['','GET'],['/unread-count','GET'],['/seen-all','PATCH'],['/read-all','PATCH'],[`/${aId}/read`,'PATCH'],[`/${aId}`,'DELETE']]) assert.equal((await call(path,method,null)).status,401);
   for (const bad of ['invalid', signToken({sub:'A',role:'customer'},-10), signToken({role:'admin'})]) assert.ok([401,403].includes((await call('', 'GET',bad)).status));
   const listed = await call('?userId=B');
   assert.equal(listed.headers.get('cache-control'),'private, no-store');
   const data = await listed.json();
   assert.equal(data.notifications.length,2);
   assert.ok(data.notifications.every(doc => !('userId' in doc) && !('eventKey' in doc)));
-  assert.deepEqual(await (await call('/unread-count?userId=B')).json(),{unreadCount:2});
+  assert.deepEqual(await (await call('/unread-count?userId=B')).json(),{unreadCount:2,newCount:2});
   for (const id of [bId, new ObjectId().toString(), 'invalid']) {
     assert.deepEqual(await (await call(`/${id}/read`,'PATCH',token,{userId:'B'})).json(),{message:'Notificación no encontrada.'});
     assert.equal((await call(`/${id}`,'DELETE')).status,404);
@@ -75,9 +77,15 @@ test('API real con JWT: lista, contador, IDOR, lectura, lectura masiva y borrado
   const firstRead = collection.documents.find(doc => String(doc._id) === aId).readAt;
   await call(`/${aId}/read`,'PATCH');
   assert.equal(collection.documents.find(doc => String(doc._id) === aId).readAt,firstRead);
-  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:1});
-  assert.deepEqual(await (await call('/read-all','PATCH',token,{userId:'B'})).json(),{updated:1});
-  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:0});
+  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:1,newCount:2});
+  assert.deepEqual(await (await call('/seen-all','PATCH')).json(),{updated:2});
+  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:1,newCount:0});
+  const unreadButSeen = collection.documents.find(doc => doc.userId === 'A' && !doc.read);
+  assert.equal(unreadButSeen.seen,true);
+  await repository.create(notification('A','a3',{createdAt:new Date().toISOString()}));
+  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:2,newCount:1});
+  assert.deepEqual(await (await call('/read-all','PATCH',token,{userId:'B'})).json(),{updated:2});
+  assert.deepEqual(await (await call('/unread-count')).json(),{unreadCount:0,newCount:1});
   assert.equal(await repository.count('B'),1);
   assert.equal((await call(`/${aId}`,'DELETE')).status,204);
   assert.equal((await call(`/${aId}`,'DELETE')).status,404);

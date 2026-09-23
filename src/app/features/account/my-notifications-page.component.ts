@@ -32,7 +32,8 @@ export class MyNotificationsPageComponent {
   readonly service = inject(NotificationCenterService);
   readonly selected = signal('all');
   readonly options = computed(() => [{ id: 'all', label: 'Todas' }, { id: 'unread', label: 'Sin leer' }, ...(this.service.isAccountSource() ? [{ id: 'order', label: 'Pedidos' }, { id: 'account', label: 'Cuenta' }] : [{ id: 'success', label: 'Completadas' }, { id: 'error', label: 'Errores' }])]);
-  constructor() { effect(() => { this.service.session(); this.service.source(); untracked(() => { this.selected.set('all'); this.reload(); }); }); }
+  constructor() { effect(() => { this.service.session(); this.service.source(); untracked(() => { this.selected.set('all'); void this.enter(); }); }); }
+  private async enter(): Promise<void> { await this.service.review(); this.reload(); }
   filters(): ActivityFilters { return this.selected() === 'unread' ? { read: false } : this.selected() === 'all' ? {} : { type: this.selected() as ActivityFilters['type'] }; }
   filter(value: string): void { this.selected.set(value); this.reload(); }
   reload(): void { void this.service.load('history', this.filters()); void this.service.refreshCount(); }

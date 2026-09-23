@@ -13,6 +13,7 @@ export interface LocalNotification {
   message: string;
   createdAt: string;
   read: boolean;
+  seen: boolean;
   action: { label: string; url: string } | null;
 }
 export type NotificationItem = LocalNotification | (UserNotification & { source: 'account' });

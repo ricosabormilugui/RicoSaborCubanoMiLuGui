@@ -639,8 +639,6 @@ export class AdminProductsPageComponent {
     }
 
     this.savingProduct.set(true);
-    const editing = Boolean(this.editId());
-    const id = this.notifications.loading('Guardando producto…', this.form.name, { key: 'product-save' });
     try {
       if (this.editId()) {
         await this.adminProducts.updateProduct(this.editId(), this.normalizedFormPayload());
@@ -648,55 +646,48 @@ export class AdminProductsPageComponent {
         await this.adminProducts.createProduct(this.normalizedFormPayload());
       }
 
-      this.notifications.updateSuccess(id, editing ? 'Producto actualizado' : 'Producto creado');
       this.resetForm();
       await this.loadProducts();
       this.scrollToSection('product-management');
     } catch (error) {
-      this.notifications.updateError(id, 'No se pudo guardar el producto', getUserFriendlyError(error));
+      this.notifications.error('No se pudo guardar el producto', getUserFriendlyError(error));
     } finally {
       this.savingProduct.set(false);
     }
   }
 
   async togglePublished(product: ProductApiRecord): Promise<void> {
-    const id = this.notifications.loading('Actualizando publicación…', product.name, { key: 'togglePublished:' + product._id });
     try {
       await this.adminProducts.updateProduct(product._id, {
         ...this.buildProductPayload(product),
         published: !(product.published ?? true)
       });
-      this.notifications.updateSuccess(id, 'Publicación actualizada', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.notifications.updateError(id, 'No se pudo cambiar publicación.', getUserFriendlyError(error));
+      this.notifications.error('No se pudo cambiar publicación.', getUserFriendlyError(error));
     }
   }
 
   async toggleAvailability(product: ProductApiRecord): Promise<void> {
-    const id = this.notifications.loading('Actualizando disponibilidad…', product.name, { key: 'toggleAvailability:' + product._id });
     try {
       await this.adminProducts.updateProduct(product._id, {
         ...this.buildProductPayload(product),
         available: !(product.available ?? true)
       });
-      this.notifications.updateSuccess(id, 'Disponibilidad actualizada', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.notifications.updateError(id, 'No se pudo cambiar disponibilidad.', getUserFriendlyError(error));
+      this.notifications.error('No se pudo cambiar disponibilidad.', getUserFriendlyError(error));
     }
   }
 
   async removeProduct(product: ProductApiRecord): Promise<void> {
     if (!await this.confirmDialog.open({ title: 'Eliminar producto', message: `Se eliminará “${product.name}” de forma permanente. Esta acción no se puede deshacer.`, confirmText: 'Eliminar', variant: 'danger' })) return;
 
-    const id = this.notifications.loading('Eliminando producto…', product.name, { key: 'removeProduct:' + product._id });
     try {
       await this.adminProducts.deleteProduct(product._id);
-      this.notifications.updateSuccess(id, 'Producto eliminado', product.name);
       await this.loadProducts();
     } catch (error) {
-      this.notifications.updateError(id, 'No se pudo eliminar producto.', getUserFriendlyError(error));
+      this.notifications.error('No se pudo eliminar producto.', getUserFriendlyError(error));
     }
   }
 

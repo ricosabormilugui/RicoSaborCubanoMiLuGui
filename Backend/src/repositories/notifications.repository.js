@@ -23,8 +23,8 @@ export async function prepareNotifications() {
 
 function publicNotification(doc) {
   if (!doc) return null;
-  const { _id, type, title, message, read, createdAt, readAt, action, entity } = doc;
-  return { id: String(_id), type, title, message, read, createdAt, readAt, action, entity };
+  const { _id, type, title, message, read, seen, createdAt, readAt, seenAt, action, entity } = doc;
+  return { id: String(_id), type, title, message, read, seen: seen === true, createdAt, readAt, seenAt: seenAt ?? null, action, entity };
 }
 function invalidQuery() { return Object.assign(new Error("Filtros o paginación no válidos."), { status: 400, expose: true }); }
 export function parseNotificationQuery(query = {}) {
@@ -68,6 +68,14 @@ export function createNotificationsRepository(collectionProvider = prepareNotifi
       const filter = { ...owner(userId), read: false };
       return (await collectionProvider()).countDocuments(filter);
     },
+    async countUnseen(userId) {
+      return (await collectionProvider()).countDocuments({ ...owner(userId), seen: { $ne: true } });
+    },
+    async seeAll(userId) {
+      const seenAt = new Date().toISOString();
+      const filter = { ...owner(userId), seen: { $ne: true }, createdAt: { $lte: seenAt } };
+      return (await (await collectionProvider()).updateMany(filter, { $set: { seen: true, seenAt } })).modifiedCount;
+    },
     async read(userId, id) {
       const filter = ownedId(userId, id);
       if (!filter) return null;
@@ -87,7 +95,7 @@ export function createNotificationsRepository(collectionProvider = prepareNotifi
       const scope = owner(data.userId);
       if (!NOTIFICATION_TYPES.includes(data.type) || !data.eventKey || !data.title || !data.message) throw new Error("Invalid server notification");
       const collection = await collectionProvider();
-      const document = { ...scope, eventKey: data.eventKey, type: data.type, title: data.title.slice(0, 120), message: data.message.slice(0, 500), read: false, readAt: null, createdAt: data.createdAt ?? new Date().toISOString(), action: data.action ?? null, entity: data.entity ?? null };
+      const document = { ...scope, eventKey: data.eventKey, type: data.type, title: data.title.slice(0, 120), message: data.message.slice(0, 500), read: false, readAt: null, seen: false, seenAt: null, createdAt: data.createdAt ?? new Date().toISOString(), action: data.action ?? null, entity: data.entity ?? null };
       await collection.updateOne({ ...scope, eventKey: data.eventKey }, { $setOnInsert: document }, { upsert: true, session });
     }
   };

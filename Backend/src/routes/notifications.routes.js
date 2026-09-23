@@ -13,7 +13,11 @@ export function createNotificationsRouter(repository = notificationsRepository) 
   const handle = fn => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
   const missing = res => res.status(404).json({ message: "Notificación no encontrada." });
   router.get("/", handle(async (req, res) => res.json(await repository.list(req.auth.sub, parseNotificationQuery(req.query)))));
-  router.get("/unread-count", handle(async (req, res) => res.json({ unreadCount: await repository.count(req.auth.sub) })));
+  router.get("/unread-count", handle(async (req, res) => {
+    const [unreadCount, newCount] = await Promise.all([repository.count(req.auth.sub), repository.countUnseen(req.auth.sub)]);
+    res.json({ unreadCount, newCount });
+  }));
+  router.patch("/seen-all", handle(async (req, res) => res.json({ updated: await repository.seeAll(req.auth.sub) })));
   router.patch("/read-all", handle(async (req, res) => res.json({ updated: await repository.readAll(req.auth.sub) })));
   router.patch("/:id/read", handle(async (req, res) => {
     const notification = await repository.read(req.auth.sub, req.params.id);

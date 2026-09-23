@@ -43,8 +43,8 @@ test('acciones solo hacia rutas locales conocidas',()=>{
 test('inicio y cierre de sesión: datos ocultos inmediatamente, sin esperar al effect',async()=>{
   const h=harness();
   const load=h.service.load('recent'); h.pending.shift().resolve(page([item()])); await load;
-  const count=h.service.refreshCount(); h.pending.shift().resolve({unreadCount:5}); await count;
-  assert.equal(h.service.recent().length,1); assert.equal(h.service.unreadCount(),5);
+  const count=h.service.refreshCount(); h.pending.shift().resolve({unreadCount:5,newCount:5}); await count;
+  assert.equal(h.service.recent().length,1); assert.equal(h.service.unreadCount(),5);assert.equal(h.service.newCount(),5);
   h.auth.logout();
   assert.deepEqual(h.service.recent(),[]); assert.equal(h.service.unreadCount(),0);assert.equal(h.service.error(),'');
   h.effects[0]();
@@ -56,8 +56,8 @@ test('respuestas tardías de A no aparecen en B ni tras volver a A',async()=>{
   oldRequest.resolve(page([item('secret-A')]));await old;
   assert.deepEqual(h.service.history().map(x=>x.id),['b']);
   const oldCount=h.service.refreshCount();const oldCountRequest=h.pending.shift();
-  h.switchTo('A');const count=h.service.refreshCount();h.pending.shift().resolve({unreadCount:0});await count;
-  oldCountRequest.resolve({unreadCount:99});await oldCount;
+  h.switchTo('A');const count=h.service.refreshCount();h.pending.shift().resolve({unreadCount:0,newCount:0});await count;
+  oldCountRequest.resolve({unreadCount:99,newCount:99});await oldCount;
   assert.equal(h.service.unreadCount(),0);
 });
 test('filtros/paginación: gana la petición más reciente y no duplica IDs',async()=>{
@@ -81,8 +81,8 @@ test('mutación exitosa refresca lista y contador y descarta el contador anterio
   const action=h.service.markRead(item());assert.equal(h.service.busy(),true);assert.equal(await h.service.remove(item()),false);
   const mutation=h.pending.shift();assert.match(mutation.url,/\/a\/read$/);assert.equal(mutation.init.method,'PATCH');mutation.resolve({notification:item('a',true)});
   await new Promise(resolve=>setImmediate(resolve));
-  for(const req of h.pending.splice(0))req.resolve(req.url.endsWith('unread-count')?{unreadCount:0}:page([item('a',true)]));
-  assert.equal(await action,true);oldRequest.resolve({unreadCount:7});await old;
+  for(const req of h.pending.splice(0))req.resolve(req.url.endsWith('unread-count')?{unreadCount:0,newCount:0}:page([item('a',true)]));
+  assert.equal(await action,true);oldRequest.resolve({unreadCount:7,newCount:7});await old;
   assert.equal(h.service.unreadCount(),0);assert.equal(h.service.recent()[0].read,true);
 });
 test('mutación y error 401 de A no afectan a la sesión B',async()=>{
@@ -101,7 +101,7 @@ test('borrado y lectura masiva usan sus endpoints y reconcilian el contador con 
     const h=harness();const operation=action(h.service);const mutation=h.pending.shift();
     assert.ok(mutation.url.endsWith(path));assert.equal(mutation.init.method,method);mutation.resolve({});
     await new Promise(resolve=>setImmediate(resolve));
-    for(const req of h.pending.splice(0))req.resolve(req.url.endsWith('unread-count')?{unreadCount:0}:page());
+    for(const req of h.pending.splice(0))req.resolve(req.url.endsWith('unread-count')?{unreadCount:0,newCount:0}:page());
     assert.equal(await operation,true);assert.equal(h.service.unreadCount(),0);assert.deepEqual(h.service.recent(),[]);
   }
 });
@@ -110,9 +110,19 @@ test('una mutación previa no desbloquea otra mientras sus refrescos terminan',a
   const h=harness();const first=h.service.markRead(item());h.pending.shift().resolve({});
   await new Promise(resolve=>setImmediate(resolve));const firstRefresh=h.pending.splice(0);
   const second=h.service.remove(item());const secondRequest=h.pending.shift();
-  firstRefresh.forEach(req=>req.resolve(req.url.endsWith('unread-count')?{unreadCount:0}:page()));
+  firstRefresh.forEach(req=>req.resolve(req.url.endsWith('unread-count')?{unreadCount:0,newCount:0}:page()));
   await first;assert.equal(h.service.busy(),true);
   secondRequest.reject(new Error('offline'));await second;assert.equal(h.service.busy(),false);
+});
+
+test('revisar oculta inmediatamente las nuevas sin marcarlas como leídas y persiste en servidor',async()=>{
+  const h=harness();
+  let count=h.service.refreshCount();h.pending.shift().resolve({unreadCount:2,newCount:2});await count;
+  const seen=h.service.markAllSeen();const request=h.pending.shift();assert.ok(request.url.endsWith('/seen-all'));assert.equal(request.init.method,'PATCH');
+  assert.equal(h.service.newCount(),0);assert.equal(h.service.unreadCount(),2);request.resolve({updated:2});assert.equal(await seen,true);
+  count=h.service.refreshCount();h.pending.shift().resolve({unreadCount:2,newCount:0});await count;
+  assert.equal(h.service.newCount(),0);assert.equal(h.service.unreadCount(),2);
+  count=h.service.refreshCount();h.pending.shift().resolve({unreadCount:3,newCount:1});await count;assert.equal(h.service.newCount(),1);
 });
 
 for(const outcome of ['success','401'])test(`restauración de sesión tardía (${outcome}) no restaura ni cierra otra cuenta`,async()=>{

@@ -47,7 +47,7 @@ function activityKey(owner=GUEST_IDENTITY){return getStorageKey('activity', owne
 
 test('historial local: guardar y recuperar después de recarga; no serializa objetos extra',()=>{
   const {s,id,h:first}=history();first.add({...event(),email:'secret@example.test',order:{address:'private'},handler(){}});
-  const second=new NotificationHistoryService(s,id);assert.equal(second.items().length,1);assert.equal(second.unreadCount(),1);
+  const second=new NotificationHistoryService(s,id);assert.equal(second.items().length,1);assert.equal(second.unreadCount(),1);assert.equal(second.newCount(),1);
   assert.deepEqual(second.items(),first.items());assert.doesNotMatch(s.raw,/secret|address|handler/);
 });
 test('lectura, lectura masiva, eliminación y limpieza sobreviven a recarga',()=>{
@@ -98,7 +98,7 @@ function context(){
   const id=identity();
   const auth={token:angular.signal(''),profile:angular.signal(null),sessionVersion:id.version,isAuthenticated(){return !!this.token();},switch(userId){id.beginTransition();this.token.set(userId?'token-'+userId:'');this.profile.set(userId?{userId}:null);id.activate(userId?{type:'user',userId}:GUEST_IDENTITY);}};
   const store=storage();const local=new NotificationHistoryService(store,id);const calls=[];
-  const account={session:()=>auth.token(),recent:angular.signal([]),history:angular.signal([]),unreadCount:angular.signal(0),nextCursor:()=>null,busy:()=>false,loading:()=>({recent:false,history:false}),error:()=>'',load:async()=>calls.push('load'),refreshCount:async()=>calls.push('count'),markRead:async()=>{calls.push('read');return true;},markAllRead:async()=>{calls.push('read-all');return true;},remove:async()=>{calls.push('delete');return true;}};
+  const account={session:()=>auth.token(),recent:angular.signal([]),history:angular.signal([]),unreadCount:angular.signal(0),newCount:angular.signal(0),nextCursor:()=>null,busy:()=>false,loading:()=>({recent:false,history:false}),error:()=>'',load:async()=>calls.push('load'),refreshCount:async()=>calls.push('count'),markRead:async()=>{calls.push('read');return true;},markAllRead:async()=>{calls.push('read-all');return true;},markAllSeen:async()=>{account.newCount.set(0);calls.push('seen-all');return true;},remove:async()=>{calls.push('delete');return true;}};
   let answer=false;const confirm={open:async()=>answer};
   const {NotificationCenterService}=load('src/app/core/services/notification-center.service.ts');
   const center=new NotificationCenterService(auth,account,local,confirm);
@@ -106,8 +106,11 @@ function context(){
 }
 test('invitado usa únicamente localStorage; acciones y badge no llaman API privada',async()=>{
   const h=context();h.local.add(event());await h.center.load('recent');await h.center.load('history');await h.center.refreshCount();
-  assert.equal(h.center.unreadCount(),1);assert.equal(h.center.recent()[0].source,'local');
-  await h.center.markRead(h.center.recent()[0]);assert.equal(h.center.unreadCount(),0);await h.center.remove(h.center.recent()[0]);assert.deepEqual(h.calls,[]);
+  assert.equal(h.center.newCount(),1);assert.equal(h.center.recent()[0].source,'local');
+  await h.center.review();assert.equal(h.center.newCount(),0);assert.equal(h.local.unreadCount(),1);
+  assert.equal(new NotificationHistoryService(h.store,h.id).newCount(),0);h.local.add(event('Nueva'));assert.equal(h.center.newCount(),1);
+  await h.center.markRead(h.center.recent()[0]);assert.equal(h.center.newCount(),1);await h.center.review();assert.equal(h.center.newCount(),0);
+  await h.center.markAllRead();assert.equal(h.center.unreadCount(),0);assert.deepEqual(h.calls,[]);
   const {UserNotificationsService}=load('src/app/core/services/user-notifications.service.ts');
   const privateService=new UserNotificationsService(h.auth,{}, {events:{pipe:()=>({subscribe(){}})}});
   await privateService.load('recent');await privateService.refreshCount();assert.equal(await privateService.markAllRead(),false);
@@ -145,7 +148,7 @@ test('logout restaura actividad guest; A y B solo ven su estado privado, incluso
   const center=new NotificationCenterService(h.auth,account,h.local,h.confirm);h.local.add(event());const guest=h.local.items();
   h.auth.switch('A');center.selectSource('account');
   const a=center.load('recent');pending.shift().resolve({notifications:[{id:'private-A',read:false}],nextCursor:null});await a;
-  const count=center.refreshCount();pending.shift().resolve({unreadCount:3});await count;assert.equal(center.unreadCount(),3);
+  const count=center.refreshCount();pending.shift().resolve({unreadCount:3,newCount:3});await count;assert.equal(center.unreadCount(),3);assert.equal(center.newCount(),3);
   const late=center.load('history');const lateRequest=pending.shift();
   h.auth.switch(null);assert.equal(center.source(),'local');assert.deepEqual(center.accountRecent(),[]);assert.equal(center.unreadCount(),1);assert.deepEqual(center.recent(),guest);
   effects[0]();assert.deepEqual(account.recentState().notifications,[]);assert.deepEqual(account.historyState().notifications,[]);assert.equal(account.countState(),0);
@@ -201,5 +204,7 @@ test('integraciones seleccionadas: carrito y pedido; campana y ruta también adm
   const app=read('src/app/app.component.ts');assert.match(app,/@defer \(on immediate\) \{ <app-notification-bell \/> \}/);
   assert.doesNotMatch(app,/@if \(customerAuth.isAuthenticated\(\)\)\s*\{\s*@defer/);
   assert.doesNotMatch(read('src/app/app.routes.ts'), /path: 'mis-notificaciones'[\s\S]{0,350}canActivate/);
+  const bell=read('src/app/shared/ui/notification-bell.component.ts');assert.match(bell,/service\.newCount\(\)/);assert.match(bell,/service\.review\(\)/);
+  assert.match(read('src/app/features/account/my-notifications-page.component.ts'),/service\.review\(\)/);
   assert.match(read('src/app/features/checkout/checkout-page.component.ts'),/historySession = this.notifications.historySession\(\)/);
 });

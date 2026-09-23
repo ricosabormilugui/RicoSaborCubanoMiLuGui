@@ -222,9 +222,9 @@ test('preserva stock/validación y oculta errores técnicos, HTML y objetos', ()
   for (const message of ['MongoServerError: E11000', 'ECONNRESET', 'Unexpected token <', '500 Internal Server Error', '<html>Error</html>', 'Error backendapi', 'Backend API (guest)', 'No se pudo enviar el pedido por Netlify Function.']) assert.equal(getUserFriendlyError(new Error(message)), getUserFriendlyError(null));
 });
 
-test('cancelar eliminación de producto no llama al backend; confirmar notifica éxito', async () => {
+test('cancelar eliminación de producto no llama al backend; confirmar no genera notificación', async () => {
   const component = Object.create(AdminProductsPageComponent.prototype);
-  component.notifications = notifications;
+  component.notifications = { error() { assert.fail('No debe notificar una operación correcta'); } };
   let calls = 0;
   component.adminProducts = { async deleteProduct() { calls++; } };
   component.loadProducts = async () => {};
@@ -234,7 +234,28 @@ test('cancelar eliminación de producto no llama al backend; confirmar notifica 
   component.confirmDialog.open = async () => true;
   await component.removeProduct({ _id: '1', name: 'Producto' });
   assert.equal(calls, 1);
-  assert.equal(sonner.toastState.toasts()[0].type, 'success');
+  assert.equal(sonner.toastState.toasts().length, 0);
+});
+
+test('crear y editar producto no generan notificaciones', async () => {
+  for (const editId of ['', 'product-1']) {
+    const component = Object.create(AdminProductsPageComponent.prototype);
+    component.savingProduct = angular.signal(false);
+    component.editId = angular.signal(editId);
+    component.form = { name: 'Producto', price: 20, stock: 2 };
+    component.markStepAttempted = () => {};
+    component.isStepValid = () => true;
+    component.normalizedFormPayload = () => component.form;
+    component.resetForm = () => {};
+    component.loadProducts = async () => {};
+    component.scrollToSection = () => {};
+    component.notifications = { error() { assert.fail('No debe notificar una operación correcta'); } };
+    let created = 0, updated = 0;
+    component.adminProducts = { async createProduct() { created++; }, async updateProduct() { updated++; } };
+    await component.saveProduct();
+    assert.equal(created, editId ? 0 : 1);assert.equal(updated, editId ? 1 : 0);
+    assert.equal(sonner.toastState.toasts().length, 0);
+  }
 });
 
 test('categoría con productos conserva la protección y no abre confirmación', async () => {

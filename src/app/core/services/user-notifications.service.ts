@@ -18,11 +18,13 @@ export class UserNotificationsService {
   private readonly recentState = signal<NotificationPage>(emptyPage());
   private readonly historyState = signal<NotificationPage>(emptyPage());
   private readonly countState = signal(0);
+  private readonly newCountState = signal(0);
   private readonly errorState = signal('');
   private readonly loadingState = signal({ recent: false, history: false });
   private readonly busyState = signal(false);
-  private sequence = { recent: 0, history: 0, count: 0 };
+  private sequence = { recent: 0, history: 0, count: 0, seen: 0 };
   private mutationSequence = 0;
+  private reviewing = false;
   private filters: NotificationFilters = {};
   private historyRequested = false;
   readonly session = computed(() => this.auth.token() && this.auth.profile()?.userId
@@ -32,6 +34,7 @@ export class UserNotificationsService {
   readonly history = computed(() => this.current() ? this.historyState().notifications : []);
   readonly nextCursor = computed(() => this.current() ? this.historyState().nextCursor : null);
   readonly unreadCount = computed(() => this.current() ? this.countState() : 0);
+  readonly newCount = computed(() => this.current() ? this.newCountState() : 0);
   readonly error = computed(() => this.current() ? this.errorState() : '');
   readonly loading = computed(() => this.current() ? this.loadingState() : { recent: false, history: false });
   readonly busy = computed(() => this.current() && this.busyState());
@@ -50,16 +53,18 @@ export class UserNotificationsService {
       this.recentState.set(emptyPage());
       this.historyState.set(emptyPage());
       this.countState.set(0);
+      this.newCountState.set(0);
       this.errorState.set('');
       this.busyState.set(false);
       this.loadingState.set({ recent: false, history: false });
       this.filters = {};
       this.historyRequested = false;
+      this.reviewing = false;
       this.invalidate();
     }
     return key;
   }
-  private invalidate(): void { this.sequence.recent++; this.sequence.history++; this.sequence.count++; }
+  private invalidate(): void { this.sequence.recent++; this.sequence.history++; this.sequence.count++; this.sequence.seen++; }
   private isCurrent(key: string): boolean { return !!key && this.session() === key && this.owner() === key; }
   private request<T>(path: string, method = 'GET'): Promise<T> {
     return requestJson<T>(this.endpoint + path, {
@@ -80,11 +85,14 @@ export class UserNotificationsService {
   }
   async refreshCount(): Promise<void> {
     const key = this.synchronize();
-    if (!key || this.busyState()) return;
+    if (!key || this.busyState() || this.reviewing) return;
     const sequence = ++this.sequence.count;
     try {
-      const result = await this.request<{ unreadCount: number }>('/unread-count');
-      if (this.isCurrent(key) && sequence === this.sequence.count) this.countState.set(result.unreadCount);
+      const result = await this.request<{ unreadCount: number; newCount: number }>('/unread-count');
+      if (this.isCurrent(key) && sequence === this.sequence.count) {
+        this.countState.set(result.unreadCount);
+        this.newCountState.set(result.newCount);
+      }
     } catch (error) { if (sequence === this.sequence.count) this.failed(error, key); }
   }
   async load(view: View, filters: NotificationFilters = {}, append = false): Promise<void> {
@@ -117,6 +125,25 @@ export class UserNotificationsService {
     return item.read ? Promise.resolve(!!this.synchronize()) : this.mutate(`/${encodeURIComponent(item.id)}/read`, 'PATCH');
   }
   markAllRead(): Promise<boolean> { return this.mutate('/read-all', 'PATCH'); }
+  async markAllSeen(): Promise<boolean> {
+    const key = this.synchronize();
+    if (!key || this.reviewing) return false;
+    this.reviewing = true;
+    this.sequence.count++;
+    const sequence = ++this.sequence.seen;
+    this.newCountState.set(0);
+    try {
+      await this.request('/seen-all', 'PATCH');
+      return this.isCurrent(key) && sequence === this.sequence.seen;
+    } catch (error) {
+      if (sequence === this.sequence.seen) {
+        this.failed(error, key);
+        if (this.isCurrent(key)) this.reviewing = false;
+        await this.refreshCount();
+      }
+      return false;
+    } finally { if (this.isCurrent(key) && sequence === this.sequence.seen) this.reviewing = false; }
+  }
   remove(item: UserNotification): Promise<boolean> { return this.mutate(`/${encodeURIComponent(item.id)}`, 'DELETE'); }
   private async mutate(path: string, method: string): Promise<boolean> {
     const key = this.synchronize();

@@ -12,9 +12,9 @@ import { NotificationSourceSelectorComponent } from './notification-source-selec
   selector: 'app-notification-bell', standalone: true,
   imports: [RouterLink, UserNotificationListComponent, IconComponent, NotificationSourceSelectorComponent],
   template: `
-    <button #trigger type="button" class="bell" (click)="show(trigger)" [attr.aria-label]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" [attr.title]="service.unreadCount() ? 'Notificaciones: ' + service.unreadCount() + ' sin leer' : 'Notificaciones'" aria-haspopup="dialog" aria-controls="notification-panel" [attr.aria-expanded]="opened()">
+    <button #trigger type="button" class="bell" (click)="show(trigger)" [attr.aria-label]="service.newCount() ? 'Notificaciones: ' + service.newCount() + ' nuevas' : 'Notificaciones'" [attr.title]="service.newCount() ? 'Notificaciones: ' + service.newCount() + ' nuevas' : 'Notificaciones'" aria-haspopup="dialog" aria-controls="notification-panel" [attr.aria-expanded]="opened()">
       <app-icon name="bell" [size]="22" />
-      @if (badge(service.unreadCount())) { <span class="count" aria-hidden="true">{{ badge(service.unreadCount()) }}</span> }
+      @if (badge(service.newCount())) { <span class="count" aria-hidden="true">{{ badge(service.newCount()) }}</span> }
     </button>
     <dialog #panel id="notification-panel" aria-labelledby="notification-panel-title" (cancel)="$event.preventDefault(); close()" (keydown.escape)="$event.preventDefault(); $event.stopPropagation(); close()" (keydown)="trapFocus($event)" (click)="backdrop($event)">
       @if (opened() && panelOwner === service.session()) {
@@ -66,6 +66,7 @@ export class NotificationBellComponent implements OnDestroy {
     this.previousOverflow = this.document.body.style.overflow;
     this.document.body.style.overflow = 'hidden';
     this.opened.set(true);
+    void this.service.review();
     this.panel()?.nativeElement.showModal();
     const panel = this.panel()?.nativeElement;
     if (panel) panel.scrollTop = 0;

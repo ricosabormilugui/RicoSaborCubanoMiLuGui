@@ -27,6 +27,7 @@ export class NotificationCenterService {
   readonly accountUnreadCount = computed(() => this.isAccount() ? this.account.unreadCount() : 0);
   readonly totalUnreadCount = computed(() => this.localUnreadCount() + this.accountUnreadCount());
   readonly unreadCount = this.totalUnreadCount;
+  readonly newCount = computed(() => this.local.newCount() + (this.isAccount() ? this.account.newCount() : 0));
   readonly sourceUnreadCount = computed(() => this.isAccountSource() ? this.accountUnreadCount() : this.localUnreadCount());
   readonly nextCursor = computed(() => this.isAccountSource() ? this.account.nextCursor() : this.filtered().length > this.limit() ? 'local-more' : null);
   readonly busy = computed(() => this.isAccountSource() && this.account.busy());
@@ -45,6 +46,10 @@ export class NotificationCenterService {
     if (view === 'history') { this.filters.set(filters); this.limit.update(limit => append ? limit + 20 : 20); }
   }
   async refreshCount(): Promise<void> { if (this.isAccount()) await this.account.refreshCount(); }
+  async review(): Promise<void> {
+    this.local.markAllSeen();
+    if (this.isAccount()) await this.account.markAllSeen();
+  }
   async markRead(item: NotificationItem): Promise<boolean> {
     return item.source === 'local' ? this.local.markRead(item.id) : this.isAccount() && this.account.markRead(item);
   }

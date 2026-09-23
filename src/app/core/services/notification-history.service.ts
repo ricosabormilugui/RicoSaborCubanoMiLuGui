@@ -29,6 +29,7 @@ export class NotificationHistoryService implements OnDestroy {
   });
   readonly items = computed(() => this.state());
   readonly unreadCount = computed(() => this.items().filter(item => !item.read).length);
+  readonly newCount = computed(() => this.items().filter(item => !item.seen).length);
   readonly storageWarning = signal('');
   private dirty = false;
   private readonly onStorage = (event: StorageEvent): void => {
@@ -55,7 +56,7 @@ export class NotificationHistoryService implements OnDestroy {
       const at = Date.parse(value.createdAt);
       if (!title || !types.includes(value.type) || typeof value.id !== 'string' || !/^local-[a-z0-9-]{1,80}$/i.test(value.id) || ids.has(value.id) || !Number.isFinite(at) || at > now || now - at >= config.maxAgeMs || typeof value.read !== 'boolean') return [];
       ids.add(value.id);
-      return [{ source: 'local' as const, id: value.id, type: value.type, title, message, read: value.read, createdAt: new Date(at).toISOString(), action: safeAction(value.action) }];
+      return [{ source: 'local' as const, id: value.id, type: value.type, title, message, read: value.read, seen: value.seen === true, createdAt: new Date(at).toISOString(), action: safeAction(value.action) }];
     }).sort((a,b) => b.createdAt.localeCompare(a.createdAt)).slice(0, config.limit);
   }
   private readStored(): LocalNotification[] {
@@ -104,7 +105,7 @@ export class NotificationHistoryService implements OnDestroy {
     // Identical presentation within ten seconds remains one activity, even after marking it read.
     if (items.some(item => item.type === input.type && item.title === title && item.message === message && Math.abs(createdAt - Date.parse(item.createdAt)) < config.dedupeMs)) return;
     const id = `local-${globalThis.crypto?.randomUUID?.() ?? `${now.toString(36)}-${Math.random().toString(36).slice(2)}`}`;
-    this.state.set(this.normalize([{ source: 'local', id, type: input.type, title, message, createdAt: new Date(createdAt).toISOString(), read: false, action: safeAction(input.action) }, ...items], now));
+    this.state.set(this.normalize([{ source: 'local', id, type: input.type, title, message, createdAt: new Date(createdAt).toISOString(), read: false, seen: false, action: safeAction(input.action) }, ...items], now));
     this.persist();
   }
   markRead(id: string): boolean {
@@ -115,6 +116,10 @@ export class NotificationHistoryService implements OnDestroy {
   markAllRead(): void {
     if (!this.currentStorageKey()) return;
     this.state.update(items => items.map(item => ({ ...item, read: true }))); this.persist();
+  }
+  markAllSeen(): void {
+    if (!this.currentStorageKey()) return;
+    this.state.update(items => items.map(item => item.seen ? item : { ...item, seen: true })); this.persist();
   }
   remove(id: string): boolean {
     if (!this.currentStorageKey() || !this.state().some(item => item.id === id)) return false;

@@ -5,8 +5,10 @@ export interface UserNotification {
   title: string;
   message: string;
   read: boolean;
+  seen: boolean;
   createdAt: string;
   readAt: string | null;
+  seenAt: string | null;
   action: { label: string; url: string } | null;
   entity: { type: string; id: string } | null;
 }
