@@ -310,7 +310,7 @@ test('L: estado de cupón, draft y carrito se conserva al navegar', () => {
   service.add(product('beer', { price: 10 }), [], 2);
   coupon.setCode('PRIMER10');
   assert.equal(coupon.apply().valid, true);
-  draft.save({ fullName: 'Ana Pérez', phoneNumber: '644423790' });
+  draft.save({ fullName: 'Ana Pérez', phoneNumber: '600000000' });
   assert.equal(coupon.code(), 'PRIMER10');
   assert.equal(coupon.applied(), true);
   assert.equal(coupon.discount(50), 5);

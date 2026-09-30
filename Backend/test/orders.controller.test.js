@@ -20,7 +20,7 @@ function mockResponse() {
 
 function basePayload(delivery) {
   return {
-    customer: { fullName: "Cliente prueba", phone: "34644423790" },
+    customer: { fullName: "Cliente prueba", phone: "34600000000" },
     items: [{ productId: "test", name: "Producto", unitPrice: 20, quantity: 1 }],
     deliveryType: delivery.type,
     deliveryDate: delivery.date,
