@@ -62,7 +62,12 @@ export async function requestJson<T>(input: RequestInfo | URL, init: RequestInit
     const requestId = response.headers.get('x-request-id') ?? (String(data['requestId'] ?? '') || undefined);
     const available = Number(data['available']);
     throw new ApiRequestError(messageForStatus(response.status, detail, fallback), response.status, requestId, 'http', {
-      code: typeof data['code'] === 'string' ? data['code'] : undefined,
+      code:
+        typeof data['code'] === 'string'
+          ? data['code']
+          : typeof data['reason'] === 'string'
+            ? data['reason']
+            : undefined,
       productId: typeof data['productId'] === 'string' ? data['productId'] : undefined,
       available: Number.isFinite(available) ? available : undefined,
       productName: typeof data['productName'] === 'string' ? data['productName'] : undefined

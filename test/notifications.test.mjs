@@ -21,6 +21,8 @@ function load(path, page = false) {
     if (name === '@angular/core') return { ...angular, Component: () => target => target };
     if (name === 'ngx-sonner') return sonner;
     if (name.endsWith('customer-auth.service')) return { CustomerAuthService: class {} };
+    if (name.endsWith('api-client')) return load(resolve(dirname(path), name + '.ts'));
+    if (name.endsWith('shipping.config')) return { normalizePostalCode: value => String(value ?? '').replace(/\D/g, '').slice(0, 5) };
     if (name.endsWith('user-friendly-error') || name.endsWith('notification.config')) return load(resolve(dirname(path), name + '.ts'));
     if (page) return {};
     throw new Error('Unmocked import: ' + name);
@@ -33,6 +35,7 @@ const { NotificationService } = load('src/app/core/services/notification.service
 const { ConfirmDialogService } = load('src/app/core/services/confirm-dialog.service.ts');
 const { ConfirmDialogComponent } = load('src/app/shared/ui/confirm-dialog.component.ts', true);
 const { getUserFriendlyError } = load('src/app/core/utils/user-friendly-error.ts');
+const { ApiRequestError, requestJson } = load('src/app/core/utils/api-client.ts');
 const { AdminPageComponent } = load('src/app/features/admin/admin-page.component.ts', true);
 const { AdminProductsPageComponent } = load('src/app/features/admin/admin-products-page.component.ts', true);
 const { CartPageComponent } = load('src/app/features/cart/cart-page.component.ts', true);
@@ -41,6 +44,128 @@ const notifications = new NotificationService();
 // Focus unit tests on adapter behavior; browser QA exercises actual lazy loading.
 notifications.dispatch = operation => operation(sonner);
 beforeEach(() => notifications.dismissAll());
+
+function createShippingQuoteHarness(outcomes) {
+  const component = Object.create(CheckoutPageComponent.prototype);
+  const values = {
+    deliveryType: 'delivery',
+    address: 'Calle Jose Maria Peman 47',
+    postalCode: '28019',
+    city: 'Madrid',
+    province: 'Madrid',
+    country: 'España'
+  };
+  let subtotal = 50;
+  let calls = 0;
+  component.hydrating = false;
+  component.orderId = angular.signal('');
+  component.shippingQuoteLoading = angular.signal(false);
+  component.shippingQuoteRetryable = angular.signal(false);
+  component.shippingQuoteState = angular.signal({ available: false, deliveryType: 'delivery', deliveryFee: 0, subtotal, message: '' });
+  component.shippingQuoteRequest = 1;
+  component.lastShippingQuoteKey = '';
+  component.pendingShippingQuoteKey = '';
+  component.form = { controls: Object.fromEntries(Object.keys(values).map(key => [key, { get value() { return values[key]; } }])) };
+  component.cart = { subtotal: () => subtotal };
+  component.shippingQuotes = {
+    async quote() {
+      calls++;
+      const outcome = outcomes.shift();
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
+    }
+  };
+  return {
+    component,
+    values,
+    calls: () => calls,
+    input: () => ({ ...values, subtotal }),
+    key: () => `${values.deliveryType}|${values.address.toLowerCase()}|${values.postalCode}|${values.city.toLowerCase()}|${values.province.toLowerCase()}|${values.country.toLowerCase()}|${subtotal}`,
+    setSubtotal: value => { subtotal = value; }
+  };
+}
+
+test('checkout reutiliza una cotización correcta y la invalida al cambiar el subtotal', async () => {
+  const firstQuote = { available: true, deliveryType: 'delivery', deliveryFee: 8, subtotal: 50, message: 'Entrega disponible.' };
+  const secondQuote = { ...firstQuote, deliveryFee: 9, subtotal: 60 };
+  const harness = createShippingQuoteHarness([firstQuote, secondQuote]);
+  const { component } = harness;
+
+  await component.loadShippingQuote(1, harness.key(), harness.input());
+  component.scheduleShippingQuote();
+  assert.equal(harness.calls(), 1);
+  assert.equal(component.shippingQuoteState().deliveryFee, 8);
+
+  harness.setSubtotal(60);
+  component.scheduleShippingQuote();
+  await new Promise(resolve => setTimeout(resolve, 450));
+  assert.equal(harness.calls(), 2);
+  assert.equal(component.shippingQuoteState().deliveryFee, 9);
+  assert.equal(component.shippingQuoteState().subtotal, 60);
+});
+
+test('checkout permite reintentar un error temporal sin duplicar peticiones', async () => {
+  const temporary = new ApiRequestError('Servicio no disponible', 503, undefined, 'http', { code: 'GEOCODING_UNAVAILABLE' });
+  const quote = { available: true, deliveryType: 'delivery', deliveryFee: 8, subtotal: 50, message: 'Entrega disponible.' };
+  const harness = createShippingQuoteHarness([temporary, quote]);
+  const { component } = harness;
+
+  await component.loadShippingQuote(1, harness.key(), harness.input());
+  assert.equal(component.shippingQuoteState().reason, 'GEOCODING_UNAVAILABLE');
+  assert.equal(component.shippingQuoteRetryable(), true);
+
+  component.retryShippingQuote();
+  component.retryShippingQuote();
+  await new Promise(resolve => setTimeout(resolve, 450));
+  assert.equal(harness.calls(), 2);
+  assert.equal(component.shippingQuoteState().available, true);
+  assert.equal(component.shippingQuoteRetryable(), false);
+});
+
+test('checkout no reintenta ADDRESS_NOT_FOUND hasta corregir la dirección', async () => {
+  const notFound = new ApiRequestError('Dirección no encontrada', 422, undefined, 'http', { code: 'ADDRESS_NOT_FOUND' });
+  const quote = { available: true, deliveryType: 'delivery', deliveryFee: 8, subtotal: 50, message: 'Entrega disponible.' };
+  const harness = createShippingQuoteHarness([notFound, quote]);
+  const { component } = harness;
+
+  await component.loadShippingQuote(1, harness.key(), harness.input());
+  assert.equal(component.shippingQuoteState().reason, 'ADDRESS_NOT_FOUND');
+  assert.equal(component.shippingQuoteRetryable(), false);
+  component.retryShippingQuote();
+  assert.equal(harness.calls(), 1);
+
+  harness.values.address = 'Calle Jose Maria Peman 47, portal 2';
+  component.scheduleShippingQuote();
+  await new Promise(resolve => setTimeout(resolve, 450));
+  assert.equal(harness.calls(), 2);
+  assert.equal(component.shippingQuoteState().available, true);
+});
+
+test('cliente HTTP conserva reason del backend y checkout trata red y 5xx como temporales', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    reason: 'ADDRESS_NOT_FOUND',
+    message: 'No se pudo localizar la dirección indicada.'
+  }), { status: 422, headers: { 'content-type': 'application/json' } });
+  try {
+    await assert.rejects(
+      requestJson('/shipping/quote', {}, 'Error'),
+      error => error instanceof ApiRequestError && error.body.code === 'ADDRESS_NOT_FOUND'
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  const { component } = createShippingQuoteHarness([]);
+  assert.deepEqual(
+    component.classifyShippingQuoteError(new ApiRequestError('Sin red', 0, undefined, 'network')),
+    { reason: 'ROUTING_UNAVAILABLE', retryable: true }
+  );
+  assert.deepEqual(
+    component.classifyShippingQuoteError(new ApiRequestError('Error', 500)),
+    { reason: 'ROUTING_UNAVAILABLE', retryable: true }
+  );
+});
 
 test('cupón: solo el botón Aplicar emite actividad; la validación automática permanece silenciosa', () => {
   const component = Object.create(CartPageComponent.prototype);

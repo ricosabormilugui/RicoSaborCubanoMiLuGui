@@ -202,6 +202,16 @@
           <p class="shipping-quote" [class.blocked]="shippingQuoteBlocked()" aria-live="polite">
             {{ shippingQuoteMessage() }}
           </p>
+          @if (shippingQuoteRetryable()) {
+            <button
+              type="button"
+              class="btn btn-ghost retry-btn"
+              [disabled]="shippingQuoteLoading()"
+              (click)="retryShippingQuote()"
+            >
+              Reintentar cálculo
+            </button>
+          }
           @if (form.controls.deliveryType.value === 'delivery' && shippingQuote().available) {
             <p class="shipping-quote">Entrega a domicilio · {{ shippingQuote().distanceKm | number:'1.1-1' }} km</p>
             <p class="shipping-quote">

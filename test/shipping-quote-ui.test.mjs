@@ -18,4 +18,9 @@ test('checkout distingue quote inválida de entrega gratuita', () => {
   assert.match(template, /Te faltan .* para conseguir envío gratis/);
   assert.match(template, /Has conseguido envío GRATIS para esta entrega/);
   assert.match(template, /distanceKm \| number:'1\.1-1'/);
+  assert.match(template, /Reintentar cálculo/);
+  assert.match(template, /shippingQuoteRetryable\(\)/);
+  assert.match(component, /key === this\.pendingShippingQuoteKey/);
+  assert.match(component, /error\.status >= 500/);
+  assert.match(component, /case 'ADDRESS_NOT_FOUND'/);
 });

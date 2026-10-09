@@ -1,11 +1,17 @@
 ﻿import { getUserFriendlyError } from '../../core/utils/user-friendly-error';
 import { CommonModule, DOCUMENT } from '@angular/common';
+import { ApiRequestError } from '../../core/utils/api-client';
 import { Component, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CartService } from '../../core/services/cart.service';
-import { CheckoutFormData, DeliveryQuote, PaymentMethod } from '../../core/models/order.model';
+import {
+  CheckoutFormData,
+  DeliveryQuote,
+  DeliveryQuoteReason,
+  PaymentMethod
+} from '../../core/models/order.model';
 import { getPaymentInstructions, getPaymentMethodLabel, OrderService } from '../../core/services/order.service';
 import { CustomerAuthService } from '../../core/services/customer-auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -61,6 +67,7 @@ export class CheckoutPageComponent {
   readonly paymentExpiresAt = signal('');
   readonly stockSubmitError = signal('');
   readonly shippingQuoteLoading = signal(false);
+  readonly shippingQuoteRetryable = signal(false);
   readonly shippingQuoteState = signal<DeliveryQuote>({
     available: false,
     deliveryType: 'delivery',
@@ -74,6 +81,7 @@ export class CheckoutPageComponent {
   private shippingQuoteTimer?: ReturnType<typeof globalThis.setTimeout>;
   private shippingQuoteRequest = 0;
   private lastShippingQuoteKey = '';
+  private pendingShippingQuoteKey = '';
   private lastPreparationNoticeHours = DELIVERY_RULES.advanceNoticeHours;
 
   readonly form = this.fb.nonNullable.group({
@@ -312,7 +320,6 @@ export class CheckoutPageComponent {
 
   private scheduleShippingQuote(): void {
     if (this.hydrating || this.orderId()) return;
-    if (this.shippingQuoteTimer) globalThis.clearTimeout(this.shippingQuoteTimer);
 
     const deliveryType = this.form.controls.deliveryType.value;
     const address = this.form.controls.address.value.trim();
@@ -322,12 +329,15 @@ export class CheckoutPageComponent {
     const country = this.form.controls.country.value.trim();
     const subtotal = Number(this.cart.subtotal().toFixed(2));
     const key = `${deliveryType}|${address.toLowerCase()}|${postalCode}|${city.toLowerCase()}|${province.toLowerCase()}|${country.toLowerCase()}|${subtotal}`;
-    if (key === this.lastShippingQuoteKey) return;
+    if (key === this.lastShippingQuoteKey || key === this.pendingShippingQuoteKey) return;
+    if (this.shippingQuoteTimer) globalThis.clearTimeout(this.shippingQuoteTimer);
     const request = ++this.shippingQuoteRequest;
     this.lastShippingQuoteKey = '';
+    this.pendingShippingQuoteKey = '';
 
     if (deliveryType === 'delivery' && (address.length < 5 || postalCode.length !== 5 || !city || !province || !country)) {
       this.shippingQuoteLoading.set(false);
+      this.shippingQuoteRetryable.set(false);
       this.shippingQuoteState.set({
         available: false,
         deliveryType,
@@ -338,7 +348,9 @@ export class CheckoutPageComponent {
       return;
     }
 
+    this.shippingQuoteRetryable.set(false);
     this.shippingQuoteLoading.set(true);
+    this.pendingShippingQuoteKey = key;
     this.shippingQuoteTimer = globalThis.setTimeout(() => void this.loadShippingQuote(request, key, {
       deliveryType,
       address,
@@ -355,21 +367,59 @@ export class CheckoutPageComponent {
       const quote = await this.shippingQuotes.quote(input);
       if (request !== this.shippingQuoteRequest) return;
       this.lastShippingQuoteKey = key;
+      this.shippingQuoteRetryable.set(false);
       this.shippingQuoteState.set(quote);
     } catch (error) {
       if (request !== this.shippingQuoteRequest) return;
+      const failure = this.classifyShippingQuoteError(error);
       this.lastShippingQuoteKey = key;
+      this.shippingQuoteRetryable.set(failure.retryable);
       this.shippingQuoteState.set({
         available: false,
         deliveryType: input.deliveryType,
-        reason: 'ROUTING_UNAVAILABLE',
+        reason: failure.reason,
         deliveryFee: 0,
         subtotal: input.subtotal,
         message: getUserFriendlyError(error, 'No se pudo calcular la distancia de entrega. Inténtalo de nuevo.')
       });
     } finally {
-      if (request === this.shippingQuoteRequest) this.shippingQuoteLoading.set(false);
+      if (request === this.shippingQuoteRequest) {
+        this.pendingShippingQuoteKey = '';
+        this.shippingQuoteLoading.set(false);
+      }
     }
+  }
+
+  retryShippingQuote(): void {
+    if (this.shippingQuoteLoading() || !this.shippingQuoteRetryable()) return;
+
+    this.shippingQuoteRetryable.set(false);
+    this.lastShippingQuoteKey = '';
+    this.scheduleShippingQuote();
+  }
+
+  private classifyShippingQuoteError(error: unknown): {
+    reason: DeliveryQuoteReason;
+    retryable: boolean;
+  } {
+    if (error instanceof ApiRequestError) {
+      switch (error.body.code) {
+        case 'GEOCODING_UNAVAILABLE':
+        case 'ROUTING_UNAVAILABLE':
+          return { reason: error.body.code, retryable: true };
+        case 'ADDRESS_NOT_FOUND':
+        case 'INVALID_ADDRESS':
+        case 'MINIMUM_ORDER_NOT_REACHED':
+        case 'OUTSIDE_DELIVERY_AREA':
+          return { reason: error.body.code, retryable: false };
+      }
+
+      if (error.kind !== 'http' || error.status >= 500) {
+        return { reason: 'ROUTING_UNAVAILABLE', retryable: true };
+      }
+    }
+
+    return { reason: 'ROUTING_UNAVAILABLE', retryable: true };
   }
 
   paymentReservationHours(): number {
