@@ -225,6 +225,20 @@ test('K-N: checkout resume el mismo CartService y el payload usa la quantity act
   assert.equal(service.subtotal(), 20);
 });
 
+test('checkout conserva y envía localidad, provincia y país para validar la dirección', () => {
+  const checkout = checkoutView();
+  const component = read('src/app/features/checkout/checkout-page.component.ts');
+  const orderService = read('src/app/core/services/order.service.ts');
+  const quoteService = read('src/app/core/services/shipping-quote.service.ts');
+  for (const field of ['city', 'province', 'country']) {
+    assert.match(checkout, new RegExp(`formControlName="${field}"`));
+    assert.match(component, new RegExp(`${field}: value\\.${field}`));
+    assert.match(orderService, new RegExp(`${field}: data\\.${field}`));
+    assert.match(quoteService, new RegExp(`${field}\\?: string`));
+  }
+  assert.match(checkout, /formControlName="country"[^>]*readonly/);
+});
+
 test('O-P: el checkout vacío no renderiza el formulario', () => {
   const checkout = checkoutView();
   const cartPage = cartView();

@@ -28,7 +28,12 @@ test("Liverpool: Nominatim valida CP y localidad y devuelve provider, precision 
   } });
   const location = await provider.geocode(liverpool);
   assert.deepEqual(location, { coordinates: [-3.8418233, 40.3438385], provider: "nominatim", precision: "street" });
-  assert.equal(request.url.searchParams.get("q"), liverpool.text);
+  assert.equal(request.url.searchParams.get("q"), null);
+  assert.equal(request.url.searchParams.get("street"), "6 Calle Liverpool");
+  assert.equal(request.url.searchParams.get("city"), "Alcorcón");
+  assert.equal(request.url.searchParams.get("state"), "Madrid");
+  assert.equal(request.url.searchParams.get("postalcode"), "28922");
+  assert.equal(request.url.searchParams.get("country"), "España");
   assert.equal(request.url.searchParams.get("countrycodes"), "es");
   assert.match(request.options.headers["User-Agent"], /MIXSABOR/);
 });
@@ -45,6 +50,11 @@ test("resultado de otra calle se rechaza", async () => {
 
 test("resultado con CP incompatible se rechaza", async () => {
   const provider = createNominatimProvider({ fetchImpl: async () => response([candidate({ postcode: "28921" })]) });
+  await assert.rejects(() => provider.geocode(liverpool), (error) => error.code === "ADDRESS_NOT_FOUND");
+});
+
+test("resultado sin CP se rechaza cuando la consulta lo declara", async () => {
+  const provider = createNominatimProvider({ fetchImpl: async () => response([candidate({ postcode: "" })]) });
   await assert.rejects(() => provider.geocode(liverpool), (error) => error.code === "ADDRESS_NOT_FOUND");
 });
 

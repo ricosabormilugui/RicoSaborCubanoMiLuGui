@@ -88,6 +88,9 @@ export function buildOrderRequestFingerprint(payload, auth) {
       slot: normalizeText(payload?.deliverySlot ?? delivery?.slot),
       address: normalizeText(delivery?.address, { lower: true }),
       postalCode: normalizeText(delivery?.postalCode ?? payload?.postalCode),
+      city: normalizeText(delivery?.city ?? delivery?.locality, { lower: true }),
+      province: normalizeText(delivery?.province ?? delivery?.region, { lower: true }),
+      country: normalizeText(delivery?.country, { lower: true }),
       reference: normalizeText(delivery?.reference, { lower: true })
     },
     notes: normalizeText(payload?.notes),

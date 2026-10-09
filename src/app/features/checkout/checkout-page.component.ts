@@ -86,6 +86,9 @@ export class CheckoutPageComponent {
     deliverySlot: ['', [Validators.required]],
     address: [''],
     postalCode: [''],
+    city: [''],
+    province: ['Madrid'],
+    country: ['España'],
     reference: [''],
     notes: [''],
     marketingConsent: [false],
@@ -187,6 +190,9 @@ export class CheckoutPageComponent {
       deliverySlot: this.deliveryState.slot() ?? '',
       address: draft.address,
       postalCode: draft.postalCode,
+      city: draft.city,
+      province: draft.province,
+      country: draft.country,
       reference: draft.reference,
       notes: draft.notes,
       marketingConsent: draft.marketingConsent,
@@ -216,6 +222,9 @@ export class CheckoutPageComponent {
       email: value.email,
       address: value.address,
       postalCode: value.postalCode,
+      city: value.city,
+      province: value.province,
+      country: value.country,
       reference: value.reference,
       notes: value.notes,
       marketingConsent: value.marketingConsent,
@@ -308,13 +317,16 @@ export class CheckoutPageComponent {
     const deliveryType = this.form.controls.deliveryType.value;
     const address = this.form.controls.address.value.trim();
     const postalCode = normalizePostalCode(this.form.controls.postalCode.value);
+    const city = this.form.controls.city.value.trim();
+    const province = this.form.controls.province.value.trim();
+    const country = this.form.controls.country.value.trim();
     const subtotal = Number(this.cart.subtotal().toFixed(2));
-    const key = `${deliveryType}|${address.toLowerCase()}|${postalCode}|${subtotal}`;
+    const key = `${deliveryType}|${address.toLowerCase()}|${postalCode}|${city.toLowerCase()}|${province.toLowerCase()}|${country.toLowerCase()}|${subtotal}`;
     if (key === this.lastShippingQuoteKey) return;
     const request = ++this.shippingQuoteRequest;
     this.lastShippingQuoteKey = '';
 
-    if (deliveryType === 'delivery' && (address.length < 5 || postalCode.length !== 5)) {
+    if (deliveryType === 'delivery' && (address.length < 5 || postalCode.length !== 5 || !city || !province || !country)) {
       this.shippingQuoteLoading.set(false);
       this.shippingQuoteState.set({
         available: false,
@@ -331,11 +343,14 @@ export class CheckoutPageComponent {
       deliveryType,
       address,
       postalCode,
+      city,
+      province,
+      country,
       subtotal
     }), 400);
   }
 
-  private async loadShippingQuote(request: number, key: string, input: { deliveryType: 'delivery' | 'pickup'; address: string; postalCode: string; subtotal: number }): Promise<void> {
+  private async loadShippingQuote(request: number, key: string, input: { deliveryType: 'delivery' | 'pickup'; address: string; postalCode: string; city: string; province: string; country: string; subtotal: number }): Promise<void> {
     try {
       const quote = await this.shippingQuotes.quote(input);
       if (request !== this.shippingQuoteRequest) return;
@@ -502,17 +517,29 @@ export class CheckoutPageComponent {
   private updateAddressValidation(deliveryType: 'delivery' | 'pickup'): void {
     const addressControl = this.form.controls.address;
     const postalCodeControl = this.form.controls.postalCode;
+    const cityControl = this.form.controls.city;
+    const provinceControl = this.form.controls.province;
+    const countryControl = this.form.controls.country;
 
     if (deliveryType === 'delivery') {
       addressControl.setValidators([Validators.required, Validators.minLength(5)]);
       postalCodeControl.setValidators([Validators.required, Validators.pattern(/^[0-9]{5}$/)]);
+      cityControl.setValidators([Validators.required]);
+      provinceControl.setValidators([Validators.required]);
+      countryControl.setValidators([Validators.required]);
     } else {
       addressControl.clearValidators();
       postalCodeControl.clearValidators();
+      cityControl.clearValidators();
+      provinceControl.clearValidators();
+      countryControl.clearValidators();
     }
 
     addressControl.updateValueAndValidity({ emitEvent: false });
     postalCodeControl.updateValueAndValidity({ emitEvent: false });
+    cityControl.updateValueAndValidity({ emitEvent: false });
+    provinceControl.updateValueAndValidity({ emitEvent: false });
+    countryControl.updateValueAndValidity({ emitEvent: false });
   }
 
   private reconcileDeliverySlot(): void {
@@ -666,6 +693,9 @@ export class CheckoutPageComponent {
         email: accountEmail,
         address: '',
         postalCode: '',
+        city: '',
+        province: 'Madrid',
+        country: 'España',
         reference: '',
         notes: '',
         marketingConsent: false,

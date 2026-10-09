@@ -76,6 +76,17 @@ test("si falla un proveedor de geocodificación no se confunde con fallo de ruta
   );
 });
 
+test("una ruta no calculable se distingue de una dirección no encontrada", async () => {
+  await assert.rejects(
+    () => getDeliveryDistanceKm(origin, liverpool, {
+      orsGeocode: async (query) => query.text.includes("Liverpool") ? liverpoolLocation : originLocation,
+      nominatimGeocode: async () => { throw new Error("No debe ejecutarse"); },
+      directions: async () => { throw new RoutingProviderError("ROUTING_UNAVAILABLE", "Ruta no calculable."); }
+    }),
+    (error) => error instanceof RoutingProviderError && error.code === "ROUTING_UNAVAILABLE" && error.status === 503
+  );
+});
+
 test("ORS no acepta locality-only aunque su label contenga la calle", async () => {
   const previousKey = process.env.OPENROUTESERVICE_API_KEY;
   process.env.OPENROUTESERVICE_API_KEY = "test-key";

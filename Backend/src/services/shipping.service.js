@@ -2,12 +2,29 @@ import { DELIVERY_ORIGIN_ADDRESS } from "../config/delivery-pricing.config.js";
 import { calculateDeliveryPricing } from "./delivery-pricing.service.js";
 import { getDeliveryDistanceKm } from "./delivery-routing.service.js";
 
-export function buildDeliveryAddress({ address, postalCode } = {}) {
-  const street = String(address ?? "").trim();
+const ALCORCON_POSTAL_CODES = new Set(["28921", "28922", "28923", "28924", "28925"]);
+
+function normalizeDeliveryLocation({ postalCode, city, locality, province, region, country } = {}) {
   const postal = String(postalCode ?? "").replace(/\D/g, "").slice(0, 5);
+  return {
+    postal,
+    locality: String(city ?? locality ?? (ALCORCON_POSTAL_CODES.has(postal) ? "Alcorcón" : "")).trim(),
+    region: String(province ?? region ?? "Madrid").trim(),
+    country: String(country ?? "España").trim() || "España"
+  };
+}
+
+function locationParts(locality, region, country) {
+  const values = [locality, region, country].filter(Boolean);
+  return values.filter((value, index) => values.findIndex((candidate) => candidate.localeCompare(value, "es", { sensitivity: "base" }) === 0) === index);
+}
+
+export function buildDeliveryAddress(input = {}) {
+  const { address } = input;
+  const street = String(address ?? "").trim();
+  const { postal, locality, region, country } = normalizeDeliveryLocation(input);
   if (street.length < 5 || postal.length !== 5) return "";
-  const locality = ["28921", "28922", "28923", "28924", "28925"].includes(postal) ? "Alcorcón" : "";
-  return [street, postal, locality, "Madrid", "España"].filter(Boolean).join(", ");
+  return [street, postal, ...locationParts(locality, region, country)].filter(Boolean).join(", ");
 }
 
 export function splitStreetAndNumber(address) {
@@ -20,30 +37,32 @@ export function splitStreetAndNumber(address) {
   return match ? { street: match[1].trim(), houseNumber: match[2] } : { street: value, houseNumber: "" };
 }
 
-export function buildDeliveryGeocodeQuery({ address, postalCode } = {}) {
-  const text = buildDeliveryAddress({ address, postalCode });
-  if (!text) return null;
-  const postal = String(postalCode).replace(/\D/g, "").slice(0, 5);
+export function buildDeliveryGeocodeQuery(input = {}) {
+  const { address } = input;
+  if (!buildDeliveryAddress(input)) return null;
+  const { postal, locality, region, country } = normalizeDeliveryLocation(input);
   const { street, houseNumber } = splitStreetAndNumber(address);
+  const primaryAddress = [street, houseNumber].filter(Boolean).join(" ");
   return {
-    text,
+    text: [primaryAddress, postal, ...locationParts(locality, region, country)].filter(Boolean).join(", "),
     street,
     houseNumber,
     postalCode: postal,
-    locality: ["28921", "28922", "28923", "28924", "28925"].includes(postal) ? "Alcorcón" : "",
-    region: "Madrid",
-    country: "España"
+    locality,
+    region,
+    country
   };
 }
 
-export async function calculateShippingQuote({ deliveryType = "delivery", address, postalCode, subtotal }, {
+export async function calculateShippingQuote({ deliveryType = "delivery", address, postalCode, city, locality, province, region, country, subtotal }, {
   distanceProvider = getDeliveryDistanceKm
 } = {}) {
   const normalizedSubtotal = Number(Number(subtotal ?? 0).toFixed(2));
   if (deliveryType === "pickup") {
     return { available: true, deliveryType, distanceKm: 0, deliveryFee: 0, minimumOrder: 0, subtotal: normalizedSubtotal, amountMissingForMinimum: 0, zone: "pickup", message: "Recogida en Alcorcón sin coste de envío." };
   }
-  const geocodeQuery = buildDeliveryGeocodeQuery({ address, postalCode });
+  const deliveryInput = { address, postalCode, city, locality, province, region, country };
+  const geocodeQuery = buildDeliveryGeocodeQuery(deliveryInput);
   if (!geocodeQuery) {
     return { available: false, reason: "INVALID_ADDRESS", subtotal: normalizedSubtotal, message: "Introduce una dirección y un código postal válidos para calcular la entrega." };
   }
@@ -57,5 +76,5 @@ export async function calculateShippingQuote({ deliveryType = "delivery", addres
     country: "España"
   };
   const distanceKm = await distanceProvider(originQuery, geocodeQuery);
-  return { deliveryType, deliveryAddress: geocodeQuery.text, ...calculateDeliveryPricing(distanceKm, normalizedSubtotal) };
+  return { deliveryType, deliveryAddress: buildDeliveryAddress(deliveryInput), ...calculateDeliveryPricing(distanceKm, normalizedSubtotal) };
 }

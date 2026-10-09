@@ -7,7 +7,7 @@ import { requestJson } from '../utils/api-client';
 export class ShippingQuoteService {
   private readonly endpoint = `${resolveApiBaseUrl()}/shipping/quote`;
 
-  quote(input: { deliveryType: DeliveryType; address?: string; postalCode?: string; subtotal: number }): Promise<DeliveryQuote> {
+  quote(input: { deliveryType: DeliveryType; address?: string; postalCode?: string; city?: string; province?: string; country?: string; subtotal: number }): Promise<DeliveryQuote> {
     return requestJson<DeliveryQuote>(this.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

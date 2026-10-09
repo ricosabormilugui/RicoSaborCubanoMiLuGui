@@ -84,6 +84,7 @@ test("una dirección sin número acepta un resultado de calle coherente", async 
   const coordinates = await geocodeAddress(query, {
     fetchImpl: async () => response({ features: [feature({
       label: "Calle Liverpool, 28922 Alcorcón, Madrid, España",
+      postalCode: "28922",
       layer: "street"
     })] })
   });
@@ -108,14 +109,16 @@ test("un resultado con CP incompatible devuelve ADDRESS_NOT_FOUND", async () => 
   );
 });
 
-test("Avenida de Atenas acepta la estructura real de ORS sin CP, número ni locality", async () => {
+test("Avenida de Atenas sin CP en ORS se rechaza para que el fallback lo confirme", async () => {
   const query = buildDeliveryGeocodeQuery({ address: "Avenida de Atenas 1", postalCode: "28922" });
   const candidates = [
     feature({ label: "Avenida de Atenas, Alcorcón, MD, Spain", name: "Avenida de Atenas", street: "Avenida de Atenas", layer: "street", confidence: 0.8, coordinates: [-3.841179, 40.348704] }),
     feature({ label: "Avenida de Atenas, Alcorcón, MD, Spain", name: "Avenida de Atenas", street: "Avenida de Atenas", locality: "Alcorcón", layer: "street", confidence: 0.8, coordinates: [-3.837454, 40.345819] })
   ];
-  const coordinates = await geocodeAddress(query, { fetchImpl: async () => response({ features: candidates }) });
-  assert.deepEqual(coordinates, [-3.841179, 40.348704]);
+  await assert.rejects(
+    () => geocodeAddress(query, { fetchImpl: async () => response({ features: candidates }) }),
+    (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
+  );
 });
 
 test("calle abreviada, localadmin y Comunidad de Madrid aportan evidencia equivalente", async () => {
@@ -124,6 +127,7 @@ test("calle abreviada, localadmin y Comunidad de Madrid aportan evidencia equiva
     label: "Av. de Atenas, Alcorcón, Community of Madrid, Spain",
     name: "Av. de Atenas",
     street: "Av. de Atenas",
+    postalCode: "28922",
     region: "Comunidad de Madrid",
     layer: "street",
     confidence: 0.8
@@ -165,12 +169,37 @@ test("construye la dirección con calle, número, CP, Alcorcón, Madrid y Españ
   });
 });
 
-test("conserva piso y puerta en el texto pero solo geocodifica calle y número", () => {
+test("conserva piso y puerta para la entrega pero los excluye de la consulta geográfica", () => {
   const query = buildDeliveryGeocodeQuery({ address: "Calle Liverpool 6, 2º A", postalCode: "28922" });
-  assert.equal(query.text, "Calle Liverpool 6, 2º A, 28922, Alcorcón, Madrid, España");
+  assert.equal(query.text, "Calle Liverpool 6, 28922, Alcorcón, Madrid, España");
+  assert.equal(buildDeliveryAddress({ address: "Calle Liverpool 6, 2º A", postalCode: "28922" }), "Calle Liverpool 6, 2º A, 28922, Alcorcón, Madrid, España");
   assert.deepEqual(splitStreetAndNumber("Calle Liverpool 6, 2º A"), { street: "Calle Liverpool", houseNumber: "6" });
   assert.equal(query.street, "Calle Liverpool");
   assert.equal(query.houseNumber, "6");
+});
+
+test("Calle Jose Maria Peman usa localidad declarada para resolver calles homónimas", async () => {
+  const query = buildDeliveryGeocodeQuery({
+    address: "Calle Jose Maria Peman 47",
+    postalCode: "28019",
+    city: "Madrid",
+    province: "Madrid",
+    country: "España"
+  });
+  const coordinates = await geocodeAddress(query, { fetchImpl: async () => response({ features: [
+    feature({ label: "Calle José María Pemán, Algete, MD, Spain", street: "Calle José María Pemán", locality: "Algete", localadmin: "Algete", postalCode: "28110", layer: "street", coordinates: [-3.507988, 40.600196], confidence: 0.8 }),
+    feature({ label: "Calle José María Pemán, Madrid, Spain", street: "Calle José María Pemán", locality: "Madrid", localadmin: "", postalCode: "28019", layer: "street", coordinates: [-3.735108, 40.395395], confidence: 0.8 })
+  ] }) });
+  assert.equal(query.text, "Calle Jose Maria Peman 47, 28019, Madrid, España");
+  assert.deepEqual(coordinates, [-3.735108, 40.395395]);
+});
+
+test("una provincia explícitamente incompatible se rechaza", async () => {
+  const query = buildDeliveryGeocodeQuery({ address: "Calle Liverpool 6", postalCode: "28922", city: "Alcorcón", province: "Toledo" });
+  await assert.rejects(
+    () => geocodeAddress(query, { fetchImpl: async () => response({ features: [feature({ label: "Calle Liverpool, Alcorcón, Madrid, España", region: "Madrid" })] }) }),
+    (error) => error instanceof RoutingProviderError && error.code === "ADDRESS_NOT_FOUND"
+  );
 });
 
 test("un fallo del proveedor ORS se distingue de una dirección no encontrada", async () => {

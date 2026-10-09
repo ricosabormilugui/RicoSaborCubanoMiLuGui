@@ -9,6 +9,9 @@ export interface CheckoutContactDraft {
   email: string;
   address: string;
   postalCode: string;
+  city: string;
+  province: string;
+  country: string;
   reference: string;
   notes: string;
   marketingConsent: boolean;
@@ -23,6 +26,9 @@ const EMPTY: CheckoutContactDraft = {
   email: '',
   address: '',
   postalCode: '',
+  city: '',
+  province: 'Madrid',
+  country: 'España',
   reference: '',
   notes: '',
   marketingConsent: false,
@@ -101,6 +107,9 @@ export class CheckoutDraftService implements OnDestroy {
         email: String(parsed.email ?? ''),
         address: String(parsed.address ?? ''),
         postalCode: String(parsed.postalCode ?? ''),
+        city: String(parsed.city ?? ''),
+        province: String(parsed.province ?? 'Madrid') || 'Madrid',
+        country: String(parsed.country ?? 'España') || 'España',
         reference: String(parsed.reference ?? ''),
         notes: String(parsed.notes ?? ''),
         marketingConsent: Boolean(parsed.marketingConsent),

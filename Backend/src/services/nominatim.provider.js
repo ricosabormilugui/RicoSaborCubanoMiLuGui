@@ -55,7 +55,7 @@ function scoreCandidate(candidate, query) {
   if (!Number.isFinite(candidate.longitude) || !Number.isFinite(candidate.latitude)) return null;
   const countryMatches = candidate.countryCode === "es" || ["espana", "spain"].includes(normalizeText(candidate.country));
   if (!countryMatches) return null;
-  if (query.postalCode && candidate.postalCode && candidate.postalCode !== query.postalCode) return null;
+  if (query.postalCode && candidate.postalCode !== query.postalCode) return null;
 
   const requestedStreet = normalizeText(query.street);
   const candidateStreet = normalizeText(candidate.street);
@@ -70,11 +70,16 @@ function scoreCandidate(candidate, query) {
   const candidateNumber = normalizeText(candidate.houseNumber);
   if (requestedNumber && candidateNumber && requestedNumber !== candidateNumber) return null;
 
+  const requestedRegion = normalizeText(query.region);
+  const candidateRegion = normalizeText(candidate.region);
+  const regionEvidence = normalizeText([candidate.region, candidate.displayName].join(" "));
+  if (requestedRegion && candidateRegion && !regionEvidence.includes(requestedRegion) && !requestedRegion.includes(candidateRegion)) return null;
+
   let score = 2 + 5 + candidate.importance;
   if (requestedLocality) score += 5;
   if (query.postalCode && candidate.postalCode === query.postalCode) score += 5;
   if (requestedNumber && candidateNumber === requestedNumber) score += 4;
-  if (query.region && normalizeText([candidate.region, candidate.displayName].join(" ")).includes(normalizeText(query.region))) score += 1;
+  if (requestedRegion && (regionEvidence.includes(requestedRegion) || requestedRegion.includes(candidateRegion))) score += 1;
   if (["house", "building", "address"].includes(candidate.addressType)) score += 1;
   return score;
 }
@@ -119,7 +124,13 @@ export function createNominatimProvider({
 
       return scheduleRequest(async () => {
         const url = new URL("/search", process.env.NOMINATIM_BASE_URL || DEFAULT_BASE_URL);
-        url.searchParams.set("q", String(query?.text ?? "").trim());
+        const street = [query?.houseNumber, query?.street].filter(Boolean).join(" ").trim();
+        if (street) url.searchParams.set("street", street);
+        else url.searchParams.set("q", String(query?.text ?? "").trim());
+        if (query?.locality) url.searchParams.set("city", String(query.locality).trim());
+        if (query?.region) url.searchParams.set("state", String(query.region).trim());
+        if (query?.postalCode) url.searchParams.set("postalcode", String(query.postalCode).trim());
+        if (query?.country) url.searchParams.set("country", String(query.country).trim());
         url.searchParams.set("format", "jsonv2");
         url.searchParams.set("addressdetails", "1");
         url.searchParams.set("limit", "5");
@@ -127,7 +138,7 @@ export function createNominatimProvider({
         const contactEmail = String(process.env.NOMINATIM_CONTACT_EMAIL ?? "").trim();
         if (contactEmail) url.searchParams.set("email", contactEmail);
 
-        onDiagnostic?.({ stage: "nominatim.request", query: query.text });
+        onDiagnostic?.({ stage: "nominatim.request", provider: "nominatim", query: query.text });
         const startedAt = now();
         let response;
         try {
@@ -141,6 +152,7 @@ export function createNominatimProvider({
         } catch {
           throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "GEOCODING_UNAVAILABLE", status: 503 });
         }
+        onDiagnostic?.({ stage: "nominatim.response", provider: "nominatim", status: response.status });
         if (!response.ok) throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "GEOCODING_UNAVAILABLE", status: 503 });
         let data;
         try {

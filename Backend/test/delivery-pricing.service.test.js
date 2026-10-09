@@ -58,3 +58,34 @@ test("quote de 27,4 km / 125 € expone el contrato comercial completo", async (
   assert.equal(quote.freeShippingThreshold, 180);
   assert.equal(quote.amountMissingForFreeShipping, 55);
 });
+
+test("quote transmite localidad, provincia y país al proveedor y conserva la dirección completa", async () => {
+  let destination;
+  const quote = await calculateShippingQuote({
+    address: "Calle Jose Maria Peman 47, 2º A",
+    postalCode: "28019",
+    city: "Madrid",
+    province: "Madrid",
+    country: "España",
+    subtotal: 50
+  }, {
+    distanceProvider: async (_origin, target) => {
+      destination = target;
+      return 14.224;
+    }
+  });
+
+  assert.deepEqual(destination, {
+    text: "Calle Jose Maria Peman 47, 28019, Madrid, España",
+    street: "Calle Jose Maria Peman",
+    houseNumber: "47",
+    postalCode: "28019",
+    locality: "Madrid",
+    region: "Madrid",
+    country: "España"
+  });
+  assert.equal(quote.deliveryAddress, "Calle Jose Maria Peman 47, 2º A, 28019, Madrid, España");
+  assert.equal(quote.distanceKm, 14.22);
+  assert.equal(quote.deliveryFee, 9.99);
+  assert.equal(quote.zone, "12-15");
+});

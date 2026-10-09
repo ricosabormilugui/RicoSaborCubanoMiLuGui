@@ -171,6 +171,28 @@
                   <small id="postalCode-error" class="field-error">Introduce un código postal válido.</small>
                 }
               </label>
+              <label>
+                <span>Ciudad o localidad <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="city" formControlName="city" autocomplete="address-level2" placeholder="Ej. Madrid"
+                  required [class.field-invalid]="isInvalid('city')" [attr.aria-invalid]="ariaInvalid('city')"
+                  [attr.aria-describedby]="isInvalid('city') ? 'city-error' : null" />
+                @if (isInvalid('city')) {
+                  <small id="city-error" class="field-error">Introduce la ciudad o localidad.</small>
+                }
+              </label>
+              <label>
+                <span>Provincia <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="province" formControlName="province" autocomplete="address-level1" placeholder="Ej. Madrid"
+                  required [class.field-invalid]="isInvalid('province')" [attr.aria-invalid]="ariaInvalid('province')"
+                  [attr.aria-describedby]="isInvalid('province') ? 'province-error' : null" />
+                @if (isInvalid('province')) {
+                  <small id="province-error" class="field-error">Introduce la provincia.</small>
+                }
+              </label>
+              <label>
+                <span>País <span class="required-mark" aria-hidden="true">*</span></span>
+                <input id="country" formControlName="country" autocomplete="country-name" readonly required />
+              </label>
             </div>
             <label class="field-secondary">
               Referencia

@@ -68,6 +68,9 @@ function relevantOrderIntent(payload: Record<string, unknown>): Record<string, u
       slot: normalizeText(payload['deliverySlot'] ?? delivery['slot']),
       address: normalizeText(delivery['address'], true),
       postalCode: normalizeText(delivery['postalCode'] ?? payload['postalCode']),
+      city: normalizeText(delivery['city'] ?? delivery['locality'], true),
+      province: normalizeText(delivery['province'] ?? delivery['region'], true),
+      country: normalizeText(delivery['country'], true),
       reference: normalizeText(delivery['reference'], true)
     },
     notes: normalizeText(payload['notes']),

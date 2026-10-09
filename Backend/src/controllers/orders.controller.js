@@ -144,7 +144,10 @@ function normalizeDelivery(payload) {
     date,
     slot,
     type,
-    postalCode: normalizePostalCode(payload?.delivery?.postalCode ?? payload?.postalCode)
+    postalCode: normalizePostalCode(payload?.delivery?.postalCode ?? payload?.postalCode),
+    city: String(payload?.delivery?.city ?? payload?.delivery?.locality ?? "").trim(),
+    province: String(payload?.delivery?.province ?? payload?.delivery?.region ?? "").trim(),
+    country: String(payload?.delivery?.country ?? "España").trim() || "España"
   };
 }
 
@@ -162,6 +165,9 @@ async function normalizeShipping(payload, delivery, quoteService = calculateShip
     deliveryType: delivery.type,
     address: payload?.delivery?.address,
     postalCode: delivery.postalCode,
+    city: delivery.city,
+    province: delivery.province,
+    country: delivery.country,
     subtotal
   });
 
@@ -422,6 +428,9 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
       slot: normalizedDelivery.slot,
       type: normalizedDelivery.type,
       postalCode: normalizedShipping.details.postalCode,
+      city: normalizedDelivery.city,
+      province: normalizedDelivery.province,
+      country: normalizedDelivery.country,
       address: normalizedShipping.details.deliveryAddress ?? payload?.delivery?.address
     },
     payment: normalizedPayment,

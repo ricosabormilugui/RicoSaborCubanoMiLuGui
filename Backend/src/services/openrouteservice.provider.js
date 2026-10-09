@@ -28,6 +28,7 @@ async function requestJson(url, options = {}, fetchImpl = fetch, failure = {}) {
   } catch {
     throw new RoutingProviderError(code, message);
   }
+  failure.onResponse?.(response.status);
   if (!response.ok) throw new RoutingProviderError(code, message);
   try {
     return await response.json();
@@ -98,7 +99,7 @@ function scoreCandidate(candidate, query) {
   const country = normalizeCountry(candidate.countryA || candidate.country);
   const countryLabel = normalizeText(candidate.label);
   if (query.country && !["espana", "spain", "es", "esp"].includes(country) && !countryLabel.includes("espana") && !countryLabel.includes("spain")) return null;
-  if (query.postalCode && candidate.postalCode && candidate.postalCode !== query.postalCode) return null;
+  if (query.postalCode && candidate.postalCode !== query.postalCode) return null;
 
   const requestedStreet = normalizeText(query.street);
   const candidateStreet = normalizeText([candidate.street, candidate.name, candidate.label].join(" "));
@@ -108,7 +109,10 @@ function scoreCandidate(candidate, query) {
   const candidateLocality = normalizeText([candidate.locality, candidate.localadmin, candidate.county, candidate.label].join(" "));
   if (requestedLocality && !candidateLocality.includes(requestedLocality)) return null;
   const requestedRegion = normalizeText(query.region);
-  const regionMatches = !requestedRegion || normalizeText([candidate.region, candidate.label].join(" ")).includes(requestedRegion);
+  const candidateRegion = normalizeText(candidate.region);
+  const regionEvidence = normalizeText([candidate.region, candidate.label].join(" "));
+  if (requestedRegion && candidateRegion && !regionEvidence.includes(requestedRegion) && !requestedRegion.includes(candidateRegion)) return null;
+  const regionMatches = !requestedRegion || regionEvidence.includes(requestedRegion) || requestedRegion.includes(candidateRegion);
 
   const requestedHouseNumber = normalizeText(query.houseNumber);
   const candidateHouseNumber = normalizeText(candidate.houseNumber);
@@ -164,12 +168,13 @@ export async function geocodeLocation(input, { fetchImpl = fetch, onDiagnostic }
   url.searchParams.set("text", query.text);
   url.searchParams.set("boundary.country", "ES");
   url.searchParams.set("size", String(GEOCODER_RESULT_LIMIT));
-  onDiagnostic?.({ stage: "geocode.request", query: query.text });
+  onDiagnostic?.({ stage: "geocode.request", provider: "openrouteservice", query: query.text });
 
   const startedAt = Date.now();
   const data = await requestJson(url, {}, fetchImpl, {
     code: "GEOCODING_UNAVAILABLE",
-    message: "No se pudo consultar el servicio de geocodificación."
+    message: "No se pudo consultar el servicio de geocodificación.",
+    onResponse: (status) => onDiagnostic?.({ stage: "geocode.response", provider: "openrouteservice", status })
   });
   onDiagnostic?.({
     stage: "geocode.candidates",
@@ -203,13 +208,15 @@ export async function geocodeAddress(input, options) {
 }
 
 export async function requestDrivingDistanceKm(origin, destination, { fetchImpl = fetch, onDiagnostic } = {}) {
-  onDiagnostic?.({ stage: "route.request", origin, destination });
+  onDiagnostic?.({ stage: "route.request", provider: "openrouteservice", origin, destination });
   const startedAt = Date.now();
   const data = await requestJson(`${ORS_BASE_URL}/v2/directions/driving-car/geojson`, {
     method: "POST",
     headers: { Authorization: apiKey(), "Content-Type": "application/json" },
     body: JSON.stringify({ coordinates: [origin, destination] })
-  }, fetchImpl);
+  }, fetchImpl, {
+    onResponse: (status) => onDiagnostic?.({ stage: "route.response", provider: "openrouteservice", status })
+  });
   const meters = Number(data?.features?.[0]?.properties?.summary?.distance);
   if (!Number.isFinite(meters) || meters < 0) {
     throw new RoutingProviderError("ROUTING_UNAVAILABLE", "No se pudo calcular una ruta por carretera para la dirección indicada.");

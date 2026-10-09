@@ -69,6 +69,9 @@ export class OrderService {
         type: data.deliveryType,
         address: data.address,
         postalCode: data.postalCode,
+        city: data.city,
+        province: data.province,
+        country: data.country,
         reference: data.reference
       },
       notes: data.notes,

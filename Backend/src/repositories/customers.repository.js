@@ -52,12 +52,18 @@ function buildAddress(delivery = {}) {
   const address = String(delivery?.address ?? "").trim();
   const reference = String(delivery?.reference ?? "").trim();
   const postalCode = String(delivery?.postalCode ?? "").trim();
+  const city = String(delivery?.city ?? delivery?.locality ?? "").trim();
+  const province = String(delivery?.province ?? delivery?.region ?? "").trim();
+  const country = String(delivery?.country ?? "").trim();
 
   if (!address && !reference && !postalCode) return null;
 
   return {
     address,
     postalCode,
+    city,
+    province,
+    country,
     reference,
     updatedAt: new Date().toISOString()
   };

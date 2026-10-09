@@ -80,6 +80,9 @@ export interface CheckoutFormData {
   deliverySlot: string;
   address?: string;
   postalCode?: string;
+  city?: string;
+  province?: string;
+  country?: string;
   reference?: string;
   notes?: string;
   marketingConsent: boolean;
@@ -103,6 +106,9 @@ export interface OrderPayload {
     type: DeliveryType;
     address?: string;
     postalCode?: string;
+    city?: string;
+    province?: string;
+    country?: string;
     reference?: string;
   };
   notes?: string;
