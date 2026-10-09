@@ -72,6 +72,10 @@ export function getProductCustomizationGroups(product) {
   })).filter((group) => group.options.length > 0);
 }
 
+export function isProductCustomizable(product) {
+  return getProductCustomizationGroups(product).length > 0;
+}
+
 export function buildCanonicalConfigurationId(selections = []) {
   if (!selections.length) return "";
   const value = selections

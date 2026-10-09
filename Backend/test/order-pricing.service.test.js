@@ -4,6 +4,7 @@ import { calculateCanonicalOrderItems, OrderPricingError } from "../src/services
 
 const products = new Map([
   ["normal", { _id: "normal", name: "Pastelito", description: "Guayaba", price: 2.5, available: true, published: true }],
+  ["commercial-variant", { _id: "commercial-variant", name: "Tarta de queso", category: "tartas", price: 18, available: true, published: true }],
   ["custom", {
     _id: "custom",
     name: "Tarta personalizada",
@@ -44,6 +45,15 @@ test("recalcula el precio de un producto normal e ignora el precio enviado", asy
   const item = await price({ productId: "normal", unitPrice: 1, quantity: 2 });
   assert.equal(item.basePrice, 2.5);
   assert.equal(item.unitPrice, 2.5);
+});
+
+test("solo la configuración real identifica un producto personalizado", async () => {
+  const normal = await price({ productId: "normal", quantity: 1 });
+  const commercialVariant = await price({ productId: "commercial-variant", quantity: 1 });
+  const custom = await price({ productId: "custom", quantity: 1, customization: [selection("sizes", "Pequeña")] });
+  assert.equal(normal.requiresAdvancePayment, false);
+  assert.equal(commercialVariant.requiresAdvancePayment, false);
+  assert.equal(custom.requiresAdvancePayment, true);
 });
 
 test("producto personalizado sin extras conserva el precio base", async () => {

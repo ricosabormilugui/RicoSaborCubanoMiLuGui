@@ -109,6 +109,10 @@ export class CheckoutPageComponent {
       this.identity.session();
       untracked(() => this.resetPersonalForm());
     });
+    effect(() => {
+      this.requiredAdvanceNoticeHours();
+      untracked(() => this.reconcileDeliverySlot());
+    });
 
     this.form.controls.email.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((email) => void this.checkEmailRegistered(email ?? ""));
     this.form.controls.deliveryType.valueChanges

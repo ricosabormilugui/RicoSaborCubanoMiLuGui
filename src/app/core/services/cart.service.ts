@@ -150,6 +150,7 @@ export class CartService implements OnDestroy {
         trackStock: snapshot.trackStock,
         stock: snapshot.trackStock ? snapshot.stock : undefined,
         lowStockAlert: snapshot.lowStockAlert,
+        requiresAdvancePayment: isProductCustomizable(product),
         name: String(product.name ?? item.name),
         unavailable
       };

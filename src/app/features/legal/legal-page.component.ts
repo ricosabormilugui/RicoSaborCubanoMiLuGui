@@ -53,14 +53,14 @@ import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
     </ng-template>
   `,
   styles: [
-    `.legal-page{display:grid;gap:1rem;max-width:980px;margin:0 auto;color:var(--text-main)}`,
+    `.legal-page{display:grid;gap:1rem;width:min(100%,980px);min-width:0;margin:0 auto;color:var(--text-main);overflow-wrap:anywhere}`,
     `.legal-hero{border-bottom:1px solid var(--border-soft);padding-bottom:1rem}`,
     `.eyebrow{margin:0;color:var(--accent-green);font-weight:900;text-transform:uppercase;font-size:.8rem;letter-spacing:.05em}`,
     `h1{margin:.2rem 0 .45rem;font-size:clamp(2rem,5vw,3.4rem)}`,
     `h2{margin:0 0 .45rem}`,
-    `p{color:var(--text-soft);line-height:1.65}`,
+    `p{max-width:100%;color:var(--text-soft);line-height:1.65}`,
     `.legal-nav{display:flex;gap:.5rem;flex-wrap:wrap}`,
-    `.legal-nav a{border:1px solid var(--border-soft);border-radius:999px;padding:.45rem .75rem;color:var(--text-main);text-decoration:none;background:var(--surface-1);font-weight:800}`,
+    `.legal-nav a{min-width:0;border:1px solid var(--border-soft);border-radius:999px;padding:.45rem .75rem;color:var(--text-main);text-decoration:none;background:var(--surface-1);font-weight:800;overflow-wrap:anywhere}`,
     `.legal-nav a.active,.legal-nav a:focus-visible,.legal-nav a:hover{border-color:var(--accent-green);background:color-mix(in srgb,var(--accent-green) 14%,var(--surface-1))}`,
     `.identity,.legal-section,.legal-disclaimer{border:1px solid var(--border-soft);border-radius:14px;padding:1rem;background:var(--surface-1)}`,
     `dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0}`,
@@ -68,7 +68,8 @@ import { SEO_SITE_CONFIG } from '../../core/config/seo.config';
     `dt{font-weight:900;color:var(--text-main)}`,
     `dd{margin:.2rem 0 0;color:var(--text-soft);overflow-wrap:anywhere}`,
     `.legal-disclaimer{color:var(--text-soft)}`,
-    `@media (max-width:720px){dl{grid-template-columns:1fr}.legal-page{padding:.2rem}.legal-nav a{flex:1 1 100%}}`
+    `.legal-section :where(a,table,pre,code){max-width:100%}.legal-section a{overflow-wrap:anywhere}.legal-section table{display:block;overflow-x:auto}`,
+    `@media (max-width:720px){dl{grid-template-columns:1fr}.legal-page{gap:.75rem;padding:0}.legal-hero,.identity,.legal-section,.legal-disclaimer{min-width:0}.identity,.legal-section,.legal-disclaimer{padding:.8rem}.legal-nav{display:grid;grid-template-columns:minmax(0,1fr)}.legal-nav a{width:100%;border-radius:10px}h1{font-size:clamp(1.75rem,10vw,2.35rem);line-height:1.08}h2{font-size:1.18rem}}`
   ]
 })
 export class LegalPageComponent {

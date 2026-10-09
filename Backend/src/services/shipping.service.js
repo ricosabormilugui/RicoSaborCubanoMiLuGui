@@ -10,9 +10,13 @@ export function buildDeliveryAddress({ address, postalCode } = {}) {
   return [street, postal, locality, "Madrid", "España"].filter(Boolean).join(", ");
 }
 
-function splitStreetAndNumber(address) {
+export function splitStreetAndNumber(address) {
   const value = String(address ?? "").trim();
-  const match = /^(.*?)(?:,?\s+(\d+[a-zA-Z]?))\s*$/.exec(value);
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const primary = parts.length > 1 && /^\d+[a-zA-Z]?$/.test(parts[1])
+    ? `${parts[0]} ${parts[1]}`
+    : (parts[0] ?? value);
+  const match = /^(.*\D)\s+(\d+[a-zA-Z]?)$/.exec(primary);
   return match ? { street: match[1].trim(), houseNumber: match[2] } : { street: value, houseNumber: "" };
 }
 

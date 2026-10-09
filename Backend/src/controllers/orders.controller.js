@@ -233,13 +233,7 @@ const PAYMENT_UNAVAILABLE_MESSAGE = "Ahora mismo no hay métodos de pago disponi
 const PAYMENT_METHOD_UNAVAILABLE_MESSAGE = "El método de pago seleccionado no está disponible.";
 
 function requiresAdvancePaymentForItems(items = []) {
-  return items.some((item) =>
-    Boolean(item?.requiresAdvancePayment)
-    || Boolean(item?.isCustomizable)
-    || (Array.isArray(item?.customization) && item.customization.length > 0)
-    || (Array.isArray(item?.customizationOptions) && item.customizationOptions.length > 0)
-    || String(item?.category ?? item?.categoryName ?? "").toLowerCase().includes("personaliz")
-  );
+  return items.some((item) => Boolean(item?.requiresAdvancePayment));
 }
 
 export function buildOrderIdentity(payload, auth) {

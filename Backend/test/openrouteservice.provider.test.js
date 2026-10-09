@@ -6,7 +6,7 @@ import {
   requestDrivingDistanceKm,
   RoutingProviderError
 } from "../src/services/openrouteservice.provider.js";
-import { buildDeliveryAddress, buildDeliveryGeocodeQuery } from "../src/services/shipping.service.js";
+import { buildDeliveryAddress, buildDeliveryGeocodeQuery, splitStreetAndNumber } from "../src/services/shipping.service.js";
 import { createShippingQuoteController } from "../src/controllers/shipping.controller.js";
 
 const previousKey = process.env.OPENROUTESERVICE_API_KEY;
@@ -163,6 +163,21 @@ test("construye la dirección con calle, número, CP, Alcorcón, Madrid y Españ
     region: "Madrid",
     country: "España"
   });
+});
+
+test("conserva piso y puerta en el texto pero solo geocodifica calle y número", () => {
+  const query = buildDeliveryGeocodeQuery({ address: "Calle Liverpool 6, 2º A", postalCode: "28922" });
+  assert.equal(query.text, "Calle Liverpool 6, 2º A, 28922, Alcorcón, Madrid, España");
+  assert.deepEqual(splitStreetAndNumber("Calle Liverpool 6, 2º A"), { street: "Calle Liverpool", houseNumber: "6" });
+  assert.equal(query.street, "Calle Liverpool");
+  assert.equal(query.houseNumber, "6");
+});
+
+test("un fallo del proveedor ORS se distingue de una dirección no encontrada", async () => {
+  await assert.rejects(
+    () => geocodeAddress(liverpoolQuery, { fetchImpl: async () => { throw new Error("offline"); } }),
+    (error) => error instanceof RoutingProviderError && error.code === "GEOCODING_UNAVAILABLE" && error.status === 503
+  );
 });
 
 test("Directions conserva el orden [longitude, latitude]", async () => {

@@ -3,7 +3,7 @@
   "sameDayDelivery": false,
   "advanceNoticeHours": 24,
   "personalizedAdvanceNoticeHours": 48,
-  "closedWeekdays": [0],
+  "closedWeekdays": [],
   "paymentReservationMinutes": 120,
   "slots": {
     "delivery": ["18:00-21:00"],

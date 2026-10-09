@@ -19,15 +19,21 @@ function apiKey() {
   return value;
 }
 
-async function requestJson(url, options = {}, fetchImpl = fetch) {
+async function requestJson(url, options = {}, fetchImpl = fetch, failure = {}) {
+  const code = failure.code ?? "ROUTING_UNAVAILABLE";
+  const message = failure.message ?? "No se pudo consultar la ruta de entrega.";
   let response;
   try {
     response = await fetchImpl(url, { ...options, signal: options.signal ?? AbortSignal.timeout(10_000) });
   } catch {
-    throw new RoutingProviderError("ROUTING_UNAVAILABLE", "No se pudo consultar la ruta de entrega.");
+    throw new RoutingProviderError(code, message);
   }
-  if (!response.ok) throw new RoutingProviderError("ROUTING_UNAVAILABLE", "No se pudo consultar la ruta de entrega.");
-  return response.json();
+  if (!response.ok) throw new RoutingProviderError(code, message);
+  try {
+    return await response.json();
+  } catch {
+    throw new RoutingProviderError(code, message);
+  }
 }
 
 function normalizeText(value) {
@@ -161,7 +167,10 @@ export async function geocodeLocation(input, { fetchImpl = fetch, onDiagnostic }
   onDiagnostic?.({ stage: "geocode.request", query: query.text });
 
   const startedAt = Date.now();
-  const data = await requestJson(url, {}, fetchImpl);
+  const data = await requestJson(url, {}, fetchImpl, {
+    code: "GEOCODING_UNAVAILABLE",
+    message: "No se pudo consultar el servicio de geocodificación."
+  });
   onDiagnostic?.({
     stage: "geocode.candidates",
     query: query.text,

@@ -161,6 +161,28 @@ test('H-J: eliminar, personalización preservada y total reactivo', () => {
   assert.equal(service.items().length, 0);
 });
 
+test('la antelación personalizada depende de opciones reales y se actualiza al cambiar catálogo', () => {
+  const service = cart();
+  service.add(product('commercial-cake', { category: 'tartas' }));
+  assert.equal(service.items()[0].requiresAdvancePayment, false);
+  service.syncInventory([product('commercial-cake', {
+    category: 'tartas',
+    customizationOptions: { sizes: [{ name: 'Mediana' }] }
+  })]);
+  assert.equal(service.items()[0].requiresAdvancePayment, true);
+  service.syncInventory([product('commercial-cake', { category: 'tartas', customizationOptions: {} })]);
+  assert.equal(service.items()[0].requiresAdvancePayment, false);
+  assert.match(checkoutView(), /this\.requiredAdvanceNoticeHours\(\);[\s\S]*this\.reconcileDeliverySlot\(\)/);
+});
+
+test('las páginas legales contienen defensas responsive contra scroll horizontal', () => {
+  const legal = read('src/app/features/legal/legal-page.component.ts');
+  assert.match(legal, /width:min\(100%,980px\);min-width:0/);
+  assert.match(legal, /overflow-wrap:anywhere/);
+  assert.match(legal, /table\{display:block;overflow-x:auto\}/);
+  assert.match(legal, /grid-template-columns:minmax\(0,1fr\)/);
+});
+
 test('K-N: checkout resume el mismo CartService y el payload usa la quantity actual', () => {
   const checkout = checkoutView();
   const orderService = read('src/app/core/services/order.service.ts');

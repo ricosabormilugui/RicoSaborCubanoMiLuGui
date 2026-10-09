@@ -139,10 +139,15 @@ export function createNominatimProvider({
             signal: AbortSignal.timeout(10_000)
           });
         } catch {
-          throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "ADDRESS_NOT_FOUND", status: 422 });
+          throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "GEOCODING_UNAVAILABLE", status: 503 });
         }
-        if (!response.ok) throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "ADDRESS_NOT_FOUND", status: 422 });
-        const data = await response.json();
+        if (!response.ok) throw Object.assign(new Error("No se pudo consultar la geocodificación alternativa."), { code: "GEOCODING_UNAVAILABLE", status: 503 });
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw Object.assign(new Error("La geocodificación alternativa devolvió una respuesta inválida."), { code: "GEOCODING_UNAVAILABLE", status: 503 });
+        }
         onDiagnostic?.({ stage: "nominatim.results", elapsedMs: now() - startedAt, resultCount: Array.isArray(data) ? data.length : 0 });
         const selected = selectCandidate(data, query);
         if (!selected) throw Object.assign(new Error("No se pudo localizar la dirección indicada."), { code: "ADDRESS_NOT_FOUND", status: 422 });

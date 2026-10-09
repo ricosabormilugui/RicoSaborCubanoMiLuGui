@@ -40,24 +40,14 @@ test("caso C: viernes abierto no salta el sábado", () => {
   assert.equal(getMinimumFulfillmentDate("delivery", { now, advanceNoticeHours: HOURS }), "2026-08-29");
 });
 
-test("caso D: sábado abierto no salta el domingo si el domingo no está cerrado", () => {
+test("caso D: domingo es seleccionable con la configuración vigente", () => {
   const now = at("2026-08-29", 10, 0);
-  const openSunday = { now, advanceNoticeHours: HOURS, closedWeekdays: [] };
-  assert.equal(isClosedFulfillmentDate("2026-08-30", { closedWeekdays: [] }), false);
-  assert.equal(isFulfillmentDateAvailable("2026-08-30", "delivery", openSunday), true);
-  assert.equal(getMinimumFulfillmentDate("delivery", openSunday), "2026-08-30");
-});
-
-test("caso E: domingo configurado cerrado queda deshabilitado", () => {
-  assert.equal(isClosedFulfillmentDate("2026-08-30"), true);
+  assert.equal(isClosedFulfillmentDate("2026-08-30"), false);
   assert.equal(isFulfillmentDateAvailable("2026-08-30", "delivery", {
-    now: at("2026-08-28", 10, 0),
+    now,
     advanceNoticeHours: HOURS
-  }), false);
-  assert.match(validateOrderFulfillment(
-    { type: "delivery", date: "2026-08-30", slot: "18:00-21:00" },
-    { now: at("2026-08-28", 10, 0) }
-  ), /Esta fecha ya no está disponible/);
+  }), true);
+  assert.equal(getMinimumFulfillmentDate("delivery", { now, advanceNoticeHours: HOURS }), "2026-08-30");
 });
 
 test("caso F: el día siguiente sin franja posterior a +24h no está disponible", () => {
@@ -130,5 +120,18 @@ test("respeta el cambio de offset horario de Madrid en invierno", () => {
   assert.equal(validateOrderFulfillment(
     { type: "pickup", date: "2026-01-03", slot: "12:00-14:00" },
     { now: at("2026-01-02", 12, 0) }
+  ), null);
+});
+
+test("el cambio a horario de verano usa 24 horas reales, no días naturales", () => {
+  const delivery = { type: "pickup", date: "2026-03-29", slot: "12:00-14:00" };
+  assert.match(validateOrderFulfillment(delivery, { now: at("2026-03-28", 12, 0) }), /24 horas/);
+  assert.equal(validateOrderFulfillment(delivery, { now: at("2026-03-28", 11, 0) }), null);
+});
+
+test("el cambio a horario de invierno admite el umbral exacto de 24 horas reales", () => {
+  assert.equal(validateOrderFulfillment(
+    { type: "pickup", date: "2026-10-25", slot: "12:00-14:00" },
+    { now: at("2026-10-24", 13, 0) }
   ), null);
 });

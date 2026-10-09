@@ -111,8 +111,5 @@ export function isProductCustomizable(product: Product | null | undefined): bool
       || (customizationOptions.decorations?.length ?? 0) > 0
     )
   );
-  if (hasCustomizationGroups) return true;
-
-  const category = String(product.category ?? '').toLowerCase();
-  return category.includes('tarta') || category.includes('personaliz');
+  return hasCustomizationGroups;
 }

@@ -17,7 +17,10 @@ async function resolveLocation(query, {
     onDiagnostic?.({ stage: "geocode.fallback", from: "openrouteservice", to: "nominatim" });
     try {
       return await nominatimGeocode(query, { onDiagnostic });
-    } catch {
+    } catch (fallbackError) {
+      if (error.code !== "ADDRESS_NOT_FOUND" || fallbackError?.code !== "ADDRESS_NOT_FOUND") {
+        throw new RoutingProviderError("GEOCODING_UNAVAILABLE", "No se pudo comprobar la dirección en este momento.");
+      }
       throw new RoutingProviderError("ADDRESS_NOT_FOUND", "No se pudo localizar la dirección indicada.", 422);
     }
   }

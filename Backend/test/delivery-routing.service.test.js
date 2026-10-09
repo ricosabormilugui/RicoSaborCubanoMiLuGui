@@ -65,6 +65,17 @@ test("si ORS y Nominatim fallan devuelve ADDRESS_NOT_FOUND sin ejecutar Directio
   assert.equal(directionsCalls, 0);
 });
 
+test("si falla un proveedor de geocodificación no se confunde con fallo de ruta", async () => {
+  await assert.rejects(
+    () => getDeliveryDistanceKm(origin, liverpool, {
+      orsGeocode: async () => { throw new RoutingProviderError("GEOCODING_UNAVAILABLE", "ORS no disponible"); },
+      nominatimGeocode: async () => { throw Object.assign(new Error("Nominatim no disponible"), { code: "GEOCODING_UNAVAILABLE" }); },
+      directions: async () => { throw new Error("No debe ejecutarse"); }
+    }),
+    (error) => error instanceof RoutingProviderError && error.code === "GEOCODING_UNAVAILABLE" && error.status === 503
+  );
+});
+
 test("ORS no acepta locality-only aunque su label contenga la calle", async () => {
   const previousKey = process.env.OPENROUTESERVICE_API_KEY;
   process.env.OPENROUTESERVICE_API_KEY = "test-key";

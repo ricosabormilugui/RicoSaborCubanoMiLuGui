@@ -61,6 +61,14 @@ test("locality-only no se acepta", async () => {
   await assert.rejects(() => provider.geocode(liverpool), (error) => error.code === "ADDRESS_NOT_FOUND");
 });
 
+test("un fallo del proveedor no se presenta como dirección inexistente", async () => {
+  const provider = createNominatimProvider({ fetchImpl: async () => { throw new Error("offline"); } });
+  await assert.rejects(
+    () => provider.geocode(liverpool),
+    (error) => error.code === "GEOCODING_UNAVAILABLE" && error.status === 503
+  );
+});
+
 test("limita las solicitudes a una por segundo, incluidas las concurrentes", async () => {
   let clock = 0;
   const starts = [];

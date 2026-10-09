@@ -4,6 +4,7 @@ import {
   buildCustomizationOptionId,
   getOptionPriceModifier,
   getProductCustomizationGroups,
+  isProductCustomizable,
   toMoneyCents
 } from "./product-customization.service.js";
 
@@ -103,7 +104,6 @@ export async function calculateCanonicalOrderItems(items, { productFinder = find
 
     const minimumQuantity = Math.max(1, Math.floor(Number(product.minimumQuantity ?? 1)) || 1);
     const quantity = normalizeQuantity(item?.quantity, minimumQuantity);
-    const customizationGroups = getProductCustomizationGroups(product);
     const customization = canonicalizeSelections(product, item?.customization);
     const basePriceCents = toMoneyCents(productPrice);
     const extrasCents = customization.reduce((sum, selection) => sum + toMoneyCents(selection.priceModifier), 0);
@@ -122,7 +122,7 @@ export async function calculateCanonicalOrderItems(items, { productFinder = find
       minimumQuantity,
       unitLabel: String(product.unitLabel ?? "").trim() || undefined,
       customization: customization.length ? customization : undefined,
-      requiresAdvancePayment: customizationGroups.length > 0 || /tarta|personaliz/i.test(String(product.category ?? ""))
+      requiresAdvancePayment: isProductCustomizable(product)
     });
   }
   return canonicalItems;
