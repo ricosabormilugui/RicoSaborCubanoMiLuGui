@@ -5,9 +5,19 @@ import { calculateCanonicalOrderItems, OrderPricingError } from "../src/services
 const products = new Map([
   ["normal", { _id: "normal", name: "Pastelito", description: "Guayaba", price: 2.5, available: true, published: true }],
   ["commercial-variant", { _id: "commercial-variant", name: "Tarta de queso", category: "tartas", price: 18, available: true, published: true }],
+  ["configurable-normal", {
+    _id: "configurable-normal",
+    name: "Pack configurable",
+    category: "combos",
+    price: 12,
+    available: true,
+    published: true,
+    customizationOptions: { sizes: [{ name: "Mediano" }] }
+  }],
   ["custom", {
     _id: "custom",
     name: "Tarta personalizada",
+    category: "tartas",
     description: "A medida",
     price: 35,
     available: true,
@@ -15,11 +25,15 @@ const products = new Map([
     customizationOptions: {
       sizes: [{ name: "Pequeña" }, { name: "Mediana", priceModifier: 10 }, { name: "Grande", priceModifier: 20 }],
       fillings: [{ name: "Chocolate" }, { name: "Premium", priceModifier: 5 }],
-      decorations: [{ name: "Especial", priceModifier: 8 }, { name: "Topper", priceModifier: 5 }],
+      decorations: [
+        { name: "Imagen papel fotografico", priceModifier: 5 },
+        { name: "Topper premium y flores artificiales", priceModifier: 10 },
+        { name: "Flores naturales", priceModifier: 15 }
+      ],
       groupSettings: {
         sizes: { selectionType: "single", required: true },
         fillings: { selectionType: "single", required: false },
-        decorations: { selectionType: "multiple", required: false }
+        decorations: { selectionType: "single", required: false }
       }
     }
   }],
@@ -54,6 +68,15 @@ test("solo la configuración real identifica un producto personalizado", async (
   assert.equal(normal.requiresAdvancePayment, false);
   assert.equal(commercialVariant.requiresAdvancePayment, false);
   assert.equal(custom.requiresAdvancePayment, true);
+  assert.equal(normal.preparationNoticeHours, 24);
+  assert.equal(commercialVariant.preparationNoticeHours, 48);
+  assert.equal(custom.preparationNoticeHours, 48);
+});
+
+test("un producto normal configurable mantiene 24 horas", async () => {
+  const item = await price({ productId: "configurable-normal", quantity: 1, customization: [selection("sizes", "Mediano")] });
+  assert.equal(item.requiresAdvancePayment, true);
+  assert.equal(item.preparationNoticeHours, 24);
 });
 
 test("producto personalizado sin extras conserva el precio base", async () => {
@@ -74,10 +97,11 @@ test("suma varias opciones y nunca confía en los modificadores recibidos", asyn
     quantity: 1,
     customization: [
       { ...selection("sizes", "Grande"), priceModifier: 0 },
-      { ...selection("decorations", "Especial"), priceModifier: 0 }
+      { ...selection("decorations", "Imagen papel fotografico"), priceModifier: 0 }
     ]
   });
-  assert.equal(item.unitPrice, 63);
+  assert.equal(item.unitPrice, 60);
+  assert.equal(item.preparationNoticeHours, 72);
 });
 
 test("cambiar una opción reemplaza su incremento", async () => {
@@ -87,21 +111,38 @@ test("cambiar una opción reemplaza su incremento", async () => {
   assert.equal(large.unitPrice, 55);
 });
 
-test("las opciones múltiples suman todas las selecciones", async () => {
-  const item = await price({
-    productId: "custom",
-    quantity: 1,
-    customization: [selection("sizes", "Pequeña"), selection("decorations", "Especial"), selection("decorations", "Topper")]
-  });
-  assert.equal(item.unitPrice, 48);
+test("Decoración opcional admite cero o una opción, nunca varias", async () => {
+  const withoutDecoration = await price({ productId: "custom", quantity: 1, customization: [selection("sizes", "Pequeña")] });
+  assert.equal(withoutDecoration.preparationNoticeHours, 48);
+  await assert.rejects(
+    () => price({
+      productId: "custom",
+      quantity: 1,
+      customization: [selection("sizes", "Pequeña"), selection("decorations", "Imagen papel fotografico"), selection("decorations", "Flores naturales")]
+    }),
+    (error) => error instanceof OrderPricingError && /Solo puede elegirse una opción/.test(error.message)
+  );
+});
+
+test("cada decoración válida activa 72 horas desde la configuración canónica", async () => {
+  for (const value of ["Imagen papel fotografico", "Topper premium y flores artificiales", "Flores naturales"]) {
+    const item = await price({
+      productId: "custom",
+      quantity: 1,
+      preparationNoticeHours: 24,
+      customization: [selection("sizes", "Pequeña"), selection("decorations", value)]
+    });
+    assert.equal(item.preparationNoticeHours, 72);
+  }
 });
 
 test("configuraciones distintas tienen identificadores distintos y las iguales coinciden", async () => {
-  const first = await price({ productId: "custom", quantity: 1, customization: [selection("sizes", "Grande"), selection("decorations", "Topper")] });
-  const reordered = await price({ productId: "custom", quantity: 1, customization: [selection("decorations", "Topper"), selection("sizes", "Grande")] });
-  const different = await price({ productId: "custom", quantity: 1, customization: [selection("sizes", "Mediana"), selection("decorations", "Topper")] });
+  const first = await price({ productId: "custom", quantity: 1, preparationNoticeHours: 24, customization: [selection("sizes", "Grande"), selection("decorations", "Topper premium y flores artificiales")] });
+  const reordered = await price({ productId: "custom", quantity: 1, preparationNoticeHours: 24, customization: [selection("decorations", "Topper premium y flores artificiales"), selection("sizes", "Grande")] });
+  const different = await price({ productId: "custom", quantity: 1, preparationNoticeHours: 24, customization: [selection("sizes", "Mediana"), selection("decorations", "Topper premium y flores artificiales")] });
   assert.equal(first.configurationId, reordered.configurationId);
   assert.notEqual(first.configurationId, different.configurationId);
+  assert.equal(first.preparationNoticeHours, 72);
 });
 
 test("rechaza opciones inexistentes", async () => {

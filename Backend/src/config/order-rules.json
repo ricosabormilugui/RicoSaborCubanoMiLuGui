@@ -3,6 +3,10 @@
   "sameDayDelivery": false,
   "advanceNoticeHours": 24,
   "personalizedAdvanceNoticeHours": 48,
+  "cakeAdvanceNoticeHours": 48,
+  "decoratedCakeAdvanceNoticeHours": 72,
+  "cakeCategoryIds": ["tartas"],
+  "decorationGroupKey": "decorations",
   "closedWeekdays": [],
   "paymentReservationMinutes": 120,
   "slots": {

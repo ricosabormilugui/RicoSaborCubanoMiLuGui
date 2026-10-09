@@ -7,6 +7,10 @@ export type DeliveryRules = {
   sameDayDelivery: boolean;
   advanceNoticeHours: number;
   personalizedAdvanceNoticeHours: number;
+  cakeAdvanceNoticeHours: number;
+  decoratedCakeAdvanceNoticeHours: number;
+  cakeCategoryIds: readonly string[];
+  decorationGroupKey: string;
   closedWeekdays: number[];
   slots: Record<DeliveryType, readonly string[]>;
   cashAllowedForAdvancePaymentOrders: boolean;
@@ -20,6 +24,10 @@ export const DELIVERY_RULES: DeliveryRules = {
   sameDayDelivery: orderRules.sameDayDelivery,
   advanceNoticeHours: orderRules.advanceNoticeHours,
   personalizedAdvanceNoticeHours: orderRules.personalizedAdvanceNoticeHours,
+  cakeAdvanceNoticeHours: orderRules.cakeAdvanceNoticeHours,
+  decoratedCakeAdvanceNoticeHours: orderRules.decoratedCakeAdvanceNoticeHours,
+  cakeCategoryIds: orderRules.cakeCategoryIds,
+  decorationGroupKey: orderRules.decorationGroupKey,
   closedWeekdays: orderRules.closedWeekdays,
   slots: orderRules.slots,
   cashAllowedForAdvancePaymentOrders: false,

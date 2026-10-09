@@ -66,9 +66,16 @@ export const PRODUCT_CREATION_PRESETS: ProductCreationPreset[] = [
           { name: 'Buttercream' }
         ],
         decorations: [
-          { name: 'Foto impresa' },
-          { name: 'Topper premium', price: 10 }
-        ]
+          { name: 'Imagen papel fotográfico', price: 5 },
+          { name: 'Topper premium y flores artificiales', price: 10 },
+          { name: 'Flores naturales', price: 15 }
+        ],
+        groupSettings: {
+          flavors: { selectionType: 'single', required: true },
+          fillings: { selectionType: 'single', required: true },
+          toppings: { selectionType: 'single', required: true },
+          decorations: { selectionType: 'single', required: false }
+        }
       }
     }
   },

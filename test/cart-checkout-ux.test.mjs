@@ -80,6 +80,7 @@ const {
 } = load('src/app/core/utils/cart-stock.ts');
 const { CouponDraftService } = load('src/app/core/services/coupon.service.ts');
 const { CheckoutDraftService } = load('src/app/core/services/checkout-draft.service.ts');
+const { instantInBusinessTimezone, reconcileFulfillmentSelection } = load('src/app/core/config/shipping.config.ts');
 
 function cart() {
   installStorage();
@@ -165,14 +166,41 @@ test('la antelación personalizada depende de opciones reales y se actualiza al 
   const service = cart();
   service.add(product('commercial-cake', { category: 'tartas' }));
   assert.equal(service.items()[0].requiresAdvancePayment, false);
+  assert.equal(service.items()[0].preparationNoticeHours, 48);
   service.syncInventory([product('commercial-cake', {
     category: 'tartas',
     customizationOptions: { sizes: [{ name: 'Mediana' }] }
   })]);
   assert.equal(service.items()[0].requiresAdvancePayment, true);
+  assert.equal(service.items()[0].preparationNoticeHours, 48);
   service.syncInventory([product('commercial-cake', { category: 'tartas', customizationOptions: {} })]);
   assert.equal(service.items()[0].requiresAdvancePayment, false);
-  assert.match(checkoutView(), /this\.requiredAdvanceNoticeHours\(\);[\s\S]*this\.reconcileDeliverySlot\(\)/);
+  assert.equal(service.items()[0].preparationNoticeHours, 48);
+
+  const normalConfigurable = product('normal-configurable', {
+    category: 'combos',
+    customizationOptions: { sizes: [{ name: 'Mediano' }] }
+  });
+  service.add(normalConfigurable, [{ groupKey: 'sizes', optionId: 'mediano', label: 'Tamaño', value: 'Mediano' }]);
+  assert.equal(service.items().find((item) => item.baseProductId === 'normal-configurable').preparationNoticeHours, 24);
+
+  const decorated = product('decorated-cake', { category: 'tartas', customizationOptions: { decorations: [{ name: 'Flores naturales' }] } });
+  service.add(decorated, [{ groupKey: 'decorations', optionId: 'flores-naturales', label: 'Decoración', value: 'Flores naturales', priceModifier: 15 }]);
+  assert.equal(service.items().find((item) => item.baseProductId === 'decorated-cake').preparationNoticeHours, 72);
+
+  const checkout = checkoutView();
+  assert.match(checkout, /const hours = this\.requiredAdvanceNoticeHours\(\)/);
+  assert.match(checkout, /this\.reconcileDeliverySlot\(\)/);
+  assert.match(checkout, /Este pedido necesita al menos \$\{hours\} horas de antelación/);
+});
+
+test('checkout conserva una fecha válida y limpia la que deja de cumplir al pasar de 48 a 72 horas', () => {
+  const now = instantInBusinessTimezone('2026-08-22', 12, 0);
+  const selected = { date: '2026-08-24', slot: '12:00-14:00' };
+  assert.deepEqual(reconcileFulfillmentSelection(selected.date, selected.slot, 'pickup', 48, now), selected);
+  assert.deepEqual(reconcileFulfillmentSelection(selected.date, selected.slot, 'pickup', 72, now), { date: '', slot: '' });
+  const later = { date: '2026-08-25', slot: '12:00-14:00' };
+  assert.deepEqual(reconcileFulfillmentSelection(later.date, later.slot, 'pickup', 72, now), later);
 });
 
 test('las páginas legales contienen defensas responsive contra scroll horizontal', () => {

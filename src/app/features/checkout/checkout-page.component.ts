@@ -35,6 +35,7 @@ import { resolveApiBaseUrl } from '../../core/config/api.config';
 import { cartBaseProductId, formatStockConflictMessage } from '../../core/utils/cart-stock';
 import { CartLineComponent } from '../../shared/ui/cart-line.component';
 import { IconComponent } from '../../shared/ui/icon.component';
+import { cartPreparationNoticeHours } from '../../core/utils/order-preparation';
 
 @Component({
   standalone: true,
@@ -73,6 +74,7 @@ export class CheckoutPageComponent {
   private shippingQuoteTimer?: ReturnType<typeof globalThis.setTimeout>;
   private shippingQuoteRequest = 0;
   private lastShippingQuoteKey = '';
+  private lastPreparationNoticeHours = DELIVERY_RULES.advanceNoticeHours;
 
   readonly form = this.fb.nonNullable.group({
     fullName: ['', [Validators.required]],
@@ -110,8 +112,16 @@ export class CheckoutPageComponent {
       untracked(() => this.resetPersonalForm());
     });
     effect(() => {
-      this.requiredAdvanceNoticeHours();
-      untracked(() => this.reconcileDeliverySlot());
+      const hours = this.requiredAdvanceNoticeHours();
+      untracked(() => {
+        const previousHours = this.lastPreparationNoticeHours;
+        const hadSelectedDate = Boolean(this.form.controls.deliveryDate.value);
+        this.lastPreparationNoticeHours = hours;
+        this.reconcileDeliverySlot();
+        if (hours > previousHours && hadSelectedDate && !this.form.controls.deliveryDate.value) {
+          this.notifications.warning('Selecciona otra fecha', `Este pedido necesita al menos ${hours} horas de antelación.`);
+        }
+      });
     });
 
     this.form.controls.email.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((email) => void this.checkEmailRegistered(email ?? ""));
@@ -379,9 +389,7 @@ export class CheckoutPageComponent {
 
 
   requiredAdvanceNoticeHours(): number {
-    return this.requiresAdvancePayment()
-      ? this.deliveryRules.personalizedAdvanceNoticeHours
-      : this.deliveryRules.advanceNoticeHours;
+    return cartPreparationNoticeHours(this.cart.items());
   }
 
   isInvalid(controlName: keyof typeof this.form.controls): boolean {

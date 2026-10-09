@@ -13,9 +13,10 @@ import {
   UNLIMITED_CART_QUANTITY
 } from '../utils/cart-stock';
 import { buildCustomizationOptionId, calculateFinalUnitPrice, getCustomizationGroupKeyByLabel, getPriceModifier, roundMoney } from '../utils/customization-pricing';
+import { productPreparationNoticeHours } from '../utils/order-preparation';
 
-const CART_SCHEMA_VERSION = 3;
-const SUPPORTED_CART_SCHEMA_VERSIONS = new Set([2, CART_SCHEMA_VERSION]);
+const CART_SCHEMA_VERSION = 4;
+const SUPPORTED_CART_SCHEMA_VERSIONS = new Set([2, 3, CART_SCHEMA_VERSION]);
 const MAX_RESTORED_QUANTITY = UNLIMITED_CART_QUANTITY;
 
 interface StoredCartState {
@@ -52,7 +53,7 @@ export class CartService implements OnDestroy {
     const basePrice = roundMoney(Number(product.price ?? 0));
     const unitPrice = calculateFinalUnitPrice(basePrice, customization);
     if (existing) {
-      const next = { ...existing, ...inventory, basePrice, unitPrice, customization: customization.length ? customization : undefined, requiresAdvancePayment: isProductCustomizable(product), minimumQuantity, unitLabel: String(product.unitLabel ?? '').trim() || undefined };
+      const next = { ...existing, ...inventory, basePrice, unitPrice, customization: customization.length ? customization : undefined, requiresAdvancePayment: isProductCustomizable(product), preparationNoticeHours: productPreparationNoticeHours(product, customization), minimumQuantity, unitLabel: String(product.unitLabel ?? '').trim() || undefined };
       const capped = this.clampQuantity(existing.quantity + addedQuantity, next, this.state());
       this.setItems(this.state().map((item) => (item.productId === productId ? { ...next, quantity: Math.max(minimumQuantity, capped) } : item)));
       return;
@@ -71,6 +72,7 @@ export class CartService implements OnDestroy {
       minimumQuantity,
       unitLabel: String(product.unitLabel ?? '').trim() || undefined,
       requiresAdvancePayment: isProductCustomizable(product),
+      preparationNoticeHours: productPreparationNoticeHours(product, customization),
       customization: customization.length ? customization : undefined,
       trackStock: inventory.trackStock,
       stock: inventory.stock,
@@ -151,6 +153,7 @@ export class CartService implements OnDestroy {
         stock: snapshot.trackStock ? snapshot.stock : undefined,
         lowStockAlert: snapshot.lowStockAlert,
         requiresAdvancePayment: isProductCustomizable(product),
+        preparationNoticeHours: productPreparationNoticeHours(product, item.customization),
         name: String(product.name ?? item.name),
         unavailable
       };
@@ -338,6 +341,9 @@ export class CartService implements OnDestroy {
       baseProductId,
       configurationId: configurationId || undefined,
       requiresAdvancePayment: Boolean(raw.requiresAdvancePayment) || Boolean(customization?.length),
+      preparationNoticeHours: [24, 48, 72].includes(Number(raw.preparationNoticeHours))
+        ? Number(raw.preparationNoticeHours)
+        : (raw.requiresAdvancePayment ? 48 : 24),
       customization,
       trackStock: raw.trackStock === true,
       stock: raw.trackStock === true ? Math.max(0, Math.floor(Number(raw.stock ?? 0))) : undefined,

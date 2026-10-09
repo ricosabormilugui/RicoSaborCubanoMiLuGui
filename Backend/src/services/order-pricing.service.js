@@ -7,6 +7,7 @@ import {
   isProductCustomizable,
   toMoneyCents
 } from "./product-customization.service.js";
+import { getProductPreparationNoticeHours } from "./order-preparation.service.js";
 
 export class OrderPricingError extends Error {
   constructor(message) {
@@ -122,7 +123,8 @@ export async function calculateCanonicalOrderItems(items, { productFinder = find
       minimumQuantity,
       unitLabel: String(product.unitLabel ?? "").trim() || undefined,
       customization: customization.length ? customization : undefined,
-      requiresAdvancePayment: isProductCustomizable(product)
+      requiresAdvancePayment: isProductCustomizable(product),
+      preparationNoticeHours: getProductPreparationNoticeHours(product, customization)
     });
   }
   return canonicalItems;

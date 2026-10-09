@@ -37,7 +37,8 @@ export class HomePageComponent {
   readonly whatsappUrl = buildWhatsAppContactUrl('Hola, quiero pedir información sobre una tarta personalizada o un pedido bajo encargo.');
   readonly brand = BRAND_CONFIG;
   readonly advanceNoticeHours = DELIVERY_RULES.advanceNoticeHours;
-  readonly personalizedNoticeHours = DELIVERY_RULES.personalizedAdvanceNoticeHours;
+  readonly personalizedNoticeHours = DELIVERY_RULES.cakeAdvanceNoticeHours;
+  readonly decoratedCakeNoticeHours = DELIVERY_RULES.decoratedCakeAdvanceNoticeHours;
   readonly marqueeItems = ['Casero', 'Sabor cubano', 'Por encargo', 'Hecho con cariño'];
   readonly marqueeLoop = Array.from({ length: 4 }, () => this.marqueeItems).flat();
   readonly bestSellersEyebrow = BEST_SELLERS_EYEBROW;

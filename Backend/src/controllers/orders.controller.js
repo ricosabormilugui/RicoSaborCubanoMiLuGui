@@ -23,6 +23,7 @@ import { RoutingProviderError } from "../services/openrouteservice.provider.js";
 import { sendOrderStatusEmail } from "../services/email.service.js";
 import { validateOrderFulfillment } from "../services/order-rules.service.js";
 import { calculateCanonicalOrderItems, OrderPricingError } from "../services/order-pricing.service.js";
+import { getOrderPreparationNoticeHours } from "../services/order-preparation.service.js";
 import { logger } from "../lib/logger.js";
 import { runMongoTransaction } from "../lib/mongo.js";
 import {
@@ -374,12 +375,9 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
     productFinder: (id) => findProductById(id, { session })
   });
   const requiresAdvancePayment = requiresAdvancePaymentForItems(canonicalItems);
-  if (requiresAdvancePayment) {
-    const personalizedDeliveryError = validateOrderFulfillment(normalizedDelivery, {
-      advanceNoticeHours: DELIVERY_RULES.personalizedAdvanceNoticeHours
-    });
-    if (personalizedDeliveryError) throw new OrderCreationBusinessError(personalizedDeliveryError);
-  }
+  const preparationNoticeHours = getOrderPreparationNoticeHours(canonicalItems);
+  const preparationDeliveryError = validateOrderFulfillment(normalizedDelivery, { advanceNoticeHours: preparationNoticeHours });
+  if (preparationDeliveryError) throw new OrderCreationBusinessError(preparationDeliveryError);
 
   const canonicalPayload = { ...payload, items: canonicalItems };
   const normalizedShipping = await normalizeShipping(canonicalPayload, normalizedDelivery, quoteService);
@@ -433,6 +431,7 @@ async function createOrderWithinTransaction({ payload, auth, idempotencyKey, req
     inventoryReleasedAt: null,
     cancellationReason: null,
     requiresAdvancePayment,
+    preparationNoticeHours,
     shipping: normalizedShipping.details,
     shippingCost: normalizedShipping.details.cost,
     subtotal,

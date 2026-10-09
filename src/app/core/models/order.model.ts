@@ -25,6 +25,7 @@ export interface CartItem {
   configurationId?: string;
   customization?: CartCustomizationSelection[];
   requiresAdvancePayment?: boolean;
+  preparationNoticeHours?: number;
   /** Copia de Product.trackStock. Si es false o ausente, no hay inventario limitado. */
   trackStock?: boolean;
   /** Unidades disponibles del producto base cuando trackStock es true. */
@@ -136,4 +137,5 @@ export interface OrderPayload {
   taxRate?: number;
   total: number;
   requiresAdvancePayment?: boolean;
+  preparationNoticeHours?: number;
 }

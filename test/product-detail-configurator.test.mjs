@@ -152,29 +152,26 @@ test('selección single, extra y precio dinámico sobre un producto personalizab
   assert.ok(page.configurationSummary(product).includes('Nutella'));
 });
 
-test('selección multiple permite marcar y desmarcar extras', () => {
-  const product = cakeProduct({
-    customizationOptions: {
-      ...cakeProduct().customizationOptions,
-      groupSettings: { decorations: { selectionType: 'multiple', required: false } },
-      decorations: [
-        { name: 'Foto impresa' },
-        { name: 'Topper premium', priceModifier: 10 },
-        { name: 'Flores', priceModifier: 6 }
-      ]
-    }
-  });
+test('Decoración es opcional, single, sustituible y desmarcable', () => {
+  const product = cakeProduct();
   const page = pageFor(product);
   const decorations = page.customizationGroups(product).find((group) => group.key === 'decorations');
-  assert.equal(decorations.selectionType, 'multiple');
+  assert.equal(decorations.selectionType, 'single');
+  assert.equal(decorations.required, false);
+  assert.deepEqual(decorations.options.map((option) => [option.name, option.priceModifier]), [
+    ['Imagen papel fotográfico', 5],
+    ['Topper premium y flores artificiales', 10],
+    ['Flores naturales', 15]
+  ]);
+  page.selectCustomization(decorations, decorations.options[0]);
+  assert.equal(page.customizationExtraTotal(), 5);
   page.selectCustomization(decorations, decorations.options[1]);
-  page.selectCustomization(decorations, decorations.options[2]);
+  assert.equal(page.isOptionSelected('decorations', decorations.options[0]), false);
   assert.equal(page.isOptionSelected('decorations', decorations.options[1]), true);
-  assert.equal(page.isOptionSelected('decorations', decorations.options[2]), true);
-  assert.equal(page.customizationExtraTotal(), 16);
+  assert.equal(page.customizationExtraTotal(), 10);
   page.selectCustomization(decorations, decorations.options[1]);
   assert.equal(page.isOptionSelected('decorations', decorations.options[1]), false);
-  assert.equal(page.customizationExtraTotal(), 6);
+  assert.equal(page.customizationExtraTotal(), 0);
 });
 
 test('addToCart crea configurationId distinto por configuración y no lanza si falta un obligatorio', () => {
@@ -186,16 +183,26 @@ test('addToCart crea configurationId distinto por configuración y no lanza si f
   assert.equal(page.addToCart(product), false);
   assert.match(page.customizationError(), /Selecciona .+ para continuar/);
 
-  for (const group of groups) page.selectCustomization(group, group.options[0]);
+  for (const group of groups.filter((group) => group.required)) page.selectCustomization(group, group.options[0]);
   assert.equal(page.addToCart(product), true);
   const first = cart.items()[0];
   assert.ok(first.configurationId);
   assert.equal(first.baseProductId, product.id);
+  assert.equal(first.customization.some((selection) => selection.groupKey === 'decorations'), false);
+  assert.equal(first.preparationNoticeHours, 48);
 
-  const other = groups.find((group) => group.options.length > 1);
-  page.selectCustomization(other, other.options[1]);
+  const decorations = groups.find((group) => group.key === 'decorations');
+  page.selectCustomization(decorations, decorations.options[0]);
   const customizationB = buildCartCustomizationSelections(product, page.selectedCustomization());
   cart.add(product, customizationB, 1);
   assert.equal(cart.items().length, 2);
   assert.notEqual(cart.items()[0].configurationId, cart.items()[1].configurationId);
+  assert.equal(cart.items()[1].preparationNoticeHours, 72);
+});
+
+test('la ficha informa Decoración opcional y 72 horas sin bloquear por ausencia', () => {
+  const template = readFileSync(resolve(root, 'src/app/features/catalog/product-detail-page.component.html'), 'utf8');
+  assert.match(template, /Opcional[\s\S]*Máximo una opción/);
+  assert.match(template, /Puedes solicitar tu tarta sin decoración adicional/);
+  assert.match(template, /necesitaremos 72 horas de antelación/);
 });

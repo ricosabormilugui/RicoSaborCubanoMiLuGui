@@ -121,8 +121,10 @@
                   <span class="group-check" *ngIf="isGroupComplete(group)" aria-hidden="true">✓</span>
                   {{ group.label }}
                 </span>
-                <span class="group-meta">{{ group.required ? 'Obligatorio' : 'Opcional' }} · {{ group.selectionType === 'multiple' ? 'Puedes elegir varias' : 'Una opción' }}</span>
+                <span class="group-meta">{{ group.required ? 'Obligatorio' : 'Opcional' }} · {{ group.selectionType === 'multiple' ? 'Puedes elegir varias' : (group.required ? 'Una opción' : 'Máximo una opción') }}</span>
               </legend>
+
+              <small class="group-meta" *ngIf="group.key === 'decorations'">Puedes solicitar tu tarta sin decoración adicional. Si añades una decoración, necesitaremos 72 horas de antelación para prepararla.</small>
 
               <div
                 class="option-grid"

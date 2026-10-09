@@ -12,7 +12,8 @@
     "diagnose:pending-payment-reservations": "node scripts/diagnose-pending-payment-reservations.js",
     "diagnose:admin-favorites": "node scripts/diagnose-admin-favorites.js",
     "cleanup:admin-favorites": "node scripts/cleanup-admin-favorites.js",
-    "migrate:product-slugs": "node scripts/migrate-product-slugs.js"
+    "migrate:product-slugs": "node scripts/migrate-product-slugs.js",
+    "migrate:cake-decoration": "node scripts/make-cake-decoration-optional.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
