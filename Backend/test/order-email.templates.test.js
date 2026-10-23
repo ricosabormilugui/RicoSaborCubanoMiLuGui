@@ -159,11 +159,11 @@ test("caso I: total correcto y destacado", () => {
   assert.match(email.html, /font-size:18px;font-weight:700/);
 });
 
-test("el branding visual reutiliza logo light y paleta de la web", () => {
+test("el branding visual reutiliza la espiral oscura y paleta de la web", () => {
   const email = buildCustomerOrderEmail(sampleOrder(), {
     env: { ...PAYMENT_ENV, FRONTEND_URL: "https://mixsabor.example.test" }
   });
-  assert.match(email.html, /logo_mixsabor_light_256\.png/);
+  assert.match(email.html, /logo-espiral-oscura-256\.png/);
   assert.match(email.html, /alt="MIXSABOR"/);
   assert.match(email.html, /#e51a32/);
   assert.match(email.html, /#0068a8/);
@@ -174,8 +174,8 @@ test("el branding visual reutiliza logo light y paleta de la web", () => {
 });
 
 test("el logo del email es una URL pública absoluta y no usa localhost", () => {
-  const expectedPath = "/assets/branding/logo_mixsabor_light_256.png";
-  const assetOnDisk = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "public", "assets", "branding", "logo_mixsabor_light_256.png");
+  const expectedPath = "/assets/branding/logo-espiral-oscura-256.png";
+  const assetOnDisk = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "public", "assets", "branding", "logo-espiral-oscura-256.png");
   assert.equal(existsSync(assetOnDisk), true);
 
   const fromLocal = logoUrl({ FRONTEND_URL: "http://localhost:4200/" });

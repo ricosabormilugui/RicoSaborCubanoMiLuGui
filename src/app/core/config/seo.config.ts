@@ -10,7 +10,7 @@ export const SEO_SITE_CONFIG = {
   siteUrl: environment.siteUrl,
   locale: 'es_ES',
   twitterCard: 'summary_large_image',
-  defaultImage: '/assets/branding/logo_mixsabor_dark.png',
+  defaultImage: '/assets/branding/logo-espiral-clara.png',
   business: {
     name: BRAND_CONFIG.name,
     legalName: LEGAL_BUSINESS_CONFIG.legalName,

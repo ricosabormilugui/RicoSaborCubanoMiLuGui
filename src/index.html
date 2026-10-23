@@ -63,11 +63,11 @@
     <meta property="og:title" content="MIXSABOR | Sabores que se encuentran" />
     <meta property="og:description" content="Tartas personalizadas, platos cubanos y españoles, dulces y encargos para celebraciones, con entrega local o recogida." />
     <meta property="og:url" content="https://mixsabor.milugui.com/" />
-    <meta property="og:image" content="https://mixsabor.milugui.com/assets/branding/logo_mixsabor_dark.png" />
+    <meta property="og:image" content="https://mixsabor.milugui.com/assets/branding/logo-espiral-clara.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="MIXSABOR | Sabores que se encuentran" />
     <meta name="twitter:description" content="Tartas personalizadas, platos cubanos y españoles, dulces y encargos para celebraciones, con entrega local o recogida." />
-    <meta name="twitter:image" content="https://mixsabor.milugui.com/assets/branding/logo_mixsabor_dark.png" />
+    <meta name="twitter:image" content="https://mixsabor.milugui.com/assets/branding/logo-espiral-clara.png" />
   </head>
   <body>
     <app-root></app-root>
@@ -81,8 +81,8 @@
         const logo = document.getElementById('app-splash-logo');
         const dark = document.documentElement.getAttribute('data-theme') === 'dark';
         logo.src = dark
-          ? '/assets/branding/logo_mixsabor_dark.png'
-          : '/assets/branding/logo_mixsabor_light.png';
+          ? '/assets/branding/logo-espiral-clara.png'
+          : '/assets/branding/logo-espiral-oscura.png';
 
         const revealApp = () => {
           if (!root?.children.length) return;

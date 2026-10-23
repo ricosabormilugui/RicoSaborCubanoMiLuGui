@@ -13,12 +13,12 @@ test('caso 1: la configuración central devuelve MIXSABOR y el slogan oficial', 
 
 test('caso 2: el tema claro selecciona el logo para fondo claro', () => {
   const source = read('src/app/core/config/brand.config.ts');
-  assert.equal(brand.logos.light, '/assets/branding/logo_mixsabor_light_256.png');
+  assert.equal(brand.logos.light, '/assets/branding/logo-espiral-oscura-256.png');
   assert.match(source, /theme === 'dark' \? BRAND_CONFIG\.logos\.dark : BRAND_CONFIG\.logos\.light/);
 });
 
 test('caso 3: el tema oscuro selecciona el logo para fondo oscuro', () => {
-  assert.equal(brand.logos.dark, '/assets/branding/logo_mixsabor_dark_256.png');
+  assert.equal(brand.logos.dark, '/assets/branding/logo-espiral-clara-256.png');
   assert.notEqual(brand.logos.dark, brand.logos.light);
 });
 

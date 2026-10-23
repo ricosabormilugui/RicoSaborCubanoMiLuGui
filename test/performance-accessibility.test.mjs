@@ -25,9 +25,9 @@ test('el shell no carga Forms ni Angular Animations para controles nativos simpl
 });
 
 test('los logos derivados conservan originales y reducen el peso de descarga', () => {
-  for (const theme of ['light', 'dark']) {
-    const original = `public/assets/branding/logo_mixsabor_${theme}.png`;
-    const optimized = `public/assets/branding/logo_mixsabor_${theme}_256.png`;
+  for (const variant of ['clara', 'oscura']) {
+    const original = `public/assets/branding/logo-espiral-${variant}.png`;
+    const optimized = `public/assets/branding/logo-espiral-${variant}-256.png`;
     assert.deepEqual(pngDimensions(optimized), { width: 256, height: 256 });
     assert.ok(statSync(new URL(optimized, rootUrl)).size < statSync(new URL(original, rootUrl)).size / 5);
   }
