@@ -16,5 +16,9 @@ mediante filtros ni hacks visuales.
 
 `favicon_mixsabor_dark.png` es una variante derivada del logo dark, recortada sin
 redibujar ni recolorear la marca para que ocupe mejor el espacio de la pestaña.
-El original permanece intacto. Siguen pendientes un `apple-touch-icon` específico
-y una imagen social de marca.
+El original permanece intacto.
+
+Los iconos `pwa-icon-*` usan el símbolo original sobre fondo carbón. Las variantes
+`maskable` reducen el símbolo al área segura central para que Android pueda aplicar
+su máscara sin recortarlo. `pwa-icon-192.png` también se utiliza como
+`apple-touch-icon`.

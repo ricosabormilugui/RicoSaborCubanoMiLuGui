@@ -33,6 +33,13 @@ test('los logos derivados conservan originales y reducen el peso de descarga', (
   }
 });
 
+test('los iconos PWA normales y maskable tienen tamaños Android válidos', () => {
+  for (const size of [192, 512]) {
+    assert.deepEqual(pngDimensions(`public/assets/branding/pwa-icon-${size}.png`), { width: size, height: size });
+    assert.deepEqual(pngDimensions(`public/assets/branding/pwa-icon-maskable-${size}.png`), { width: size, height: size });
+  }
+});
+
 test('las imágenes Cloudinary usan formato/calidad automáticos, ancho limitado y srcset', () => {
   const utility = read('src/app/core/utils/responsive-image.ts');
   const home = read('src/app/features/home/home-page.component.html');
@@ -89,14 +96,13 @@ test('auth y contacto no dependen del placeholder como nombre accesible', () => 
   assert.match(contact, /aria-label="Mensaje"/);
 });
 
-test('el tema se determina antes de cargar la aplicación y no usa el esquema del sistema', () => {
+test('el tema se determina antes de cargar la aplicación y usa el esquema del sistema como fallback', () => {
   const index = read('src/index.html');
   const theme = read('src/app/core/services/theme.service.ts');
   assert.match(index, /localStorage\.getItem\('theme-mode'\)/);
   assert.match(index, /setAttribute\('data-theme', theme\)/);
-  assert.match(index, /data-theme="light"/);
-  assert.doesNotMatch(index, /prefers-color-scheme/);
-  assert.doesNotMatch(theme, /prefers-color-scheme/);
+  assert.match(index, /prefers-color-scheme: dark/);
+  assert.match(theme, /prefers-color-scheme: dark/);
   assert.match(theme, /DEFAULT_THEME: ThemeMode = 'light'/);
   assert.match(theme, /THEME_STORAGE_KEY = 'theme-mode'/);
 });

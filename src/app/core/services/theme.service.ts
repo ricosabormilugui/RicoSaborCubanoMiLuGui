@@ -16,22 +16,24 @@ export function parseThemeMode(value: string | null | undefined): ThemeMode | nu
   return value === 'light' || value === 'dark' ? value : null;
 }
 
-export function resolveThemeMode(value: string | null | undefined): ThemeMode {
-  return parseThemeMode(value) ?? DEFAULT_THEME;
+export function resolveThemeMode(value: string | null | undefined, prefersDark = false): ThemeMode {
+  return parseThemeMode(value) ?? (prefersDark ? 'dark' : DEFAULT_THEME);
 }
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly windowRef = this.document.defaultView;
+  private readonly colorSchemeQuery = this.windowRef?.matchMedia?.('(prefers-color-scheme: dark)');
   private readonly storedTheme = this.readStoredTheme();
   private hasExplicitPreference = this.storedTheme !== null;
 
-  readonly mode = signal<ThemeMode>(this.storedTheme ?? DEFAULT_THEME);
+  readonly mode = signal<ThemeMode>(resolveThemeMode(this.storedTheme, this.colorSchemeQuery?.matches));
 
   constructor() {
     effect(() => this.applyTheme(this.mode()));
     this.listenForExternalChanges();
+    this.listenForSystemThemeChanges();
   }
 
   toggle(): void {
@@ -89,7 +91,13 @@ export class ThemeService {
 
       const stored = parseThemeMode(event.newValue);
       this.hasExplicitPreference = stored !== null;
-      this.mode.set(stored ?? DEFAULT_THEME);
+      this.mode.set(resolveThemeMode(stored, this.colorSchemeQuery?.matches));
+    });
+  }
+
+  private listenForSystemThemeChanges(): void {
+    this.colorSchemeQuery?.addEventListener?.('change', (event) => {
+      if (!this.hasExplicitPreference) this.mode.set(event.matches ? 'dark' : 'light');
     });
   }
 }

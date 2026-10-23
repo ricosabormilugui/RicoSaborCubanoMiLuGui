@@ -69,7 +69,7 @@ function loader(document) {
   return load;
 }
 
-function createTheme({ stored, prefersDark = true } = {}) {
+function createTheme({ stored, prefersDark = false } = {}) {
   const local = memoryStorage();
   if (stored !== undefined && stored !== null) local.setItem('theme-mode', stored);
   const rootEl = element();
@@ -80,12 +80,7 @@ function createTheme({ stored, prefersDark = true } = {}) {
     body,
     defaultView: {
       localStorage: local,
-      matchMedia: () => ({
-        matches: !prefersDark,
-        addEventListener() {
-          throw new Error('prefers-color-scheme must not drive the initial theme');
-        }
-      }),
+      matchMedia: () => ({ matches: prefersDark, addEventListener() {} }),
       addEventListener(type, fn) {
         if (type === 'storage') storageListeners.push(fn);
       }
@@ -104,14 +99,13 @@ function createTheme({ stored, prefersDark = true } = {}) {
   };
 }
 
-function bootstrapTheme(stored) {
-  let theme = 'light';
+function bootstrapTheme(stored, prefersDark = false) {
   const source = readFileSync(resolve(root, 'src/index.html'), 'utf8');
   const script = source.match(/<script>\s*\(\(\) => \{([\s\S]*?)\}\)\(\);\s*<\/script>/)[1];
   const localStorage = memoryStorage();
   if (stored !== undefined && stored !== null) localStorage.setItem('theme-mode', stored);
   const document = { documentElement: element() };
-  const matchMedia = () => ({ matches: false });
+  const matchMedia = () => ({ matches: prefersDark });
   new Function('localStorage', 'document', 'matchMedia', script)(localStorage, document, matchMedia);
   return document.documentElement.attributes['data-theme'];
 }
@@ -123,14 +117,15 @@ test('resolveThemeMode: preferencia válida, vacío e inválido', () => {
   assert.equal(resolveThemeMode('light'), 'light');
   assert.equal(resolveThemeMode('dark'), 'dark');
   assert.equal(resolveThemeMode(null), 'light');
+  assert.equal(resolveThemeMode(null, true), 'dark');
   assert.equal(resolveThemeMode(undefined), 'light');
   assert.equal(resolveThemeMode(''), 'light');
   assert.equal(resolveThemeMode('system'), 'light');
   assert.equal(resolveThemeMode('{dark}'), 'light');
 });
 
-test('caso 1: localStorage vacío abre en light y no guarda hasta un cambio manual', () => {
-  const { service, local, rootEl } = createTheme();
+test('caso 1: localStorage vacío usa el esquema claro y no guarda hasta un cambio manual', () => {
+  const { service, local, rootEl } = createTheme({ prefersDark: false });
   assert.equal(service.mode(), 'light');
   assert.equal(rootEl.attributes['data-theme'], 'light');
   assert.equal(local.getItem('theme-mode'), null);
@@ -157,12 +152,12 @@ test('caso 3: volver a light persiste light', () => {
   assert.equal(reloaded.service.mode(), 'light');
 });
 
-test('caso 4: SO en dark sin theme-mode sigue en light', () => {
+test('caso 4: SO en dark sin theme-mode abre en dark', () => {
   const { service, local, rootEl } = createTheme({ prefersDark: true });
-  assert.equal(service.mode(), 'light');
-  assert.equal(rootEl.attributes['data-theme'], 'light');
+  assert.equal(service.mode(), 'dark');
+  assert.equal(rootEl.attributes['data-theme'], 'dark');
   assert.equal(local.getItem('theme-mode'), null);
-  assert.equal(bootstrapTheme(null), 'light');
+  assert.equal(bootstrapTheme(null, true), 'dark');
 });
 
 test('caso 5: theme-mode inválido hace fallback a light', () => {
@@ -174,12 +169,12 @@ test('caso 5: theme-mode inválido hace fallback a light', () => {
   assert.equal(bootstrapTheme('light'), 'light');
 });
 
-test('el arranque inline no consulta prefers-color-scheme y la clave permanece global', () => {
+test('el arranque inline consulta prefers-color-scheme y la clave permanece global', () => {
   const index = readFileSync(resolve(root, 'src/index.html'), 'utf8');
   const theme = readFileSync(resolve(root, 'src/app/core/services/theme.service.ts'), 'utf8');
   const auth = readFileSync(resolve(root, 'src/app/core/services/customer-auth.service.ts'), 'utf8');
-  assert.doesNotMatch(index, /prefers-color-scheme/);
-  assert.doesNotMatch(theme, /prefers-color-scheme/);
+  assert.match(index, /prefers-color-scheme/);
+  assert.match(theme, /prefers-color-scheme/);
   assert.doesNotMatch(theme, /sessionStorage/);
   assert.match(theme, /THEME_STORAGE_KEY = 'theme-mode'/);
   assert.doesNotMatch(auth, /theme-mode/);
