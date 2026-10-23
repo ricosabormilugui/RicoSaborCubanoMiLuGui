@@ -18,7 +18,7 @@ mediante filtros ni hacks visuales.
 redibujar ni recolorear la marca para que ocupe mejor el espacio de la pestaña.
 El original permanece intacto.
 
-Los iconos `pwa-icon-*` usan el símbolo original sobre fondo carbón. Las variantes
+Los iconos `pwa-icon-*` usan sobre fondo carbón el símbolo original de
+`logo_mixsabor_dark.png`, cuya variante marfil mantiene el contraste. Las variantes
 `maskable` reducen el símbolo al área segura central para que Android pueda aplicar
-su máscara sin recortarlo. `pwa-icon-192.png` también se utiliza como
-`apple-touch-icon`.
+su máscara sin recortarlo. `pwa-icon-192.png` también se utiliza como `apple-touch-icon`.
